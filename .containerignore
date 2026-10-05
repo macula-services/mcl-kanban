@@ -1,0 +1,6 @@
+_build
+deps
+.git
+.elixir_ls
+priv/plts
+apps/mcl_kanban_web/priv/static/assets
