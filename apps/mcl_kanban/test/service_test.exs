@@ -9,7 +9,8 @@ defmodule MclKanban.ServiceTest do
                  prioritise_card reserve_card get_boards get_board_by_repo get_card_by_id
                  get_my_cards enlist_agent discharge_agent open_board withdraw_card
                  open_package prioritise_package file_card unfile_card get_ladder
-                 defer_card resume_card defer_package resume_package defer_board resume_board)
+                 defer_card resume_card defer_package resume_package defer_board resume_board
+                 adopt_goal get_goal)
 
   test "the service module declares the mcl_om behaviour" do
     behaviours =

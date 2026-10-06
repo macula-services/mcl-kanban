@@ -10,6 +10,7 @@ defmodule MclKanban.BoardOverMeshTest do
   alias GuideCardLifecycle.AppointSupervisor.{AppointSupervisorV1, MaybeAppointSupervisor}
   alias GuideCardLifecycle.EnlistAgent.{EnlistAgentV1, MaybeEnlistAgent}
 
+  alias MclKanban.AdoptGoal.AdoptGoalResponder
   alias MclKanban.ClaimCard.ClaimCardResponder
   alias MclKanban.ClaimNextCard.ClaimNextCardResponder
   alias MclKanban.CommentOnCard.CommentOnCardResponder
@@ -20,6 +21,7 @@ defmodule MclKanban.BoardOverMeshTest do
   alias MclKanban.FileCard.FileCardResponder
   alias MclKanban.FinishCard.FinishCardResponder
   alias MclKanban.GetCardById.GetCardByIdResponder
+  alias MclKanban.GetGoal.GetGoalResponder
   alias MclKanban.GetLadder.GetLadderResponder
   alias MclKanban.GetMyCards.GetMyCardsResponder
   alias MclKanban.OpenBoard.OpenBoardResponder
@@ -287,5 +289,30 @@ defmodule MclKanban.BoardOverMeshTest do
              call(ResumePackageResponder, pia, %{issue_ref: ref})
 
     assert claims_mine?.()
+  end
+
+  test "the supervisor adopts the crew's goal; every claim carries its sentence and serves its packages first (#18)",
+       %{sup: sup} do
+    repo = "example-org/goal" <> uniq()
+    %{board: %{repo: ^repo}} = call(OpenBoardResponder, sup, %{repo: repo})
+    bob = enlist(sup)
+    ref = "#{repo}#100"
+    %{package: _} = call(OpenPackageResponder, sup, %{issue_ref: ref, title: "The goal"})
+    id = queue(bob, repo, 1)
+    %{card: _} = call(FileCardResponder, sup, %{card_id: id, package_ref: ref})
+
+    assert %{reason: "not_permitted"} =
+             call(AdoptGoalResponder, bob, %{goal: "Mine", packages: [ref]})
+
+    assert %{goal: %{goal: "So the goal ships", packages: [^ref]}} =
+             call(AdoptGoalResponder, sup, %{goal: "So the goal ships", packages: [ref]})
+
+    assert %{goal: %{goal: "So the goal ships", packages: [^ref], by: ^sup, at: at}} =
+             call(GetGoalResponder, bob, %{})
+
+    assert is_integer(at)
+
+    assert %{card: %{card_id: ^id}, goal: "So the goal ships"} =
+             call(ClaimNextCardResponder, bob, %{})
   end
 end
