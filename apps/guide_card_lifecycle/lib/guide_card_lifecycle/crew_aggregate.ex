@@ -6,6 +6,7 @@ defmodule GuideCardLifecycle.CrewAggregate do
 
   @behaviour :evoq_aggregate
 
+  alias GuideCardLifecycle.AdoptGoal.MaybeAdoptGoal
   alias GuideCardLifecycle.AppointPrioritiser.MaybeAppointPrioritiser
   alias GuideCardLifecycle.AppointSupervisor.MaybeAppointSupervisor
   alias GuideCardLifecycle.CrewState
@@ -48,6 +49,9 @@ defmodule GuideCardLifecycle.CrewAggregate do
 
   def execute(state, %{command_type: :appoint_prioritiser} = p),
     do: MaybeAppointPrioritiser.handle_payload(state, p)
+
+  def execute(state, %{command_type: :adopt_goal} = p),
+    do: MaybeAdoptGoal.handle_payload(state, p)
 
   def execute(_state, _payload), do: {:error, :unknown_command}
 end

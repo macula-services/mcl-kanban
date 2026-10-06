@@ -1,14 +1,15 @@
 defmodule GuideCardLifecycle.CrewState do
   # The crew as the crew aggregate holds it: enlisted agents by node id (hex),
-  # and the node ids of the supervisor and the prioritiser.
+  # the node ids of the supervisor and the prioritiser, and its goal (#18).
   @moduledoc false
 
-  defstruct agents: %{}, supervisor: nil, prioritiser: nil
+  defstruct agents: %{}, supervisor: nil, prioritiser: nil, goal: nil
 
   @type t :: %__MODULE__{
           agents: %{String.t() => String.t()},
           supervisor: String.t() | nil,
-          prioritiser: String.t() | nil
+          prioritiser: String.t() | nil,
+          goal: map() | nil
         }
 
   @spec new() :: t()
@@ -40,6 +41,9 @@ defmodule GuideCardLifecycle.CrewState do
 
   def apply_event(state, %{event_type: "prioritiser_appointed_v1", node_id: id}),
     do: %{state | prioritiser: id}
+
+  def apply_event(state, %{event_type: "goal_adopted_v1"} = e),
+    do: %{state | goal: %{goal: e.goal, packages: e.packages, by: e.by, at: e.at}}
 
   def apply_event(state, _other), do: state
 

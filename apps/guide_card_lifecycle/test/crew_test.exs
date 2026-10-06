@@ -183,7 +183,13 @@ defmodule GuideCardLifecycle.CrewTest do
 
       assert e.packages == ["example-org/widget#1", "example-org/gadget#2"]
       adopted = CrewState.apply_event(crew(), e)
-      assert adopted.goal == %{goal: "So the crew ships the board", packages: e.packages, by: "ada", at: e.at}
+
+      assert adopted.goal == %{
+               goal: "So the crew ships the board",
+               packages: e.packages,
+               by: "ada",
+               at: e.at
+             }
 
       {:ok, by_owner} = goal(Actor.owner())
       assert {:ok, [_]} = MaybeAdoptGoal.handle(crew(), by_owner)
