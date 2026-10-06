@@ -589,4 +589,50 @@ defmodule QueryBoards.QueriesTest do
     board = Enum.find(GetBoards.get_boards(), &(&1.board_id == b))
     assert board.counts == %{queued: 1, claimed: 0, blocked: 0, finished: 0}
   end
+
+  test "deferred work is never the next card, nor waiting work on its board (#17)" do
+    repo = "example-org/defer" <> uniq()
+    b = board(repo)
+    open_card = card(repo, b, 1)
+    paused_card = card(repo, b, 2)
+
+    deliver(
+      %{event_type: "card_deferred_v1", card_id: paused_card, reason: "not now", rank: nil, status: 65, by: "pia", at: 5},
+      1
+    )
+
+    node = hex32("defer-agent" <> uniq()) <> hex32("pad")
+    ids = GetNextCardForAgent.get_next_card_for_agent(node, 500) |> Enum.map(& &1.card_id)
+    assert open_card in ids
+    refute paused_card in ids
+
+    board = Enum.find(GetBoards.get_boards(), &(&1.board_id == b))
+    assert board.counts == %{queued: 1, claimed: 0, blocked: 0, finished: 0, deferred: 1}
+    assert board.deferred == 0
+
+    assert {:ok, %{deferred: 1, state: "deferred"}} = GetCardById.get_card_by_id(paused_card)
+  end
+
+  test "a paused repo's board says so, and none of its cards is the next card (#17)" do
+    repo = "example-org/pausedrepo" <> uniq()
+    b = board(repo)
+    c = card(repo, b, 1)
+    deliver(%{event_type: "board_deferred_v1", board_id: b, repo: repo, reason: "not now", by: "pia", at: 5}, 1)
+
+    node = hex32("defer-agent2" <> uniq()) <> hex32("pad")
+    refute c in Enum.map(GetNextCardForAgent.get_next_card_for_agent(node, 500), & &1.card_id)
+    assert %{deferred: 1} = Enum.find(GetBoards.get_boards(), &(&1.board_id == b))
+  end
+
+  test "a paused package says so on the ladder (#17)" do
+    repo = "example-org/pausedpkg" <> uniq()
+    ref = package("#{repo}#1", 1)
+
+    deliver(
+      %{event_type: "package_deferred_v1", package_id: "package-" <> hex32(ref), issue_ref: ref, reason: "later", rank: nil, status: 5, by: "pia", at: 5},
+      2
+    )
+
+    assert %{deferred: 1, rank: nil} = Enum.find(GetLadder.get_ladder().packages, &(&1.issue_ref == ref))
+  end
 end

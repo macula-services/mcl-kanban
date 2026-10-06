@@ -59,7 +59,8 @@ defmodule ProjectBoards.ReadModelMigrationsTest do
       pid = file_from(unquote(version))
       assert [_ | _] = migrate(pid)
 
-      assert ~w(ranked_at work_package package_rank package_card) -- columns("cards") == []
+      assert ~w(ranked_at work_package package_rank package_card deferred) -- columns("cards") == []
+      assert "deferred" in columns("packages")
       assert "issue_ref" in columns("packages")
 
       assert [["card-old", "Kept", 3, nil]] =
@@ -78,7 +79,7 @@ defmodule ProjectBoards.ReadModelMigrationsTest do
     Repo.put_dynamic_repo(pid)
     on_exit(fn -> File.rm(path) end)
 
-    assert [_, _, _] = migrate(pid)
+    assert [_, _, _, _] = migrate(pid)
 
     for table <- ~w(boards cards card_tags card_links card_comments crew packages) do
       assert columns(table) != [], table

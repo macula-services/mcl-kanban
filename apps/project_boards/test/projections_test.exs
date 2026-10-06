@@ -50,7 +50,9 @@ defmodule ProjectBoards.ProjectionsTest do
                    card_blocked_v1 card_unblocked_v1 card_finished_v1 card_withdrawn_v1
                    card_linked_v1 card_unlinked_v1 card_commented_v1
                    package_opened_v1 package_prioritised_v1 package_unpinned_v1
-                   card_filed_v1 card_unfiled_v1) do
+                   card_filed_v1 card_unfiled_v1 card_deferred_v1 card_resumed_v1
+                   package_deferred_v1 package_resumed_v1 board_deferred_v1
+                   board_resumed_v1) do
       assert type in types, type
     end
   end
@@ -485,5 +487,104 @@ defmodule ProjectBoards.ProjectionsTest do
     )
 
     assert [[0]] = flag.(head)
+  end
+
+  describe "deferred work (#17)" do
+    defp deferred_flag(id),
+      do: ReadModel.q("SELECT deferred, rank FROM cards WHERE card_id = ?", [id])
+
+    defp card_on(id, ref, board_id) do
+      deliver(
+        %{
+          event_type: "card_queued_v1",
+          card_id: id,
+          issue_ref: ref,
+          repo: "example-org/paused",
+          board_id: board_id,
+          title: "T",
+          story: nil,
+          kind: "slice",
+          tags: [],
+          status: 1,
+          by: "bob",
+          at: 100
+        },
+        0
+      )
+    end
+
+    defp new_id, do: "card-" <> String.pad_leading(uniq(), 32, "6")
+
+    test "a deferred card is marked and unranked; resumed, it is not" do
+      id = new_id()
+      queue(id, "example-org/widget#" <> uniq())
+
+      deliver(
+        %{event_type: "card_prioritised_v1", card_id: id, rank: 4, rationale: "r", status: 33, by: "owner", at: 2},
+        1
+      )
+
+      deliver(
+        %{event_type: "card_deferred_v1", card_id: id, reason: "not now", rank: nil, status: 65, by: "pia", at: 3},
+        2
+      )
+
+      assert [[1, nil]] = deferred_flag(id)
+      deliver(%{event_type: "card_resumed_v1", card_id: id, status: 1, by: "pia", at: 4}, 3)
+      assert [[0, nil]] = deferred_flag(id)
+    end
+
+    test "a paused package defers every card filed in it, and a card filed later; resumed, none" do
+      ref = "example-org/pkgdefer" <> uniq() <> "#1"
+      pkg = "package-" <> String.pad_leading(uniq(), 32, "7")
+      [a, b] = [new_id(), new_id()]
+      queue(a, "example-org/widget#" <> uniq())
+      queue(b, "example-org/widget#" <> uniq())
+
+      deliver(
+        %{event_type: "package_opened_v1", package_id: pkg, issue_ref: ref, title: "P", status: 1, by: "ada", at: 1},
+        0
+      )
+
+      deliver(%{event_type: "card_filed_v1", card_id: a, work_package: ref, status: 1, by: "ada", at: 2}, 1)
+
+      deliver(
+        %{event_type: "package_deferred_v1", package_id: pkg, issue_ref: ref, reason: "later", rank: nil, status: 5, by: "pia", at: 3},
+        1
+      )
+
+      assert [[1, _]] = deferred_flag(a)
+      assert [[1]] = ReadModel.q("SELECT deferred FROM packages WHERE package_id = ?", [pkg])
+
+      deliver(%{event_type: "card_filed_v1", card_id: b, work_package: ref, status: 1, by: "ada", at: 4}, 1)
+      assert [[1, _]] = deferred_flag(b)
+
+      deliver(
+        %{event_type: "package_resumed_v1", package_id: pkg, issue_ref: ref, status: 1, by: "pia", at: 5},
+        2
+      )
+
+      assert [[0, _]] = deferred_flag(a)
+      assert [[0, _]] = deferred_flag(b)
+    end
+
+    test "a paused repo defers its board's cards, and a card queued on it later; resumed, none" do
+      board = "board-" <> String.pad_leading(uniq(), 32, "8")
+      repo = "example-org/paused" <> uniq()
+      [a, b] = [new_id(), new_id()]
+      deliver(%{event_type: "board_opened_v1", board_id: board, repo: repo, at: 1}, 0)
+      card_on(a, repo <> "#1", board)
+
+      deliver(%{event_type: "board_deferred_v1", board_id: board, repo: repo, reason: "not now", by: "pia", at: 2}, 1)
+      assert [[1, _]] = deferred_flag(a)
+      assert [[5]] = ReadModel.q("SELECT status FROM boards WHERE board_id = ?", [board])
+
+      card_on(b, repo <> "#2", board)
+      assert [[1, _]] = deferred_flag(b)
+
+      deliver(%{event_type: "board_resumed_v1", board_id: board, repo: repo, by: "pia", at: 3}, 2)
+      assert [[0, _]] = deferred_flag(a)
+      assert [[0, _]] = deferred_flag(b)
+    end
   end
 end
