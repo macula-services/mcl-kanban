@@ -13,6 +13,9 @@ defmodule MclKanban.BoardOverMeshTest do
   alias MclKanban.ClaimCard.ClaimCardResponder
   alias MclKanban.ClaimNextCard.ClaimNextCardResponder
   alias MclKanban.CommentOnCard.CommentOnCardResponder
+  alias MclKanban.DeferBoard.DeferBoardResponder
+  alias MclKanban.DeferCard.DeferCardResponder
+  alias MclKanban.DeferPackage.DeferPackageResponder
   alias MclKanban.EnlistAgent.EnlistAgentResponder
   alias MclKanban.FileCard.FileCardResponder
   alias MclKanban.FinishCard.FinishCardResponder
@@ -23,6 +26,10 @@ defmodule MclKanban.BoardOverMeshTest do
   alias MclKanban.OpenPackage.OpenPackageResponder
   alias MclKanban.PrioritisePackage.PrioritisePackageResponder
   alias MclKanban.QueueCard.QueueCardResponder
+  alias MclKanban.ReserveCard.ReserveCardResponder
+  alias MclKanban.ResumeBoard.ResumeBoardResponder
+  alias MclKanban.ResumeCard.ResumeCardResponder
+  alias MclKanban.ResumePackage.ResumePackageResponder
   alias MclKanban.UnfileCard.UnfileCardResponder
 
   @moduletag timeout: 120_000
@@ -230,5 +237,45 @@ defmodule MclKanban.BoardOverMeshTest do
 
     assert %{card: card} = call(UnfileCardResponder, sup, %{card_id: id})
     refute Map.has_key?(card, :work_package)
+  end
+
+  test "the prioritiser pauses a repo, a package or a card over the mesh, and nobody is handed it until resumed (#17)",
+       %{sup: sup} do
+    pia = enlist(sup)
+    {:ok, appoint} = AppointPrioritiserV1.new(%{name: pia, by: Actor.owner()})
+    {:ok, _, _} = MaybeAppointPrioritiser.dispatch(appoint)
+
+    repo = "example-org/paused" <> uniq()
+    %{board: %{repo: ^repo}} = call(OpenBoardResponder, sup, %{repo: repo})
+    bob = enlist(sup)
+    id = queue(bob, repo, 1)
+    %{card: %{lane: ^bob}} = call(ReserveCardResponder, sup, %{card_id: id, lane: bob})
+
+    claims_mine? = fn -> match?(%{card: %{card_id: ^id}}, call(ClaimNextCardResponder, bob, %{})) end
+
+    assert %{reason: "not_permitted"} = call(DeferBoardResponder, bob, %{repo: repo, reason: "x"})
+    assert %{board: %{repo: ^repo, deferred: 1}} =
+             call(DeferBoardResponder, pia, %{repo: repo, reason: "not now"})
+
+    refute claims_mine?.()
+    assert %{board: %{repo: ^repo, deferred: 0}} = call(ResumeBoardResponder, pia, %{repo: repo})
+
+    assert %{card: %{state: "deferred", deferred: 1}} =
+             call(DeferCardResponder, pia, %{card_id: id, reason: "not now"})
+
+    refute claims_mine?.()
+    assert %{card: %{state: "queued", deferred: 0}} = call(ResumeCardResponder, pia, %{card_id: id})
+
+    ref = "#{repo}#900"
+    %{package: %{issue_ref: ^ref}} = call(OpenPackageResponder, sup, %{issue_ref: ref, title: "P"})
+    %{card: _} = call(FileCardResponder, sup, %{card_id: id, package_ref: ref})
+
+    assert %{package: %{issue_ref: ^ref, deferred: 1}} =
+             call(DeferPackageResponder, pia, %{issue_ref: ref, reason: "later"})
+
+    refute claims_mine?.()
+    assert %{package: %{issue_ref: ^ref, deferred: 0}} = call(ResumePackageResponder, pia, %{issue_ref: ref})
+
+    assert claims_mine?.()
   end
 end
