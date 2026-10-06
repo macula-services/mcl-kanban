@@ -16,7 +16,7 @@ defmodule ProjectBoards.ProjectionsTest do
     on_exit(fn ->
       :ok =
         ProjectBoards.ReadModel.write(
-          for t <- ~w(cards card_tags card_links card_comments boards crew),
+          for t <- ~w(cards card_tags card_links card_comments boards crew packages),
               do: {"DELETE FROM " <> t, []}
         )
     end)
@@ -48,7 +48,9 @@ defmodule ProjectBoards.ProjectionsTest do
                    card_prioritised_v1 card_unpinned_v1 card_reserved_v1
                    card_reservation_lifted_v1 card_claimed_v1 card_released_v1
                    card_blocked_v1 card_unblocked_v1 card_finished_v1 card_withdrawn_v1
-                   card_linked_v1 card_unlinked_v1 card_commented_v1) do
+                   card_linked_v1 card_unlinked_v1 card_commented_v1
+                   package_opened_v1 package_prioritised_v1 package_unpinned_v1
+                   card_filed_v1 card_unfiled_v1) do
       assert type in types, type
     end
   end
@@ -231,5 +233,193 @@ defmodule ProjectBoards.ProjectionsTest do
     assert [[1]] = ReadModel.q("SELECT status FROM boards WHERE board_id = ?", [id])
     deliver(%{event_type: "board_archived_v1", board_id: id, at: 2}, 1)
     assert [[3]] = ReadModel.q("SELECT status FROM boards WHERE board_id = ?", [id])
+  end
+
+  defp queue(id, ref) do
+    deliver(
+      %{
+        event_type: "card_queued_v1",
+        card_id: id,
+        issue_ref: ref,
+        repo: "example-org/widget",
+        board_id: "board-" <> String.duplicate("b", 32),
+        title: "Filed",
+        story: nil,
+        kind: "slice",
+        tags: [],
+        status: 1,
+        by: "bob",
+        at: 100
+      },
+      0
+    )
+  end
+
+  test "a package row is opened, ranked, pinned and unpinned; the version only moves forward" do
+    pkg = "package-" <> String.pad_leading(uniq(), 32, "1")
+    ref = "example-org/pkg" <> uniq() <> "#1"
+
+    deliver(
+      %{
+        event_type: "package_opened_v1",
+        package_id: pkg,
+        issue_ref: ref,
+        title: "Ship it",
+        status: 1,
+        by: "ada",
+        at: 10
+      },
+      0
+    )
+
+    assert [[^ref, "Ship it", :undefined, 0, 10]] =
+             ReadModel.q(
+               "SELECT issue_ref, title, rank, pinned, opened_at FROM packages WHERE package_id = ?",
+               [pkg]
+             )
+
+    deliver(
+      %{
+        event_type: "package_prioritised_v1",
+        package_id: pkg,
+        issue_ref: ref,
+        rank: 3,
+        rationale: "owner",
+        status: 3,
+        by: "owner",
+        at: 11
+      },
+      1
+    )
+
+    deliver(
+      %{
+        event_type: "package_prioritised_v1",
+        package_id: pkg,
+        issue_ref: ref,
+        rank: 9,
+        rationale: "late",
+        status: 1,
+        by: "pia",
+        at: 9
+      },
+      1
+    )
+
+    assert [[3, 1, "owner", "owner"]] =
+             ReadModel.q(
+               "SELECT rank, pinned, ranked_by, rationale FROM packages WHERE package_id = ?",
+               [pkg]
+             )
+
+    deliver(
+      %{
+        event_type: "package_unpinned_v1",
+        package_id: pkg,
+        issue_ref: ref,
+        status: 1,
+        by: "owner",
+        at: 12
+      },
+      2
+    )
+
+    assert [[3, 0]] = ReadModel.q("SELECT rank, pinned FROM packages WHERE package_id = ?", [pkg])
+  end
+
+  test "a filed card carries its package and the package's rank, which follows the package" do
+    pkg = "package-" <> String.pad_leading(uniq(), 32, "2")
+    ref = "example-org/pkg" <> uniq() <> "#4"
+    id = "card-" <> String.pad_leading(uniq(), 32, "3")
+    queue(id, "example-org/widget#" <> uniq())
+
+    deliver(
+      %{
+        event_type: "package_opened_v1",
+        package_id: pkg,
+        issue_ref: ref,
+        title: "P",
+        status: 1,
+        by: "ada",
+        at: 1
+      },
+      0
+    )
+
+    deliver(
+      %{
+        event_type: "package_prioritised_v1",
+        package_id: pkg,
+        issue_ref: ref,
+        rank: 5,
+        rationale: "r",
+        status: 1,
+        by: "pia",
+        at: 2
+      },
+      1
+    )
+
+    deliver(
+      %{event_type: "card_filed_v1", card_id: id, work_package: ref, status: 1, by: "ada", at: 3},
+      1
+    )
+
+    assert [[^ref, 5, 1]] =
+             ReadModel.q(
+               "SELECT work_package, package_rank, version FROM cards WHERE card_id = ?",
+               [id]
+             )
+
+    deliver(
+      %{
+        event_type: "package_prioritised_v1",
+        package_id: pkg,
+        issue_ref: ref,
+        rank: 2,
+        rationale: "r",
+        status: 1,
+        by: "pia",
+        at: 4
+      },
+      2
+    )
+
+    assert [[2]] = ReadModel.q("SELECT package_rank FROM cards WHERE card_id = ?", [id])
+
+    deliver(
+      %{
+        event_type: "card_unfiled_v1",
+        card_id: id,
+        work_package: ref,
+        status: 1,
+        by: "ada",
+        at: 5
+      },
+      2
+    )
+
+    assert [[:undefined, :undefined]] =
+             ReadModel.q("SELECT work_package, package_rank FROM cards WHERE card_id = ?", [id])
+  end
+
+  test "a card's rank records when it was ranked, for the order among equal ranks" do
+    id = "card-" <> String.pad_leading(uniq(), 32, "4")
+    queue(id, "example-org/widget#" <> uniq())
+
+    deliver(
+      %{
+        event_type: "card_prioritised_v1",
+        card_id: id,
+        rank: 7,
+        rationale: "",
+        status: 33,
+        by: "owner",
+        at: 77
+      },
+      1
+    )
+
+    assert [[7, 77]] = ReadModel.q("SELECT rank, ranked_at FROM cards WHERE card_id = ?", [id])
   end
 end
