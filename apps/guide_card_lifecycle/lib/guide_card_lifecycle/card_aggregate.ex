@@ -16,6 +16,7 @@ defmodule GuideCardLifecycle.CardAggregate do
   alias GuideCardLifecycle.BlockCard.MaybeBlockCard
   alias GuideCardLifecycle.ClaimCard.MaybeClaimCard
   alias GuideCardLifecycle.CommentOnCard.MaybeCommentOnCard
+  alias GuideCardLifecycle.FileCard.MaybeFileCard
   alias GuideCardLifecycle.FinishCard.MaybeFinishCard
   alias GuideCardLifecycle.LiftCardReservation.MaybeLiftCardReservation
   alias GuideCardLifecycle.LinkCard.MaybeLinkCard
@@ -27,6 +28,7 @@ defmodule GuideCardLifecycle.CardAggregate do
   alias GuideCardLifecycle.RewordCard.MaybeRewordCard
   alias GuideCardLifecycle.TagCard.MaybeTagCard
   alias GuideCardLifecycle.UnblockCard.MaybeUnblockCard
+  alias GuideCardLifecycle.UnfileCard.MaybeUnfileCard
   alias GuideCardLifecycle.UnlinkCard.MaybeUnlinkCard
   alias GuideCardLifecycle.UnpinCard.MaybeUnpinCard
   alias GuideCardLifecycle.UntagCard.MaybeUntagCard
@@ -49,7 +51,9 @@ defmodule GuideCardLifecycle.CardAggregate do
     withdraw_card: MaybeWithdrawCard,
     link_card: MaybeLinkCard,
     unlink_card: MaybeUnlinkCard,
-    comment_on_card: MaybeCommentOnCard
+    comment_on_card: MaybeCommentOnCard,
+    file_card: MaybeFileCard,
+    unfile_card: MaybeUnfileCard
   }
 
   @after_close [:tag_card, :untag_card, :link_card, :unlink_card, :comment_on_card]

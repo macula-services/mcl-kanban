@@ -33,6 +33,10 @@ defmodule GuideCardLifecycle.IssueRef do
   @spec card_id(String.t()) :: String.t()
   def card_id(issue_ref), do: "card-" <> digest(issue_ref)
 
+  @doc "A work package's stream id, from its issue reference."
+  @spec package_id(String.t()) :: String.t()
+  def package_id(issue_ref), do: "package-" <> digest(issue_ref)
+
   @spec board_id(String.t()) :: String.t()
   def board_id(repo), do: "board-" <> digest(repo)
 

@@ -32,7 +32,9 @@ defmodule GuideCardLifecycle.PackageTest do
     do: cmd(OpenPackageV1, %{issue_ref: @package, title: "Ship the widget", by: by})
 
   defp opened do
-    {:ok, events} = MaybeOpenPackage.handle(PackageState.new(IssueRef.package_id(@package)), open_cmd())
+    {:ok, events} =
+      MaybeOpenPackage.handle(PackageState.new(IssueRef.package_id(@package)), open_cmd())
+
     fold(PackageState.new(IssueRef.package_id(@package)), events, PackageState)
   end
 
@@ -117,7 +119,9 @@ defmodule GuideCardLifecycle.PackageTest do
     end
 
     test "an owner rank pins, and the prioritiser cannot move a pinned package" do
-      pinned = run(opened(), MaybePrioritisePackage, rank_cmd(Actor.owner(), 0, nil), PackageState)
+      pinned =
+        run(opened(), MaybePrioritisePackage, rank_cmd(Actor.owner(), 0, nil), PackageState)
+
       assert PackageState.pinned?(pinned)
 
       assert {:error, :pinned_by_owner} =
@@ -140,7 +144,12 @@ defmodule GuideCardLifecycle.PackageTest do
     test "a rank is a whole number, 0 or more" do
       for bad <- [-1, 1.5, "1", nil] do
         assert {:error, :invalid_rank} =
-                 PrioritisePackageV1.new(%{package_id: "p", rank: bad, rationale: "r", by: actor("pia")}),
+                 PrioritisePackageV1.new(%{
+                   package_id: "p",
+                   rank: bad,
+                   rationale: "r",
+                   by: actor("pia")
+                 }),
                inspect(bad)
       end
     end
@@ -148,7 +157,9 @@ defmodule GuideCardLifecycle.PackageTest do
 
   describe "unpin_package" do
     test "only the owner unpins, and only a pinned package" do
-      pinned = run(opened(), MaybePrioritisePackage, rank_cmd(Actor.owner(), 0, nil), PackageState)
+      pinned =
+        run(opened(), MaybePrioritisePackage, rank_cmd(Actor.owner(), 0, nil), PackageState)
+
       unpin = cmd(UnpinPackageV1, %{package_id: IssueRef.package_id(@package), by: Actor.owner()})
 
       unpinned = run(pinned, MaybeUnpinPackage, unpin, PackageState)
@@ -181,7 +192,8 @@ defmodule GuideCardLifecycle.PackageTest do
       assert {:ok, [_]} = MaybeFileCard.handle(queued_card(), file_cmd(Actor.owner()))
 
       for name <- ["bob", "pia"] do
-        assert {:error, :not_permitted} = MaybeFileCard.handle(queued_card(), file_cmd(actor(name)))
+        assert {:error, :not_permitted} =
+                 MaybeFileCard.handle(queued_card(), file_cmd(actor(name)))
       end
     end
 
@@ -189,7 +201,13 @@ defmodule GuideCardLifecycle.PackageTest do
       filed = run(queued_card(), MaybeFileCard, file_cmd(), CardState)
       assert {:error, :already_filed} = MaybeFileCard.handle(filed, file_cmd())
 
-      other = cmd(FileCardV1, %{card_id: IssueRef.card_id(@card), package_ref: "example-org/widget#2", by: actor("ada")})
+      other =
+        cmd(FileCardV1, %{
+          card_id: IssueRef.card_id(@card),
+          package_ref: "example-org/widget#2",
+          by: actor("ada")
+        })
+
       assert {:ok, [%{work_package: "example-org/widget#2"}]} = MaybeFileCard.handle(filed, other)
     end
 
@@ -203,7 +221,11 @@ defmodule GuideCardLifecycle.PackageTest do
 
     test "a package reference must read owner/repo#n" do
       assert {:error, :invalid_issue_ref} =
-               FileCardV1.new(%{card_id: IssueRef.card_id(@card), package_ref: "nope", by: actor("ada")})
+               FileCardV1.new(%{
+                 card_id: IssueRef.card_id(@card),
+                 package_ref: "nope",
+                 by: actor("ada")
+               })
     end
   end
 end

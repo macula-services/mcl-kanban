@@ -19,6 +19,7 @@ defmodule GuideCardLifecycle.CardState do
     :holder_node_id,
     :queued_at,
     :claimed_at,
+    :work_package,
     tags: [],
     links: [],
     comment_count: 0,
@@ -77,6 +78,8 @@ defmodule GuideCardLifecycle.CardState do
   defp fold(e, "card_unlinked_v1", s),
     do: %{s | links: List.delete(s.links, %{to_card_id: e.to_card_id, link: e.link})}
 
+  defp fold(e, "card_filed_v1", s), do: %{s | work_package: e.work_package}
+  defp fold(_e, "card_unfiled_v1", s), do: %{s | work_package: nil}
   defp fold(_e, "card_commented_v1", s), do: %{s | comment_count: s.comment_count + 1}
   defp fold(_e, _status_only, s), do: s
 end
