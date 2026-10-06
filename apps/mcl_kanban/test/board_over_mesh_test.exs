@@ -6,6 +6,7 @@ defmodule MclKanban.BoardOverMeshTest do
   use ExUnit.Case, async: false
 
   alias GuideCardLifecycle.Actor
+  alias GuideCardLifecycle.AppointPrioritiser.{AppointPrioritiserV1, MaybeAppointPrioritiser}
   alias GuideCardLifecycle.AppointSupervisor.{AppointSupervisorV1, MaybeAppointSupervisor}
   alias GuideCardLifecycle.EnlistAgent.{EnlistAgentV1, MaybeEnlistAgent}
 
@@ -13,11 +14,16 @@ defmodule MclKanban.BoardOverMeshTest do
   alias MclKanban.ClaimNextCard.ClaimNextCardResponder
   alias MclKanban.CommentOnCard.CommentOnCardResponder
   alias MclKanban.EnlistAgent.EnlistAgentResponder
+  alias MclKanban.FileCard.FileCardResponder
   alias MclKanban.FinishCard.FinishCardResponder
   alias MclKanban.GetCardById.GetCardByIdResponder
+  alias MclKanban.GetLadder.GetLadderResponder
   alias MclKanban.GetMyCards.GetMyCardsResponder
   alias MclKanban.OpenBoard.OpenBoardResponder
+  alias MclKanban.OpenPackage.OpenPackageResponder
+  alias MclKanban.PrioritisePackage.PrioritisePackageResponder
   alias MclKanban.QueueCard.QueueCardResponder
+  alias MclKanban.UnfileCard.UnfileCardResponder
 
   @moduletag timeout: 120_000
 
@@ -187,5 +193,42 @@ defmodule MclKanban.BoardOverMeshTest do
                title: "x",
                kind: "bug"
              })
+  end
+
+  test "the supervisor opens a package and files a card, the prioritiser ranks it, agents read the ladder",
+       %{sup: sup, repo: repo} do
+    pia = enlist(sup)
+    {:ok, appoint} = AppointPrioritiserV1.new(%{name: pia, by: Actor.owner()})
+    {:ok, _, _} = MaybeAppointPrioritiser.dispatch(appoint)
+
+    ref = "#{repo}#900" <> uniq()
+    bob = enlist(sup)
+    id = queue(bob, repo, 901)
+
+    assert %{reason: "not_permitted"} =
+             call(OpenPackageResponder, bob, %{issue_ref: ref, title: "Ship it"})
+
+    assert %{package: %{issue_ref: ^ref}} =
+             call(OpenPackageResponder, sup, %{issue_ref: ref, title: "Ship it"})
+
+    assert %{reason: "already_open"} =
+             call(OpenPackageResponder, sup, %{issue_ref: ref, title: "Ship it"})
+
+    assert %{card: %{work_package: ^ref}} =
+             call(FileCardResponder, sup, %{card_id: id, package_ref: ref})
+
+    assert %{package: %{issue_ref: ^ref, rank: 1}} =
+             call(PrioritisePackageResponder, pia, %{issue_ref: ref, rank: 1, rationale: "first"})
+
+    assert %{reason: "unknown_package"} =
+             call(FileCardResponder, sup, %{card_id: id, package_ref: "#{repo}#999999"})
+
+    %{packages: packages} = call(GetLadderResponder, bob, %{})
+    package = Enum.find(packages, &(&1.issue_ref == ref))
+    assert package.rank == 1
+    assert [%{card_id: ^id}] = package.cards
+
+    assert %{card: card} = call(UnfileCardResponder, sup, %{card_id: id})
+    refute Map.has_key?(card, :work_package)
   end
 end
