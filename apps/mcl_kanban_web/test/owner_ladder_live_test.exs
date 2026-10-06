@@ -366,4 +366,23 @@ defmodule MclKanbanWeb.OwnerLadderLiveTest do
     drawer |> element(~s(#drawer [phx-click="resume"])) |> render_click()
     assert eventually(fn -> match?({:ok, %{state: "queued"}}, GetCardById.get_card_by_id(id)) end)
   end
+
+  test "the owner adopts the crew's goal from the ladder; the banner shows it and when it was set (#18)" do
+    view = ladder()
+    repo = "example-org/goalui" <> uniq()
+    open_board(view, repo)
+    pkg = "#{repo}#80"
+    owner(OpenPackageV1, MaybeOpenPackage, %{issue_ref: pkg, title: "Ship the goal"})
+    assert eventually(fn -> has_element?(view, ~s(section[data-key="#{pkg}"])) end)
+
+    view |> element("#goal-btn") |> render_click()
+
+    view
+    |> form("#goal-form", %{"goal" => "So the crew pulls its own work", "packages" => [pkg]})
+    |> render_submit()
+
+    assert eventually(fn -> render(view) =~ "So the crew pulls its own work" end)
+    assert has_element?(view, "#goal [data-goal-package=\"#{pkg}\"]")
+    assert render(view) =~ "set by owner"
+  end
 end
