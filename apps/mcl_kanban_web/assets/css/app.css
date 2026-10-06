@@ -333,3 +333,6 @@ details.more{margin:0 0 12px}
 details.more summary{cursor:pointer;color:var(--ink-2);font-weight:600;font-size:13px;margin-bottom:10px}
 .toast form{margin:0}
 .toast [data-undo]{text-decoration:underline}
+/* #17: deferred work and paused groups recede; nobody is handed them */
+.card.is-paused,.pkg.paused .cards{opacity:.55}
+.paused-tag{color:var(--mute);font-weight:500}

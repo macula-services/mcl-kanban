@@ -23,6 +23,24 @@ No two members end up on the same issue through a package card (#15).
 - A package is done (`done` 1 in `get_ladder`) when it has cards and every
   one is finished. The board works it out; nobody claims or finishes it.
 
+### Added
+
+- "Not now" is a pause, not a rank (#17): `defer_card`/`resume_card`,
+  `defer_package`/`resume_package` and `defer_board`/`resume_board`, for the
+  prioritiser and the owner, with a reason. Deferred work stays queued and
+  nobody is handed it; no card is marked blocked. Deferring a card or a
+  package clears its rank and pin, so it returns unranked. `get_boards`
+  counts deferred cards apart and marks a paused repo; the ladder marks a
+  paused package; cards carry `deferred`. The owner pauses and resumes
+  packages and repos from their headers, and defers and resumes a card
+  from its drawer. A new migration adds the columns.
+
+### Fixed
+
+- A card released while blocked no longer waits for the supervisor: any
+  agent who may claim it can unblock it (#16).
+
+
 ## [0.2.3] - 2026-10-06
 
 A board fill no longer times out the mesh calls, and a dead event store no

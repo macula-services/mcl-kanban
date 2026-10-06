@@ -272,7 +272,7 @@ defmodule MclKanbanWeb.LadderComponents do
 
     ~H"""
     <section
-      class={["pkg", @group.kind == :loose && "loose", @group.kind == :package && @group.package.pinned == 1 && "pinned-pkg"]}
+      class={["pkg", @group.kind == :loose && "loose", @group.kind == :package && @group.package.pinned == 1 && "pinned-pkg", @group.deferred == 1 && "paused"]}
       data-key={@group.key}
       data-open={if @open, do: "1", else: "0"}
     >
@@ -298,7 +298,8 @@ defmodule MclKanbanWeb.LadderComponents do
       </div>
       <div class="pkg-right">
         <.bar cn={@cn} class="progress" />
-        <span class="count">{@cn.d}/{length(@group.all)} done<b :if={@cn.b > 0} class="blk"> · {@cn.b} blocked</b></span>
+        <span class="count">{@cn.d}/{length(@group.all)} done<b :if={@cn.b > 0} class="blk"> · {@cn.b} blocked</b><b :if={@group.deferred == 1} class="paused-tag"> · paused</b></span>
+        <.pause_toggle kind="package" key={@group.key} deferred={@group.deferred} />
         <span class="caret"><.caret /></span>
       </div>
     </div>
@@ -325,10 +326,31 @@ defmodule MclKanbanWeb.LadderComponents do
       <div><h2>{@group.key}<a href={"https://github.com/#{@group.key}/issues"} target="_blank" rel="noopener">issues ↗</a></h2></div>
       <div class="pkg-right">
         <.bar cn={@cn} class="progress" />
-        <span class="count">{@cn.c} in hand<b :if={@cn.b > 0} class="blk"> · {@cn.b} blocked</b></span>
+        <span class="count">{@cn.c} in hand<b :if={@cn.b > 0} class="blk"> · {@cn.b} blocked</b><b :if={@group.deferred == 1} class="paused-tag"> · paused</b></span>
+        <.pause_toggle kind="repo" key={@group.key} deferred={@group.deferred} />
         <span class="caret"><.caret /></span>
       </div>
     </div>
+    """
+  end
+
+  # Pause or resume a package or a repo (#17): paused, its cards stay queued
+  # and nobody is handed one until it is resumed.
+  attr(:kind, :string, required: true)
+  attr(:key, :string, required: true)
+  attr(:deferred, :integer, required: true)
+
+  defp pause_toggle(%{deferred: 1} = assigns) do
+    ~H"""
+    <button type="button" class="btn sm" data-resume={@key} phx-click="resume_group" phx-value-kind={@kind} phx-value-key={@key}
+      aria-label={"Resume #{@key}"}>Resume</button>
+    """
+  end
+
+  defp pause_toggle(assigns) do
+    ~H"""
+    <button type="button" class="btn sm" data-pause={@key} phx-click="pause_group" phx-value-kind={@kind} phx-value-key={@key}
+      aria-label={"Pause #{@key}: nobody is handed its cards until it is resumed"}>Pause</button>
     """
   end
 
@@ -356,7 +378,7 @@ defmodule MclKanbanWeb.LadderComponents do
     ~H"""
     <li
       id={"c-" <> @card.card_id}
-      class={["card", "is-" <> @card.state]}
+      class={["card", "is-" <> @card.state, @card.deferred == 1 && "is-paused"]}
       role="option"
       aria-selected={to_string(@selected == @card.card_id)}
       data-card-id={@card.card_id}
@@ -401,6 +423,12 @@ defmodule MclKanbanWeb.LadderComponents do
     <.holder :if={@card.holder} name={@card.holder} dot="blocked" />
     <span :if={!@card.holder} class="dot blocked" aria-label="blocked"></span>
     <span class="blk">blocked<span :if={@blocker}> by <a href="#" phx-click="open" phx-value-card={@blocker.card_id}>{short_ref(@blocker.issue_ref)}</a></span></span>
+    """
+  end
+
+  defp card_state(%{card: %{state: "deferred"}} = assigns) do
+    ~H"""
+    <span class="paused-tag">deferred</span>
     """
   end
 
@@ -579,6 +607,8 @@ defmodule MclKanbanWeb.LadderComponents do
             <button type="submit" class="btn sm">Set</button>
           </form>
           <button :if={@card.state == "blocked"} type="button" class="btn" phx-click="unblock">Unblock</button>
+          <button :if={@card.state == "queued"} type="button" class="btn" phx-click="open_dialog" phx-value-dialog="reason" phx-value-action="defer">Defer</button>
+          <button :if={@card.state == "deferred"} type="button" class="btn" phx-click="resume">Resume</button>
           <button :if={@card.state in ["claimed", "blocked"]} type="button" class="btn" phx-click="open_dialog" phx-value-dialog="reason" phx-value-action="release">Release from {@card.holder}</button>
           <button :if={@card.state in ["queued", "claimed"]} type="button" class="btn" phx-click="open_dialog" phx-value-dialog="reason" phx-value-action="block">Block</button>
           <form :if={@card.state == "queued"} id="reserve-form" class="btn lanepick" phx-change="reserve">
@@ -840,6 +870,26 @@ defmodule MclKanbanWeb.LadderComponents do
     """
   end
 
+  def dialogs(%{dialog: {:pause, kind, key}} = assigns) do
+    assigns = assign(assigns, kind: kind, key: key)
+
+    ~H"""
+    <dialog id="pause" phx-hook="Dialog" phx-mounted={keep_open()}>
+      <form id="pause-form" phx-change="dialog_change" phx-submit="pause">
+        <input type="hidden" name="kind" value={@kind} />
+        <input type="hidden" name="key" value={@key} />
+        <h2>Pause {@key}</h2>
+        <p class="lead">Its cards stay queued, and nobody is handed one until you resume it. No card is marked blocked.<span :if={@kind == "package"}> The package loses its rank.</span></p>
+        <div class="field"><label for="p-reason">Why</label><input id="p-reason" name="reason" value={@values["reason"]} required autocomplete="off" /></div>
+        <div class="row">
+          <button class="btn" type="button" phx-click="close_dialog">Cancel</button>
+          <button class="btn primary" type="submit">Pause</button>
+        </div>
+      </form>
+    </dialog>
+    """
+  end
+
   def dialogs(%{dialog: {:reserve_for, name}} = assigns) do
     assigns =
       assign(assigns,
@@ -893,11 +943,16 @@ defmodule MclKanbanWeb.LadderComponents do
   defp reason_title("release"), do: "Release"
   defp reason_title("block"), do: "Block"
   defp reason_title("withdraw"), do: "Withdraw"
+  defp reason_title("defer"), do: "Defer"
 
   defp reason_lead("release"),
     do: "The card goes back to the queue, and the holder's work on it stops."
 
   defp reason_lead("block"), do: "Name what it waits for, usually another card."
+
+  defp reason_lead("defer"),
+    do:
+      "Not now: nobody is handed it until you resume it. It loses its rank and comes back unranked."
 
   defp reason_lead("withdraw"),
     do: "The card leaves the board for good; the issue stays on GitHub."

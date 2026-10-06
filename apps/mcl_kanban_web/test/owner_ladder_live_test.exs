@@ -353,8 +353,14 @@ defmodule MclKanbanWeb.OwnerLadderLiveTest do
 
     drawer = ladder("/?" <> URI.encode_query(%{"card" => id}))
     drawer |> element(~s(#drawer [phx-value-action="defer"])) |> render_click()
-    drawer |> form("#reason-form", %{"action" => "defer", "reason" => "not this week"}) |> render_submit()
-    assert eventually(fn -> match?({:ok, %{state: "deferred"}}, GetCardById.get_card_by_id(id)) end)
+
+    drawer
+    |> form("#reason-form", %{"action" => "defer", "reason" => "not this week"})
+    |> render_submit()
+
+    assert eventually(fn ->
+             match?({:ok, %{state: "deferred"}}, GetCardById.get_card_by_id(id))
+           end)
 
     assert eventually(fn -> has_element?(drawer, ~s(#drawer [phx-click="resume"])) end)
     drawer |> element(~s(#drawer [phx-click="resume"])) |> render_click()

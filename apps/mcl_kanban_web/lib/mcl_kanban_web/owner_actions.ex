@@ -27,6 +27,13 @@ defmodule MclKanbanWeb.OwnerActions do
   alias GuideCardLifecycle.TagCard.{MaybeTagCard, TagCardV1}
   alias GuideCardLifecycle.UnblockCard.{MaybeUnblockCard, UnblockCardV1}
   alias GuideCardLifecycle.UnfileCard.{MaybeUnfileCard, UnfileCardV1}
+  alias GuideCardLifecycle.DeferBoard.{DeferBoardV1, MaybeDeferBoard}
+  alias GuideCardLifecycle.DeferCard.{DeferCardV1, MaybeDeferCard}
+  alias GuideCardLifecycle.DeferPackage.{DeferPackageV1, MaybeDeferPackage}
+  alias GuideCardLifecycle.IssueRef
+  alias GuideCardLifecycle.ResumeBoard.{MaybeResumeBoard, ResumeBoardV1}
+  alias GuideCardLifecycle.ResumeCard.{MaybeResumeCard, ResumeCardV1}
+  alias GuideCardLifecycle.ResumePackage.{MaybeResumePackage, ResumePackageV1}
   alias GuideCardLifecycle.UnpinCard.{MaybeUnpinCard, UnpinCardV1}
   alias GuideCardLifecycle.UntagCard.{MaybeUntagCard, UntagCardV1}
   alias GuideCardLifecycle.WithdrawCard.{MaybeWithdrawCard, WithdrawCardV1}
@@ -38,6 +45,7 @@ defmodule MclKanbanWeb.OwnerActions do
     already_appointed:
       {"That agent already holds this role", "Pick another agent, or leave it as it is."},
     already_archived: {"That board is already archived", "Nothing to do."},
+    already_deferred: {"That is paused already", "Nothing to do."},
     already_blocked:
       {"The card is already blocked", "Unblock it first to block it for another reason."},
     already_claimed:
@@ -50,6 +58,8 @@ defmodule MclKanbanWeb.OwnerActions do
     already_open: {"That is open already", "Nothing to do."},
     already_tagged: {"The card already has that tag", "Nothing to do."},
     blocked: {"The card is blocked", "Unblock it first."},
+    deferred: {"That is paused", "Resume it first."},
+    not_deferred: {"That is not paused", "Nothing to do."},
     board_archived: {"That board is archived", "Queue the card on an open board."},
     finished: {"The card is finished", "Only tags, links and comments change a finished card."},
     invalid_card_id: {"That is not a card", "Reload the page; the card may be gone."},
@@ -256,6 +266,27 @@ defmodule MclKanbanWeb.OwnerActions do
     do: run(BlockCardV1, MaybeBlockCard, %{card_id: card_id, reason: reason})
 
   def unblock(card_id), do: run(UnblockCardV1, MaybeUnblockCard, %{card_id: card_id})
+
+  @doc "Not now (#17): the card, a package or a repo is paused, with a reason."
+  def defer(card_id, reason),
+    do: run(DeferCardV1, MaybeDeferCard, %{card_id: card_id, reason: reason})
+
+  def resume(card_id), do: run(ResumeCardV1, MaybeResumeCard, %{card_id: card_id})
+
+  def defer_package(ref, reason),
+    do:
+      run(DeferPackageV1, MaybeDeferPackage, %{
+        package_id: IssueRef.package_id(ref),
+        reason: reason
+      })
+
+  def resume_package(ref),
+    do: run(ResumePackageV1, MaybeResumePackage, %{package_id: IssueRef.package_id(ref)})
+
+  def defer_board(repo, reason),
+    do: run(DeferBoardV1, MaybeDeferBoard, %{repo: repo, reason: reason})
+
+  def resume_board(repo), do: run(ResumeBoardV1, MaybeResumeBoard, %{repo: repo})
 
   def reclassify(card_id, kind),
     do: run(ReclassifyCardV1, MaybeReclassifyCard, %{card_id: card_id, kind: kind})

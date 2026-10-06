@@ -84,10 +84,30 @@ defmodule MclKanbanWeb.LadderLive do
     end
   end
 
-  defp assign_groups(%{assigns: %{nav: nav, cards: cards, packages: packages}} = socket) do
+  defp assign_groups(%{assigns: %{nav: nav, cards: cards, packages: packages} = a} = socket) do
     visible = Enum.filter(cards, &shown?(&1, nav))
-    assign(socket, groups: groups(nav["view"], nav, visible, packages, cards))
+    paused = for b <- Map.get(a, :boards, []), b.deferred == 1, into: MapSet.new(), do: b.repo
+
+    groups =
+      nav["view"]
+      |> groups(nav, visible, packages, cards)
+      |> Enum.map(&paused(&1, paused))
+
+    assign(socket, groups: groups)
   end
+
+  # Whether a group is paused (#17): a package says so itself, a repo's
+  # board does, loose cards are never paused as a group.
+  defp paused(%{kind: :package, package: p} = group, _repos),
+    do: Map.put(group, :deferred, p.deferred)
+
+  defp paused(%{kind: :repo, key: repo} = group, repos),
+    do: Map.put(group, :deferred, flag(repo in repos))
+
+  defp paused(group, _repos), do: Map.put(group, :deferred, 0)
+
+  defp flag(true), do: 1
+  defp flag(false), do: 0
 
   defp shown?(card, nav),
     do:
@@ -208,6 +228,20 @@ defmodule MclKanbanWeb.LadderLive do
     do: {:noreply, assign(socket, values: params)}
 
   def handle_event("close_dialog", _params, socket), do: {:noreply, assign(socket, dialog: nil)}
+
+  # ---------- pause and resume a package or a repo (#17) ----------
+
+  def handle_event("pause_group", %{"kind" => kind, "key" => key}, socket),
+    do: {:noreply, assign(socket, dialog: {:pause, kind, key}, values: %{})}
+
+  def handle_event("pause", %{"kind" => kind, "key" => key, "reason" => reason}, socket) do
+    socket
+    |> assign(dialog: nil)
+    |> outcome(paused(kind, key, reason), fn -> "<b>#{esc(key)}</b> paused" end)
+  end
+
+  def handle_event("resume_group", %{"kind" => kind, "key" => key}, socket),
+    do: outcome(socket, resumed(kind, key), fn -> "<b>#{esc(key)}</b> resumed" end)
 
   def handle_event("dismiss_toast", %{"id" => id}, socket),
     do: {:noreply, update(socket, :toasts, &Enum.reject(&1, fn t -> t.id == id end))}
@@ -385,6 +419,9 @@ defmodule MclKanbanWeb.LadderLive do
         "#{label(socket, id)} is a <b>#{esc(kind)}</b>"
       end)
 
+  defp card_action("resume", id, _p, socket),
+    do: outcome(socket, OwnerActions.resume(id), fn -> "#{label(socket, id)} resumed" end)
+
   defp card_action("unblock", id, _p, socket),
     do: outcome(socket, OwnerActions.unblock(id), fn -> "#{label(socket, id)} unblocked" end)
 
@@ -411,12 +448,22 @@ defmodule MclKanbanWeb.LadderLive do
   defp reasoned("release", id, reason), do: OwnerActions.release(id, reason)
   defp reasoned("block", id, reason), do: OwnerActions.block(id, reason)
   defp reasoned("withdraw", id, reason), do: OwnerActions.withdraw(id, reason)
+  defp reasoned("defer", id, reason), do: OwnerActions.defer(id, reason)
   defp reasoned(_unknown, _id, _reason), do: {:error, :unknown_command}
 
   defp past("release"), do: "released to the queue"
   defp past("block"), do: "blocked"
   defp past("withdraw"), do: "withdrawn"
+  defp past("defer"), do: "deferred"
   defp past(_unknown), do: "changed"
+
+  defp paused("package", ref, reason), do: OwnerActions.defer_package(ref, reason)
+  defp paused("repo", repo, reason), do: OwnerActions.defer_board(repo, reason)
+  defp paused(_kind, _key, _reason), do: {:error, :unknown_command}
+
+  defp resumed("package", ref), do: OwnerActions.resume_package(ref)
+  defp resumed("repo", repo), do: OwnerActions.resume_board(repo)
+  defp resumed(_kind, _key), do: {:error, :unknown_command}
 
   # ---------- helpers ----------
 

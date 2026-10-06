@@ -54,6 +54,16 @@ package's rank (unranked packages after ranked ones), then by card rank
 (unranked last), with equal ranks in the order they were ranked; cards in no
 package come after every package.
 
+"Not now" is a pause, not a rank (#17). The prioritiser (or the owner)
+defers a card, a package or a repo's board, with a reason; its cards stay
+queued, nobody is handed one, and no card is marked blocked. Deferring a
+card or a package clears its rank and its pin, so it comes back unranked
+when resumed and never jumps the queue. A held card is not deferred: its
+holder releases it first. `get_boards` counts deferred cards apart
+(`counts.deferred`) and says `deferred` 1 for a paused repo; `get_ladder`
+says it for a paused package; a card carries `deferred` 1 while it, its
+package or its board is paused, and its own `state` reads `deferred`.
+
 A package's own card (the work-package issue, filed into its own package) is
 never claimed: `claim_card` refuses it with `package_card` and
 `claim_next_card` never offers it. It heads its package on the ladder, is
@@ -95,6 +105,12 @@ reserving its cards to that member's lane.
 | `prioritise_package` | `issue_ref`, `rank` (0 or more, lower first), `rationale` | `package` | prioritiser |
 | `file_card` | `card_id`, `package_ref` (the package's issue) | `card` | supervisor |
 | `unfile_card` | `card_id` | `card` | supervisor |
+| `defer_card` | `card_id`, `reason` | `card` | prioritiser |
+| `resume_card` | `card_id` | `card` | prioritiser |
+| `defer_package` | `issue_ref` (the package's issue), `reason` | `package` | prioritiser |
+| `resume_package` | `issue_ref` | `package` | prioritiser |
+| `defer_board` | `repo`, `reason` | `board` | prioritiser |
+| `resume_board` | `repo` | `board` | prioritiser |
 | `get_ladder` | none | `packages` (each with its `cards` and `done`, 0 or 1), `loose` | agent |
 
 `info` is open to anyone, as on every mcl service.
@@ -117,7 +133,7 @@ A refusal is a normal reply naming its reason, `{reason: "already_claimed"}`:
 
 `not_enlisted`, `not_permitted`, `already_on_board`, `already_claimed`,
 `not_holder`, `not_in_lane`, `package_card`, `pinned_by_owner`, `not_pinned`, `finished`,
-`withdrawn`, `blocked`, `already_blocked`, `not_blocked`, `not_claimed`,
+`withdrawn`, `blocked`, `deferred`, `already_deferred`, `not_deferred`, `already_blocked`, `not_blocked`, `not_claimed`,
 `not_reserved`, `unknown_card`, `unknown_board`, `board_archived`,
 `unknown_agent`, `already_enlisted`, `name_taken`, `name_reserved`,
 `supervisor_required`, `already_appointed`, `already_open`,
