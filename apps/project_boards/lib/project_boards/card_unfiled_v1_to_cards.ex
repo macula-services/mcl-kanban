@@ -1,5 +1,5 @@
-defmodule ProjectBoards.CardPrioritisedV1ToCards do
-  # Projects card_prioritised_v1 into cards: the rank, why, who ranked it and when (an owner rank is recorded as the owner).
+defmodule ProjectBoards.CardUnfiledV1ToCards do
+  # Projects card_unfiled_v1 into cards: a loose card again, no package rank.
   @moduledoc false
 
   @behaviour :evoq_event_handler
@@ -7,7 +7,7 @@ defmodule ProjectBoards.CardPrioritisedV1ToCards do
   import ProjectBoards.Projection, only: [card_update: 3, project: 3]
 
   @impl true
-  def interested_in, do: ["card_prioritised_v1"]
+  def interested_in, do: ["card_unfiled_v1"]
 
   @impl true
   def replay_policy, do: :deliver
@@ -21,12 +21,5 @@ defmodule ProjectBoards.CardPrioritisedV1ToCards do
   end
 
   defp statements(data, version),
-    do: [
-      card_update(data, version, [
-        {"rank", data.rank},
-        {"rationale", data.rationale},
-        {"ranked_by", data[:by]},
-        {"ranked_at", data.at}
-      ])
-    ]
+    do: [card_update(data, version, [{"work_package", nil}, {"package_rank", nil}])]
 end

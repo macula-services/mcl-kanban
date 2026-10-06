@@ -422,4 +422,28 @@ defmodule ProjectBoards.ProjectionsTest do
 
     assert [[7, 77]] = ReadModel.q("SELECT rank, ranked_at FROM cards WHERE card_id = ?", [id])
   end
+
+  test "a value that is gone is NULL in the read model, never the text nil" do
+    id = "card-" <> String.pad_leading(uniq(), 32, "5")
+    queue(id, "example-org/widget#" <> uniq())
+
+    deliver(
+      %{
+        event_type: "card_reserved_v1",
+        card_id: id,
+        lane: "bob",
+        lane_node_id: "ab",
+        status: 1,
+        at: 2
+      },
+      1
+    )
+
+    deliver(%{event_type: "card_reservation_lifted_v1", card_id: id, status: 1, at: 3}, 2)
+
+    assert [[:undefined, :undefined, :undefined]] =
+             ReadModel.q("SELECT lane, lane_node_id, story_role FROM cards WHERE card_id = ?", [
+               id
+             ])
+  end
 end

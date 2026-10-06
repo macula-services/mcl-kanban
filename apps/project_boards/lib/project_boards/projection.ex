@@ -34,6 +34,21 @@ defmodule ProjectBoards.Projection do
      args ++ [data.status, data.at, version, data.card_id, version]}
   end
 
+  @doc "The guarded update of a package row: the fields, its pin, its version."
+  def package_update(data, version, fields) do
+    {sets, args} = Enum.unzip(fields ++ [{"pinned", pinned(data.status)}])
+    set = Enum.map_join(sets ++ ["version"], ", ", &(&1 <> " = ?"))
+
+    {"UPDATE packages SET #{set} WHERE package_id = ? AND version < ?",
+     args ++ [version, data.package_id, version]}
+  end
+
+  defp pinned(status),
+    do: flag(:evoq_bit_flags.has(status, GuideCardLifecycle.PackageStatus.pinned()))
+
+  defp flag(true), do: 1
+  defp flag(false), do: 0
+
   @doc "A statement that runs only while the card row is older than this event."
   def guarded(sql, args, data, version),
     do:

@@ -22,8 +22,10 @@ defmodule ProjectBoards.ReadModel do
       rationale TEXT, ranked_by TEXT, lane TEXT, lane_node_id TEXT, holder TEXT,
       holder_node_id TEXT, status INTEGER NOT NULL, comment_count INTEGER NOT NULL DEFAULT 0,
       note TEXT, queued_by TEXT, queued_at INTEGER, claimed_at INTEGER,
-      changed_at INTEGER, version INTEGER NOT NULL)
+      changed_at INTEGER, version INTEGER NOT NULL, ranked_at INTEGER,
+      work_package TEXT, package_rank INTEGER)
     """,
+    "CREATE INDEX IF NOT EXISTS cards_by_package ON cards (work_package)",
     "CREATE INDEX IF NOT EXISTS cards_by_board ON cards (board_id)",
     "CREATE INDEX IF NOT EXISTS cards_by_holder ON cards (holder_node_id)",
     """
@@ -42,6 +44,13 @@ defmodule ProjectBoards.ReadModel do
       author_kind TEXT NOT NULL, text TEXT NOT NULL, at INTEGER NOT NULL)
     """,
     "CREATE INDEX IF NOT EXISTS card_comments_by_card ON card_comments (card_id, at)",
+    """
+    CREATE TABLE IF NOT EXISTS packages (
+      package_id TEXT PRIMARY KEY, issue_ref TEXT NOT NULL, title TEXT NOT NULL,
+      rank INTEGER, pinned INTEGER NOT NULL DEFAULT 0, ranked_by TEXT, rationale TEXT,
+      opened_by TEXT, opened_at INTEGER, version INTEGER NOT NULL)
+    """,
+    "CREATE UNIQUE INDEX IF NOT EXISTS packages_by_ref ON packages (issue_ref)",
     """
     CREATE TABLE IF NOT EXISTS crew (
       node_id TEXT PRIMARY KEY, name TEXT NOT NULL, supervisor INTEGER NOT NULL DEFAULT 0,
@@ -82,7 +91,12 @@ defmodule ProjectBoards.ReadModel do
     committed(Enum.reduce_while(statements, :ok, &run(conn, &1, &2)), conn)
   end
 
-  defp run(conn, {sql, args}, :ok), do: ran(:esqlite3.q(conn, sql, args))
+  defp run(conn, {sql, args}, :ok), do: ran(:esqlite3.q(conn, sql, Enum.map(args, &bound/1)))
+
+  # esqlite binds an atom as its name, so nil would land as the text "nil";
+  # :undefined is how esqlite writes NULL.
+  defp bound(nil), do: :undefined
+  defp bound(value), do: value
 
   defp ran(rows) when is_list(rows), do: {:cont, :ok}
   defp ran({:error, _} = error), do: {:halt, error}

@@ -17,6 +17,7 @@ defmodule ProjectBoards.Application do
     ProjectBoards.CardBlockedV1ToCards,
     ProjectBoards.CardClaimedV1ToCards,
     ProjectBoards.CardCommentedV1ToCardComments,
+    ProjectBoards.CardFiledV1ToCards,
     ProjectBoards.CardFinishedV1ToCards,
     ProjectBoards.CardLinkedV1ToCardLinks,
     ProjectBoards.CardPrioritisedV1ToCards,
@@ -28,10 +29,14 @@ defmodule ProjectBoards.Application do
     ProjectBoards.CardRewordedV1ToCards,
     ProjectBoards.CardTaggedV1ToCardTags,
     ProjectBoards.CardUnblockedV1ToCards,
+    ProjectBoards.CardUnfiledV1ToCards,
     ProjectBoards.CardUnlinkedV1ToCardLinks,
     ProjectBoards.CardUnpinnedV1ToCards,
     ProjectBoards.CardUntaggedV1ToCardTags,
     ProjectBoards.CardWithdrawnV1ToCards,
+    ProjectBoards.PackageOpenedV1ToPackages,
+    ProjectBoards.PackagePrioritisedV1ToPackages,
+    ProjectBoards.PackageUnpinnedV1ToPackages,
     ProjectBoards.PrioritiserAppointedV1ToCrew,
     ProjectBoards.SupervisorAppointedV1ToCrew
   ]
