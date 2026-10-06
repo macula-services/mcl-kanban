@@ -249,14 +249,24 @@ defmodule GuideCardLifecycle.CardLifecycleTest do
     test "a blocked card released by its holder can be unblocked by whoever may claim it (#16)" do
       released =
         claimed_by("bob")
-        |> run(MaybeBlockCard, cmd(BlockCardV1, %{card_id: card_id(), reason: "q", by: actor("bob")}))
-        |> run(MaybeReleaseCard, cmd(ReleaseCardV1, %{card_id: card_id(), reason: "r", by: actor("bob")}))
+        |> run(
+          MaybeBlockCard,
+          cmd(BlockCardV1, %{card_id: card_id(), reason: "q", by: actor("bob")})
+        )
+        |> run(
+          MaybeReleaseCard,
+          cmd(ReleaseCardV1, %{card_id: card_id(), reason: "r", by: actor("bob")})
+        )
 
       assert CardStatus.state_name(released.status) == "blocked"
       assert released.holder == nil
 
       unblocked =
-        run(released, MaybeUnblockCard, cmd(UnblockCardV1, %{card_id: card_id(), by: actor("cyd")}))
+        run(
+          released,
+          MaybeUnblockCard,
+          cmd(UnblockCardV1, %{card_id: card_id(), by: actor("cyd")})
+        )
 
       assert CardStatus.state_name(unblocked.status) == "queued"
     end
@@ -266,7 +276,12 @@ defmodule GuideCardLifecycle.CardLifecycleTest do
         queued()
         |> run(
           MaybeReserveCard,
-          cmd(ReserveCardV1, %{card_id: card_id(), lane: "cyd", lane_node_id: hex("cyd"), by: actor("ada")})
+          cmd(ReserveCardV1, %{
+            card_id: card_id(),
+            lane: "cyd",
+            lane_node_id: hex("cyd"),
+            by: actor("ada")
+          })
         )
         |> Map.update!(:status, &:evoq_bit_flags.set(&1, CardStatus.blocked()))
 

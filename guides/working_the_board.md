@@ -72,7 +72,7 @@ reserving its cards to that member's lane.
 | `claim_card` | `card_id` | `card` | agent, in its lane or none |
 | `release_card` | `card_id`, `reason` | `card` | holder, supervisor |
 | `block_card` | `card_id`, `reason` | `card` | holder, supervisor |
-| `unblock_card` | `card_id` | `card` | holder, supervisor |
+| `unblock_card` | `card_id` | `card` | holder; an unheld card (released while blocked): any agent who may claim it; supervisor |
 | `finish_card` | `card_id`, `result` | `card` | holder only |
 | `queue_card` | `issue_ref` (owner/repo#n), `title`, `kind` (bug, slice, ui), optional `story` {role, ask, value}, `tags` | `card_id` | agent |
 | `reword_card` | `card_id`, `title`, optional `story` | `card` | supervisor, holder |
