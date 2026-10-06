@@ -20,6 +20,7 @@ defmodule GuideCardLifecycle.ClaimCard.MaybeClaimCard do
       card.work_package != nil and card.work_package == card.issue_ref -> {:error, :package_card}
       CardStatus.has?(status, CardStatus.claimed()) -> {:error, :already_claimed}
       CardStatus.has?(status, CardStatus.blocked()) -> {:error, :blocked}
+      CardStatus.has?(status, CardStatus.deferred()) -> {:error, :deferred}
       card.lane_node_id not in [nil, by.node_id] -> {:error, :not_in_lane}
       true -> {:ok, [claimed(cmd, status)]}
     end

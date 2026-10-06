@@ -6,8 +6,10 @@ defmodule GuideCardLifecycle.BoardAggregate do
 
   alias GuideCardLifecycle.ArchiveBoard.MaybeArchiveBoard
   alias GuideCardLifecycle.BoardState
+  alias GuideCardLifecycle.DeferBoard.MaybeDeferBoard
   alias GuideCardLifecycle.LiveState
   alias GuideCardLifecycle.OpenBoard.MaybeOpenBoard
+  alias GuideCardLifecycle.ResumeBoard.MaybeResumeBoard
 
   @doc "The board as the live aggregate holds it now."
   @spec current(String.t()) :: BoardState.t()
@@ -28,6 +30,12 @@ defmodule GuideCardLifecycle.BoardAggregate do
 
   def execute(state, %{command_type: :archive_board} = p),
     do: MaybeArchiveBoard.handle_payload(state, p)
+
+  def execute(state, %{command_type: :defer_board} = p),
+    do: MaybeDeferBoard.handle_payload(state, p)
+
+  def execute(state, %{command_type: :resume_board} = p),
+    do: MaybeResumeBoard.handle_payload(state, p)
 
   def execute(_state, _payload), do: {:error, :unknown_command}
 end

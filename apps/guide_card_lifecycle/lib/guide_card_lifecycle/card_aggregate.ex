@@ -9,6 +9,8 @@ defmodule GuideCardLifecycle.CardAggregate do
 
   @behaviour :evoq_aggregate
 
+  alias GuideCardLifecycle.DeferCard.MaybeDeferCard
+  alias GuideCardLifecycle.ResumeCard.MaybeResumeCard
   alias GuideCardLifecycle.CardState
   alias GuideCardLifecycle.CardStatus
   alias GuideCardLifecycle.LiveState
@@ -53,7 +55,9 @@ defmodule GuideCardLifecycle.CardAggregate do
     unlink_card: MaybeUnlinkCard,
     comment_on_card: MaybeCommentOnCard,
     file_card: MaybeFileCard,
-    unfile_card: MaybeUnfileCard
+    unfile_card: MaybeUnfileCard,
+    defer_card: MaybeDeferCard,
+    resume_card: MaybeResumeCard
   }
 
   @after_close [:tag_card, :untag_card, :link_card, :unlink_card, :comment_on_card]

@@ -63,6 +63,7 @@ defmodule GuideCardLifecycle.CardState do
     do: %{s | rank: e.rank, rationale: e.rationale, ranked_by: e.by}
 
   defp fold(_e, "card_unpinned_v1", s), do: s
+  defp fold(_e, "card_deferred_v1", s), do: %{s | rank: nil, rationale: nil, ranked_by: nil}
   defp fold(e, "card_reserved_v1", s), do: %{s | lane: e.lane, lane_node_id: e.lane_node_id}
   defp fold(_e, "card_reservation_lifted_v1", s), do: %{s | lane: nil, lane_node_id: nil}
 

@@ -13,6 +13,7 @@ defmodule GuideCardLifecycle.BoardState do
 
   def open?(%__MODULE__{status: s}), do: :evoq_bit_flags.has(s, BoardStatus.opened())
   def archived?(%__MODULE__{status: s}), do: :evoq_bit_flags.has(s, BoardStatus.archived())
+  def deferred?(%__MODULE__{status: s}), do: :evoq_bit_flags.has(s, BoardStatus.deferred())
 
   @spec apply_event(t(), map()) :: t()
   def apply_event(state, %{data: data, event_type: type}),
@@ -23,6 +24,12 @@ defmodule GuideCardLifecycle.BoardState do
 
   def apply_event(state, %{event_type: "board_archived_v1"}),
     do: %{state | status: :evoq_bit_flags.set(state.status, BoardStatus.archived())}
+
+  def apply_event(state, %{event_type: "board_deferred_v1"}),
+    do: %{state | status: :evoq_bit_flags.set(state.status, BoardStatus.deferred())}
+
+  def apply_event(state, %{event_type: "board_resumed_v1"}),
+    do: %{state | status: :evoq_bit_flags.unset(state.status, BoardStatus.deferred())}
 
   def apply_event(state, _other), do: state
 end

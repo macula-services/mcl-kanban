@@ -14,6 +14,7 @@ defmodule GuideCardLifecycle.PrioritisePackage.MaybePrioritisePackage do
     cond do
       not Actor.allowed?(by, @who) -> {:error, :not_permitted}
       not PackageState.open?(package) -> {:error, :unknown_package}
+      PackageState.deferred?(package) -> {:error, :deferred}
       PackageState.pinned?(package) and by.kind != :owner -> {:error, :pinned_by_owner}
       true -> {:ok, [PackagePrioritisedV1.new(cmd, package, pinned(package.status, by))]}
     end

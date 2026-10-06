@@ -15,6 +15,9 @@ defmodule GuideCardLifecycle.PrioritiseCard.MaybePrioritiseCard do
       not Actor.allowed?(by, @who) ->
         {:error, :not_permitted}
 
+      CardStatus.has?(status, CardStatus.deferred()) ->
+        {:error, :deferred}
+
       CardStatus.pinned?(status) and by.kind != :owner ->
         {:error, :pinned_by_owner}
 

@@ -1,6 +1,7 @@
 defmodule GuideCardLifecycle.CardStatus do
   # A card's status, bit flags (#2): QUEUED 1, CLAIMED 2, BLOCKED 4,
-  # FINISHED 8, WITHDRAWN 16, PINNED 32. Each desk computes the status after
+  # FINISHED 8, WITHDRAWN 16, PINNED 32, DEFERRED 64 (#17: "not now", a state
+  # with a reason, never a rank). Each desk computes the status after
   # its event and the event carries it, so the aggregate, the read model and
   # the wire all read the same number.
   @moduledoc false
@@ -13,6 +14,7 @@ defmodule GuideCardLifecycle.CardStatus do
   def finished, do: 8
   def withdrawn, do: 16
   def pinned, do: 32
+  def deferred, do: 64
 
   def has?(status, flag), do: :evoq_bit_flags.has(status, flag)
   def pinned?(status), do: has?(status, pinned())
@@ -36,6 +38,7 @@ defmodule GuideCardLifecycle.CardStatus do
       has?(status, finished()) -> "finished"
       has?(status, blocked()) -> "blocked"
       has?(status, claimed()) -> "claimed"
+      has?(status, deferred()) -> "deferred"
       has?(status, queued()) -> "queued"
       true -> "unknown"
     end

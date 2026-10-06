@@ -5,16 +5,20 @@ defmodule GuideCardLifecycle.PackageAggregate do
 
   @behaviour :evoq_aggregate
 
+  alias GuideCardLifecycle.DeferPackage.MaybeDeferPackage
   alias GuideCardLifecycle.LiveState
   alias GuideCardLifecycle.OpenPackage.MaybeOpenPackage
   alias GuideCardLifecycle.PackageState
   alias GuideCardLifecycle.PrioritisePackage.MaybePrioritisePackage
+  alias GuideCardLifecycle.ResumePackage.MaybeResumePackage
   alias GuideCardLifecycle.UnpinPackage.MaybeUnpinPackage
 
   @desks %{
     open_package: MaybeOpenPackage,
     prioritise_package: MaybePrioritisePackage,
-    unpin_package: MaybeUnpinPackage
+    unpin_package: MaybeUnpinPackage,
+    defer_package: MaybeDeferPackage,
+    resume_package: MaybeResumePackage
   }
 
   @doc "The package as the live aggregate holds it now."

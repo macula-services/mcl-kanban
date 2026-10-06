@@ -14,6 +14,7 @@ defmodule GuideCardLifecycle.PackageState do
 
   def open?(%__MODULE__{status: s}), do: :evoq_bit_flags.has(s, PackageStatus.opened())
   def pinned?(%__MODULE__{status: s}), do: :evoq_bit_flags.has(s, PackageStatus.pinned())
+  def deferred?(%__MODULE__{status: s}), do: :evoq_bit_flags.has(s, PackageStatus.deferred())
 
   @spec apply_event(t(), map()) :: t()
   def apply_event(state, %{data: data, event_type: type}),
@@ -26,6 +27,12 @@ defmodule GuideCardLifecycle.PackageState do
     do: %{state | rank: e.rank, rationale: e.rationale, ranked_by: e.by, status: e.status}
 
   def apply_event(state, %{event_type: "package_unpinned_v1"} = e),
+    do: %{state | status: e.status}
+
+  def apply_event(state, %{event_type: "package_deferred_v1"} = e),
+    do: %{state | rank: nil, rationale: nil, ranked_by: nil, status: e.status}
+
+  def apply_event(state, %{event_type: "package_resumed_v1"} = e),
     do: %{state | status: e.status}
 
   def apply_event(state, _other), do: state
