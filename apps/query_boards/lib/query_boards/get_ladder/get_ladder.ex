@@ -31,16 +31,13 @@ defmodule QueryBoards.GetLadder.GetLadder do
       package_id: id,
       issue_ref: ref,
       title: title,
-      rank: nil_if(rank),
+      rank: rank,
       pinned: pinned,
-      ranked_by: nil_if(ranked_by),
-      rationale: nil_if(rationale),
-      opened_at: nil_if(opened_at),
+      ranked_by: ranked_by,
+      rationale: rationale,
+      opened_at: opened_at,
       repos: mine |> Enum.map(& &1.board) |> Enum.uniq() |> Enum.sort(),
       cards: mine
     }
   end
-
-  defp nil_if(:undefined), do: nil
-  defp nil_if(value), do: value
 end

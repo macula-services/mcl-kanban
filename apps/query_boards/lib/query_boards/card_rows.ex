@@ -1,7 +1,7 @@
 defmodule QueryBoards.CardRows do
   # How a card reads out of the read model, the same for every query: the
   # row, its tags, its links in both directions, and the derived words (state,
-  # colour, pinned 0/1). sqlite NULL arrives as :undefined and leaves as nil.
+  # colour, pinned 0/1).
   @moduledoc false
 
   alias GuideCardLifecycle.CardKind
@@ -58,32 +58,32 @@ defmodule QueryBoards.CardRows do
       board: repo,
       board_id: board_id,
       title: title,
-      story: story(nil_if(role), nil_if(ask), nil_if(value)),
+      story: story(role, ask, value),
       kind: kind,
       colour: CardKind.colour(kind),
       tags: tags(id),
-      rank: nil_if(rank),
-      rationale: nil_if(rationale),
-      ranked_by: nil_if(ranked_by),
-      lane: nil_if(lane),
-      lane_node_id: nil_if(lane_node_id),
-      holder: nil_if(holder),
-      holder_node_id: nil_if(holder_node_id),
+      rank: rank,
+      rationale: rationale,
+      ranked_by: ranked_by,
+      lane: lane,
+      lane_node_id: lane_node_id,
+      holder: holder,
+      holder_node_id: holder_node_id,
       status: status,
       state: CardStatus.state_name(status),
       pinned: pinned(CardStatus.pinned?(status)),
-      note: nil_if(note),
+      note: note,
       links: links(id),
       linked_from: linked_from(id),
       comment_count: comment_count,
-      queued_by: nil_if(queued_by),
+      queued_by: queued_by,
       queued_at: queued_at,
-      claimed_at: nil_if(claimed_at),
+      claimed_at: claimed_at,
       changed_at: changed_at,
       version: version,
-      ranked_at: nil_if(ranked_at),
-      work_package: nil_if(work_package),
-      package_rank: nil_if(package_rank)
+      ranked_at: ranked_at,
+      work_package: work_package,
+      package_rank: package_rank
     }
   end
 
@@ -92,9 +92,6 @@ defmodule QueryBoards.CardRows do
 
   defp pinned(true), do: 1
   defp pinned(false), do: 0
-
-  defp nil_if(:undefined), do: nil
-  defp nil_if(value), do: value
 
   defp tags(id),
     do:

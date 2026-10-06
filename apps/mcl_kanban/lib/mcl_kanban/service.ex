@@ -103,19 +103,15 @@ defmodule MclKanban.Service do
   @impl true
   def stop(_state), do: :ok
 
-  # The board is reachable when both read model connections answer.
+  # The board is reachable when the read model answers.
   @impl true
   def health do
-    case {ping(ProjectBoards.ReadModel), ping(QueryBoards.ReadModel)} do
-      {:ok, :ok} -> :ok
-      {projections, queries} -> {:degraded, %{read_model: projections, queries: queries}}
+    case ProjectBoards.Repo.query("SELECT 1", [], timeout: 1_000) do
+      {:ok, _} -> :ok
+      {:error, reason} -> {:degraded, %{read_model: inspect(reason)}}
     end
-  end
-
-  defp ping(name) do
-    GenServer.call(name, :ping, 1_000)
   catch
-    :exit, _ -> :missing
+    :exit, _ -> {:degraded, %{read_model: :missing}}
   end
 
   @impl true

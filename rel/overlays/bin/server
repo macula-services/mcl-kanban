@@ -1,0 +1,5 @@
+#!/bin/sh
+# Starts the release in the foreground.
+set -eu
+cd -P -- "$(dirname -- "$0")"
+exec ./mcl_kanban start

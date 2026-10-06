@@ -10,7 +10,12 @@ defmodule ProjectBoards.ReadModelMigrationsTest do
   @fixtures Path.expand("fixtures", __DIR__)
 
   defp file_from(version) do
-    path = Path.join(System.tmp_dir!(), "kanban_#{version}_#{System.unique_integer([:positive])}.sqlite3")
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "kanban_#{version}_#{System.unique_integer([:positive])}.sqlite3"
+      )
+
     {:ok, pid} = Repo.start_link(name: nil, database: path, pool_size: 1)
     Repo.put_dynamic_repo(pid)
 
@@ -24,7 +29,16 @@ defmodule ProjectBoards.ReadModelMigrationsTest do
 
     Repo.query!(
       "INSERT INTO cards (card_id, issue_ref, repo, board_id, title, kind, status, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-      ["card-old", "example-org/widget#1", "example-org/widget", "board-old", "Kept", "slice", 1, 3]
+      [
+        "card-old",
+        "example-org/widget#1",
+        "example-org/widget",
+        "board-old",
+        "Kept",
+        "slice",
+        1,
+        3
+      ]
     )
 
     on_exit(fn -> File.rm(path) end)
@@ -56,7 +70,9 @@ defmodule ProjectBoards.ReadModelMigrationsTest do
   end
 
   test "a fresh file gets the whole schema" do
-    path = Path.join(System.tmp_dir!(), "kanban_fresh_#{System.unique_integer([:positive])}.sqlite3")
+    path =
+      Path.join(System.tmp_dir!(), "kanban_fresh_#{System.unique_integer([:positive])}.sqlite3")
+
     {:ok, pid} = Repo.start_link(name: nil, database: path, pool_size: 1)
     Repo.put_dynamic_repo(pid)
     on_exit(fn -> File.rm(path) end)

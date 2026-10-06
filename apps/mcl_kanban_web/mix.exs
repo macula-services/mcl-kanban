@@ -12,7 +12,8 @@ defmodule MclKanbanWeb.MixProject do
       elixir: "~> 1.18",
       elixirc_options: [warnings_as_errors: true],
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      aliases: aliases()
     ]
   end
 
@@ -39,6 +40,18 @@ defmodule MclKanbanWeb.MixProject do
       {:project_boards, in_umbrella: true},
       {:query_boards, in_umbrella: true},
       {:mcl_kanban, in_umbrella: true}
+    ]
+  end
+
+  # The read model is migrated before the tests boot the apps, as bin/start
+  # migrates before the release boots.
+  defp aliases do
+    [
+      test: [
+        "ecto.create -r ProjectBoards.Repo --quiet",
+        "ecto.migrate -r ProjectBoards.Repo --quiet",
+        "test"
+      ]
     ]
   end
 end

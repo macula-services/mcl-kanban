@@ -8,6 +8,10 @@ config :logger, :console, format: "$date $time [$level] $message\n"
 
 config :phoenix, :json_library, Jason
 
+# The read model's Repo; its migrations run before boot (bin/start, and the
+# test alias in each app that reads it).
+config :project_boards, ecto_repos: [ProjectBoards.Repo]
+
 # NODE_PATH=deps lets esbuild resolve `import "phoenix"` and
 # `import "phoenix_live_view"` against the hex deps' own package.json; no npm.
 config :esbuild,

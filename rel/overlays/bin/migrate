@@ -1,0 +1,5 @@
+#!/bin/sh
+# Brings the read model up to date: every pending migration, then exit.
+set -eu
+cd -P -- "$(dirname -- "$0")"
+exec ./mcl_kanban eval ProjectBoards.Release.migrate

@@ -37,6 +37,16 @@ config :mcl_om,
   # which then runs with no mesh pool.
   realm_key: System.get_env("MCL_REALM_KEY", "")
 
+# THE READ MODEL: one sqlite file beside the store. WAL lets the queries read
+# while a projection writes; IMMEDIATE transactions take the write lock up
+# front, so two projections queue on the busy timeout instead of failing.
+config :project_boards, ProjectBoards.Repo,
+  database: Path.join(data_dir, "kanban.sqlite3"),
+  journal_mode: :wal,
+  busy_timeout: 5_000,
+  default_transaction_mode: :immediate,
+  pool_size: 5
+
 # THE PQ CRYPTO PROFILE, without which this node does not peer.
 config :macula, crypto_profile: :pq_hybrid
 

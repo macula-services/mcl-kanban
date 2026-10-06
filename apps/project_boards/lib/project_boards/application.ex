@@ -1,7 +1,8 @@
 defmodule ProjectBoards.Application do
   # The PRJ department: the pubsub seam first (so a projection can announce
   # the moment it starts; the web app depends on this app, so the registry
-  # exists before any LiveView), then the read model, then one
+  # exists before any LiveView), then the read model's Repo (already migrated
+  # by bin/start, or by the test alias), then one
   # evoq_event_handler per projection. The service app opens the store AFTER
   # this app has started, so every projection is registered when the store
   # subscription begins delivering.
@@ -49,7 +50,7 @@ defmodule ProjectBoards.Application do
     children =
       [
         {Phoenix.PubSub, name: MclKanbanWeb.PubSub},
-        {ProjectBoards.ReadModel, ProjectBoards.ReadModel.path()}
+        ProjectBoards.Repo
       ] ++ Enum.map(@projections, &handler/1)
 
     Supervisor.start_link(children, strategy: :one_for_one, name: ProjectBoards.Supervisor)

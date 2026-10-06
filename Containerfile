@@ -94,4 +94,6 @@ EXPOSE 8492 4010
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
     CMD curl -fsS "http://127.0.0.1:${MCL_HEALTH_PORT}/health" || exit 1
 
-CMD ["bin/mcl_kanban", "start"]
+# Migrations first, then the release (rel/overlays/bin/start): a new version
+# brings an older read model up to date before anything reads it.
+CMD ["bin/start"]

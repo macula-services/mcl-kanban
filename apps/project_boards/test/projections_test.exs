@@ -83,7 +83,7 @@ defmodule ProjectBoards.ProjectionsTest do
       0
     )
 
-    assert [[^id, "First", "bug", 1, :undefined, 0, 100]] =
+    assert [[^id, "First", "bug", 1, nil, 0, 100]] =
              ReadModel.q(
                "SELECT card_id, title, kind, status, rank, version, queued_at FROM cards WHERE card_id = ?",
                [id]
@@ -272,7 +272,7 @@ defmodule ProjectBoards.ProjectionsTest do
       0
     )
 
-    assert [[^ref, "Ship it", :undefined, 0, 10]] =
+    assert [[^ref, "Ship it", nil, 0, 10]] =
              ReadModel.q(
                "SELECT issue_ref, title, rank, pinned, opened_at FROM packages WHERE package_id = ?",
                [pkg]
@@ -399,7 +399,7 @@ defmodule ProjectBoards.ProjectionsTest do
       2
     )
 
-    assert [[:undefined, :undefined]] =
+    assert [[nil, nil]] =
              ReadModel.q("SELECT work_package, package_rank FROM cards WHERE card_id = ?", [id])
   end
 
@@ -441,7 +441,7 @@ defmodule ProjectBoards.ProjectionsTest do
 
     deliver(%{event_type: "card_reservation_lifted_v1", card_id: id, status: 1, at: 3}, 2)
 
-    assert [[:undefined, :undefined, :undefined]] =
+    assert [[nil, nil, nil]] =
              ReadModel.q("SELECT lane, lane_node_id, story_role FROM cards WHERE card_id = ?", [
                id
              ])
