@@ -1,17 +1,22 @@
 defmodule QueryBoards.GetBoards.GetBoards do
-  # get_boards: every board, with how many cards sit in each column.
+  # get_boards: every board, with how many cards sit in each column. A
+  # package's own card heads its package and sits in no column (#15), so an
+  # idle agent never reads "queued: 1" for a card claim_next_card won't give.
   @moduledoc false
 
+  alias QueryBoards.CardRows
   alias QueryBoards.ReadModel
 
   @spec get_boards() :: [map()]
   def get_boards do
+    on_board = "c.board_id = b.board_id AND " <> CardRows.not_package_card()
+
     """
     SELECT b.board_id, b.repo, b.status, b.opened_at,
-      (SELECT COUNT(*) FROM cards c WHERE c.board_id = b.board_id AND c.status & 30 = 0 AND c.status & 1 = 1),
-      (SELECT COUNT(*) FROM cards c WHERE c.board_id = b.board_id AND c.status & 2 = 2 AND c.status & 28 = 0),
-      (SELECT COUNT(*) FROM cards c WHERE c.board_id = b.board_id AND c.status & 4 = 4 AND c.status & 24 = 0),
-      (SELECT COUNT(*) FROM cards c WHERE c.board_id = b.board_id AND c.status & 8 = 8)
+      (SELECT COUNT(*) FROM cards c WHERE #{on_board} AND c.status & 30 = 0 AND c.status & 1 = 1),
+      (SELECT COUNT(*) FROM cards c WHERE #{on_board} AND c.status & 2 = 2 AND c.status & 28 = 0),
+      (SELECT COUNT(*) FROM cards c WHERE #{on_board} AND c.status & 4 = 4 AND c.status & 24 = 0),
+      (SELECT COUNT(*) FROM cards c WHERE #{on_board} AND c.status & 8 = 8)
     FROM boards b ORDER BY b.repo
     """
     |> ReadModel.q([])

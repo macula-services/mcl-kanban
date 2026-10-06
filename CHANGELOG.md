@@ -18,7 +18,7 @@ No two members end up on the same issue through a package card (#15).
   finished or released.
 - A package's own card heads its package: it is none of the package's cards
   on the ladder and never counts as waiting work (the next card, the crew's
-  next card, the ranked list). The read model marks it (`package_card`, a new
+  next card, the ranked list, the board counts in `get_boards`). The read model marks it (`package_card`, a new
   migration that also marks cards filed before this release).
 - A package is done (`done` 1 in `get_ladder`) when it has cards and every
   one is finished. The board works it out; nobody claims or finishes it.
