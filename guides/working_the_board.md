@@ -54,6 +54,13 @@ package's rank (unranked packages after ranked ones), then by card rank
 (unranked last), with equal ranks in the order they were ranked; cards in no
 package come after every package.
 
+The crew has one goal (#18): a sentence and the one or two packages it
+covers, adopted by the supervisor (`adopt_goal`) or the owner. Every
+`claim_next_card` and `claim_card` reply carries the sentence as `goal`.
+`claim_next_card` serves the goal's cards first: those in your lane, then
+unreserved ones; then the rest of your lane; then everything else. Nobody
+refuses an off-goal card. A reservation says who may do a card, not when.
+
 "Not now" is a pause, not a rank (#17). The prioritiser (or the owner)
 defers a card, a package or a repo's board, with a reason; its cards stay
 queued, nobody is handed one, and no card is marked blocked. Deferring a
@@ -111,6 +118,8 @@ reserving its cards to that member's lane.
 | `resume_package` | `issue_ref` | `package` | prioritiser |
 | `defer_board` | `repo`, `reason` | `board` | prioritiser |
 | `resume_board` | `repo` | `board` | prioritiser |
+| `adopt_goal` | `goal` (one sentence), `packages` (one or two work-package issue refs) | `goal` | supervisor |
+| `get_goal` | none | `goal` (`goal`, `packages`, `by`, `at`), absent before one is adopted | agent |
 | `get_ladder` | none | `packages` (each with its `cards` and `done`, 0 or 1), `loose` | agent |
 
 `info` is open to anyone, as on every mcl service.
@@ -133,7 +142,7 @@ A refusal is a normal reply naming its reason, `{reason: "already_claimed"}`:
 
 `not_enlisted`, `not_permitted`, `already_on_board`, `already_claimed`,
 `not_holder`, `not_in_lane`, `package_card`, `pinned_by_owner`, `not_pinned`, `finished`,
-`withdrawn`, `blocked`, `deferred`, `already_deferred`, `not_deferred`, `already_blocked`, `not_blocked`, `not_claimed`,
+`withdrawn`, `blocked`, `deferred`, `goal_required`, `invalid_goal_packages`, `already_deferred`, `not_deferred`, `already_blocked`, `not_blocked`, `not_claimed`,
 `not_reserved`, `unknown_card`, `unknown_board`, `board_archived`,
 `unknown_agent`, `already_enlisted`, `name_taken`, `name_reserved`,
 `supervisor_required`, `already_appointed`, `already_open`,

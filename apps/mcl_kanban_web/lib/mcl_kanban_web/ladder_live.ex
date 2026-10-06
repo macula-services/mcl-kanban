@@ -19,6 +19,7 @@ defmodule MclKanbanWeb.LadderLive do
   alias QueryBoards.GetBoards.GetBoards
   alias QueryBoards.GetCardById.GetCardById
   alias QueryBoards.GetCrew.GetCrew
+  alias QueryBoards.GetGoal.GetGoal
   alias QueryBoards.GetLadder.GetLadder
 
   @params ~w(view focus filter q card)
@@ -68,6 +69,7 @@ defmodule MclKanbanWeb.LadderLive do
       cards: cards,
       by_id: Map.new(cards, &{&1.card_id, &1}),
       crew: GetCrew.get_crew(),
+      goal: GetGoal.get_goal(),
       boards: Enum.filter(GetBoards.get_boards(), &(&1.archived == 0)),
       now: System.system_time(:millisecond)
     )
@@ -228,6 +230,16 @@ defmodule MclKanbanWeb.LadderLive do
     do: {:noreply, assign(socket, values: params)}
 
   def handle_event("close_dialog", _params, socket), do: {:noreply, assign(socket, dialog: nil)}
+
+  # ---------- the crew's goal (#18) ----------
+
+  def handle_event("adopt_goal", %{"goal" => goal} = p, socket) do
+    socket
+    |> assign(dialog: nil)
+    |> outcome(OwnerActions.adopt_goal(goal, Map.get(p, "packages", [])), fn ->
+      "Goal adopted: <b>#{esc(goal)}</b>. Members read it with every claim."
+    end)
+  end
 
   # ---------- pause and resume a package or a repo (#17) ----------
 
@@ -528,7 +540,7 @@ defmodule MclKanbanWeb.LadderLive do
   defp dialog("reason", p), do: {:reason, p["action"]}
   defp dialog("reserve_for", p), do: {:reserve_for, p["name"]}
 
-  defp dialog(name, _p) when name in ~w(enlist open_board queue help),
+  defp dialog(name, _p) when name in ~w(enlist open_board queue help goal),
     do: String.to_existing_atom(name)
 
   defp patch(socket, changes) do

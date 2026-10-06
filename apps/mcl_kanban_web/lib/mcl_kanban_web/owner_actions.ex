@@ -27,6 +27,7 @@ defmodule MclKanbanWeb.OwnerActions do
   alias GuideCardLifecycle.TagCard.{MaybeTagCard, TagCardV1}
   alias GuideCardLifecycle.UnblockCard.{MaybeUnblockCard, UnblockCardV1}
   alias GuideCardLifecycle.UnfileCard.{MaybeUnfileCard, UnfileCardV1}
+  alias GuideCardLifecycle.AdoptGoal.{AdoptGoalV1, MaybeAdoptGoal}
   alias GuideCardLifecycle.DeferBoard.{DeferBoardV1, MaybeDeferBoard}
   alias GuideCardLifecycle.DeferCard.{DeferCardV1, MaybeDeferCard}
   alias GuideCardLifecycle.DeferPackage.{DeferPackageV1, MaybeDeferPackage}
@@ -59,6 +60,9 @@ defmodule MclKanbanWeb.OwnerActions do
     already_tagged: {"The card already has that tag", "Nothing to do."},
     blocked: {"The card is blocked", "Unblock it first."},
     deferred: {"That is paused", "Resume it first."},
+    goal_required: {"A goal is one sentence", "Say what the crew is driving at, in one line."},
+    invalid_goal_packages:
+      {"A goal covers one or two packages", "Tick one package, or two; ranks order the rest."},
     not_deferred: {"That is not paused", "Nothing to do."},
     board_archived: {"That board is archived", "Queue the card on an open board."},
     finished: {"The card is finished", "Only tags, links and comments change a finished card."},
@@ -287,6 +291,10 @@ defmodule MclKanbanWeb.OwnerActions do
     do: run(DeferBoardV1, MaybeDeferBoard, %{repo: repo, reason: reason})
 
   def resume_board(repo), do: run(ResumeBoardV1, MaybeResumeBoard, %{repo: repo})
+
+  @doc "The crew's one goal (#18): a sentence and one or two packages."
+  def adopt_goal(goal, packages),
+    do: run(AdoptGoalV1, MaybeAdoptGoal, %{goal: goal, packages: packages})
 
   def reclassify(card_id, kind),
     do: run(ReclassifyCardV1, MaybeReclassifyCard, %{card_id: card_id, kind: kind})

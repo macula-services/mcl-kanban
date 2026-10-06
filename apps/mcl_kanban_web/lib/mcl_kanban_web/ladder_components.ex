@@ -70,6 +70,35 @@ defmodule MclKanbanWeb.LadderComponents do
     end)
   end
 
+  # ---------- the crew's goal (#18) ----------
+
+  attr(:goal, :map, default: nil)
+
+  defp goal_banner(%{goal: nil} = assigns) do
+    ~H"""
+    <section id="goal" class="goal empty" aria-label="Crew goal">
+      <p><b>No crew goal yet.</b> Set one so every member reads why with each card, and its packages come first.</p>
+      <button type="button" id="goal-btn" class="btn sm primary" phx-click="open_dialog" phx-value-dialog="goal">Set the goal</button>
+    </section>
+    """
+  end
+
+  defp goal_banner(assigns) do
+    ~H"""
+    <section id="goal" class="goal" aria-label="Crew goal">
+      <div>
+        <small>Crew goal</small>
+        <p class="goal-text">{@goal.goal}</p>
+        <p class="goal-meta">
+          <span :for={p <- @goal.packages} class="goal-pkg" data-goal-package={p}>{short_ref(p)}</span>
+          <span>set by {@goal.by} · {at(@goal.at)}</span>
+        </p>
+      </div>
+      <button type="button" id="goal-btn" class="btn sm" phx-click="open_dialog" phx-value-dialog="goal">Change</button>
+    </section>
+    """
+  end
+
   # ---------- the page ----------
 
   def ladder_page(assigns) do
@@ -79,6 +108,7 @@ defmodule MclKanbanWeb.LadderComponents do
       <div class="shell">
         <.boards_nav nav={@nav} packages={@packages} cards={@cards} />
         <main class="main" id="main">
+          <.goal_banner goal={@goal} />
           <div class="main-head">
             <h1>{heading(@nav, @packages)}</h1>
             <p>{subheading(@nav)}</p>
@@ -105,7 +135,7 @@ defmodule MclKanbanWeb.LadderComponents do
       <div class="toasts" id="toasts" aria-live="polite">
         <.toast :for={t <- @toasts} toast={t} />
       </div>
-      <.dialogs dialog={@dialog} enlist={@enlist} values={@values} boards={@boards} card={@card} cards={@cards} crew={@crew} />
+      <.dialogs dialog={@dialog} enlist={@enlist} values={@values} boards={@boards} card={@card} cards={@cards} crew={@crew} packages={@packages} goal={@goal} />
     </div>
     """
   end
@@ -763,6 +793,8 @@ defmodule MclKanbanWeb.LadderComponents do
   attr(:card, :map, default: nil)
   attr(:cards, :list, required: true)
   attr(:crew, :list, required: true)
+  attr(:packages, :list, default: [])
+  attr(:goal, :map, default: nil)
 
   def dialogs(%{dialog: :enlist} = assigns) do
     ~H"""
@@ -864,6 +896,36 @@ defmodule MclKanbanWeb.LadderComponents do
           <button class="btn" type="button" phx-click="close_dialog">Cancel</button>
           <button class={["btn", if(@action == "withdraw", do: "danger", else: "primary")]} type="submit"
             data-confirm={if @action == "withdraw", do: "Withdraw #{@card.issue_ref}? It leaves the board."}>{reason_title(@action)}</button>
+        </div>
+      </form>
+    </dialog>
+    """
+  end
+
+  def dialogs(%{dialog: :goal} = assigns) do
+    assigns =
+      assign(assigns,
+        text: assigns.values["goal"] || (assigns.goal && assigns.goal.goal) || "",
+        chosen: (assigns.goal && assigns.goal.packages) || []
+      )
+
+    ~H"""
+    <dialog id="goal-dialog" phx-hook="Dialog" phx-mounted={keep_open()}>
+      <form id="goal-form" phx-change="dialog_change" phx-submit="adopt_goal">
+        <h2>The crew's goal</h2>
+        <p class="lead">One sentence: what the crew is driving at now. Its packages come first in claim_next_card, and every claim carries the sentence.</p>
+        <div class="field"><label for="g-goal">Goal</label><input id="g-goal" name="goal" value={@text} required maxlength="300" placeholder="This exists so..." autocomplete="off" /></div>
+        <fieldset class="field">
+          <legend>One or two packages</legend>
+          <p :if={@packages == []} class="hint">No packages yet. Open one first.</p>
+          <label :for={p <- @packages} class="check">
+            <input type="checkbox" name="packages[]" value={p.issue_ref} checked={p.issue_ref in @chosen} />
+            {short_ref(p.issue_ref)}: {String.slice(p.title, 0, 60)}
+          </label>
+        </fieldset>
+        <div class="row">
+          <button class="btn" type="button" phx-click="close_dialog">Cancel</button>
+          <button class="btn primary" type="submit">Adopt the goal</button>
         </div>
       </form>
     </dialog>

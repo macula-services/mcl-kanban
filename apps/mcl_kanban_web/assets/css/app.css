@@ -336,3 +336,13 @@ details.more summary{cursor:pointer;color:var(--ink-2);font-weight:600;font-size
 /* #17: deferred work and paused groups recede; nobody is handed them */
 .card.is-paused,.pkg.paused .cards{opacity:.55}
 .paused-tag{color:var(--mute);font-weight:500}
+/* #18: the crew's goal, above the ladder */
+.goal{display:flex;gap:12px;align-items:center;justify-content:space-between;margin:0 0 14px;padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+.goal.empty{border-style:dashed}
+.goal small{color:var(--mute);text-transform:uppercase;letter-spacing:.06em;font-size:11px}
+.goal p{margin:0}
+.goal .goal-text{font-weight:600;color:var(--ink)}
+.goal .goal-meta{display:flex;flex-wrap:wrap;gap:8px;color:var(--ink-2);font-size:12px;margin-top:2px}
+.goal-pkg{padding:1px 6px;border-radius:6px;background:var(--panel-2);border:1px solid var(--line-2)}
+dialog .check{display:flex;gap:8px;align-items:center;font-size:13px;margin:4px 0}
+@media (max-width:640px){.goal{flex-direction:column;align-items:flex-start}}

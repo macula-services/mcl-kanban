@@ -35,6 +35,12 @@ No two members end up on the same issue through a package card (#15).
   packages and repos from their headers, and defers and resumes a card
   from its drawer. A new migration adds the columns.
 
+- The crew has one goal (#18): `adopt_goal` (supervisor, or the owner from
+  the ladder's goal banner) and `get_goal`. `claim_next_card` serves the
+  goal's packages first (your lane, then unreserved), then your lane, then
+  the rest; every claim reply carries the goal sentence. A new migration
+  adds the goal tables.
+
 ### Fixed
 
 - A card released while blocked no longer waits for the supervisor: any
