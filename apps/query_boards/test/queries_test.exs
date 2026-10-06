@@ -540,4 +540,41 @@ defmodule QueryBoards.QueriesTest do
     assert member in ids
     refute package in ids
   end
+
+  test "a package's own card heads it: never a member or a count, and the package is done when its members are (#15)" do
+    repo = "example-org/head" <> uniq()
+    b = board(repo)
+    ref = package("#{repo}#1", 1)
+    head = card(repo, b, 1)
+    a = card(repo, b, 2)
+    c = card(repo, b, 3)
+    for id <- [head, a, c], do: file(id, ref, 1)
+
+    pkg = fn -> Enum.find(GetLadder.get_ladder().packages, &(&1.issue_ref == ref)) end
+    assert Enum.sort(Enum.map(pkg.().cards, & &1.card_id)) == Enum.sort([a, c])
+    assert pkg.().done == 0
+
+    finish = fn id ->
+      deliver(
+        %{event_type: "card_finished_v1", card_id: id, result: "r", status: 8, by: "bob", at: 9},
+        2
+      )
+    end
+
+    finish.(a)
+    assert pkg.().done == 0
+    finish.(c)
+    assert pkg.().done == 1
+  end
+
+  test "a package with no member cards is not done" do
+    repo = "example-org/empty" <> uniq()
+    b = board(repo)
+    ref = package("#{repo}#1", 1)
+    file(card(repo, b, 1), ref, 1)
+
+    pkg = Enum.find(GetLadder.get_ladder().packages, &(&1.issue_ref == ref))
+    assert pkg.cards == []
+    assert pkg.done == 0
+  end
 end

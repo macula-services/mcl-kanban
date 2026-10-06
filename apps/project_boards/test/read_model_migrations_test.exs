@@ -59,7 +59,7 @@ defmodule ProjectBoards.ReadModelMigrationsTest do
       pid = file_from(unquote(version))
       assert [_ | _] = migrate(pid)
 
-      assert ~w(ranked_at work_package package_rank) -- columns("cards") == []
+      assert ~w(ranked_at work_package package_rank package_card) -- columns("cards") == []
       assert "issue_ref" in columns("packages")
 
       assert [["card-old", "Kept", 3, nil]] =
@@ -78,10 +78,26 @@ defmodule ProjectBoards.ReadModelMigrationsTest do
     Repo.put_dynamic_repo(pid)
     on_exit(fn -> File.rm(path) end)
 
-    assert [_, _] = migrate(pid)
+    assert [_, _, _] = migrate(pid)
 
     for table <- ~w(boards cards card_tags card_links card_comments crew packages) do
       assert columns(table) != [], table
     end
+  end
+
+  test "a v0.2.x card already filed into its own package is marked as its header (#15)" do
+    pid = file_from("v0.2.1")
+
+    Repo.query!(
+      "INSERT INTO cards (card_id, issue_ref, repo, board_id, title, kind, status, version, work_package) " <>
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      ["card-head", "example-org/widget#2", "example-org/widget", "board-old", "Head", "slice", 1, 2,
+       "example-org/widget#2"]
+    )
+
+    migrate(pid)
+
+    assert [["card-head", 1], ["card-old", 0]] =
+             Repo.query!("SELECT card_id, package_card FROM cards ORDER BY card_id").rows
   end
 end

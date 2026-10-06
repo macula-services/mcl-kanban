@@ -446,4 +446,30 @@ defmodule ProjectBoards.ProjectionsTest do
                id
              ])
   end
+
+  test "a card filed into its own package heads that package, until it is unfiled (#15)" do
+    ref = "example-org/head" <> uniq() <> "#9"
+    head = "card-" <> String.pad_leading(uniq(), 32, "4")
+    member = "card-" <> String.pad_leading(uniq(), 32, "5")
+    queue(head, ref)
+    queue(member, "example-org/widget#" <> uniq())
+
+    for id <- [head, member],
+        do:
+          deliver(
+            %{event_type: "card_filed_v1", card_id: id, work_package: ref, status: 1, by: "ada", at: 3},
+            1
+          )
+
+    flag = fn id -> ReadModel.q("SELECT package_card FROM cards WHERE card_id = ?", [id]) end
+    assert [[1]] = flag.(head)
+    assert [[0]] = flag.(member)
+
+    deliver(
+      %{event_type: "card_unfiled_v1", card_id: head, work_package: ref, status: 1, by: "ada", at: 5},
+      2
+    )
+
+    assert [[0]] = flag.(head)
+  end
 end
