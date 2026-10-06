@@ -4,7 +4,8 @@ defmodule QueryBoards.GetNextCardForAgent.GetNextCardForAgent do
   # cards in a package by the package's rank (unranked packages after ranked
   # ones, loose cards after every package), then by card rank (unranked
   # last), then the order they were ranked in, then oldest. Only queued cards
-  # that are not blocked, on boards not known to be archived (the board's row
+  # that are not blocked and not a package's own card (#15: never claimed),
+  # on boards not known to be archived (the board's row
   # and the card's land through different projections, so a card may arrive
   # before its board).
   #
@@ -20,6 +21,7 @@ defmodule QueryBoards.GetNextCardForAgent.GetNextCardForAgent do
       "LEFT JOIN boards b ON b.board_id = c.board_id " <>
         "WHERE c.status & 1 = 1 AND c.status & 30 = 0 AND (b.status IS NULL OR b.status & 2 = 0) " <>
         "AND (c.lane_node_id IS NULL OR c.lane_node_id = ?) " <>
+        "AND (c.work_package IS NULL OR c.work_package != c.issue_ref) " <>
         "ORDER BY c.lane_node_id IS NULL, c.work_package IS NULL, c.package_rank IS NULL, " <>
         "c.package_rank, " <> CardRows.ladder_order() <> " LIMIT ?",
       [node_id, limit]

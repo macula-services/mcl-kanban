@@ -54,6 +54,14 @@ package's rank (unranked packages after ranked ones), then by card rank
 (unranked last), with equal ranks in the order they were ranked; cards in no
 package come after every package.
 
+A package's own card (the work-package issue, filed into its own package) is
+never claimed: `claim_card` refuses it with `package_card` and
+`claim_next_card` never offers it. Packages only group and order cards, so you
+hold the ordinary cards you claimed and nothing more. A package is done when
+every card filed in it is done. A step that ties the parts together is an
+ordinary card, filed last in the package. One member on a whole package means
+reserving its cards to that member's lane.
+
 ## Procedures
 
 | Procedure | Args | Reply | Who |
@@ -106,7 +114,7 @@ A command's reply is the card as its own event left it.
 A refusal is a normal reply naming its reason, `{reason: "already_claimed"}`:
 
 `not_enlisted`, `not_permitted`, `already_on_board`, `already_claimed`,
-`not_holder`, `not_in_lane`, `pinned_by_owner`, `not_pinned`, `finished`,
+`not_holder`, `not_in_lane`, `package_card`, `pinned_by_owner`, `not_pinned`, `finished`,
 `withdrawn`, `blocked`, `already_blocked`, `not_blocked`, `not_claimed`,
 `not_reserved`, `unknown_card`, `unknown_board`, `board_archived`,
 `unknown_agent`, `already_enlisted`, `name_taken`, `name_reserved`,

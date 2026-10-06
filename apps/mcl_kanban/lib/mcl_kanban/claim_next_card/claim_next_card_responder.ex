@@ -14,7 +14,7 @@ defmodule MclKanban.ClaimNextCard.ClaimNextCardResponder do
   alias QueryBoards.GetNextCardForAgent.GetNextCardForAgent
 
   @candidates 25
-  @lost [:already_claimed, :not_in_lane, :blocked, :finished, :withdrawn]
+  @lost [:already_claimed, :not_in_lane, :blocked, :finished, :withdrawn, :package_card]
 
   @impl true
   def init(_args), do: {:ok, nil}
