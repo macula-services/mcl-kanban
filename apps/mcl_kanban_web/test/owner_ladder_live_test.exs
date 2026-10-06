@@ -272,4 +272,48 @@ defmodule MclKanbanWeb.OwnerLadderLiveTest do
     send(view.pid, {:boards_changed, %{}})
     assert has_element?(view, ~s(#ob-repo[value="example-org/half"]))
   end
+
+  # Counts the read model queries the view's own process runs while fun runs.
+  defp view_queries(view, fun) do
+    counter = :counters.new(1, [])
+    pid = view.pid
+    handler = "view-queries-" <> uniq()
+
+    :ok =
+      :telemetry.attach(
+        handler,
+        [:project_boards, :repo, :query],
+        fn _event, _measurements, _meta, _config ->
+          if self() == pid, do: :counters.add(counter, 1, 1)
+        end,
+        nil
+      )
+
+    fun.()
+    :telemetry.detach(handler)
+    :counters.get(counter, 1)
+  end
+
+  test "a burst of board changes reloads the ladder once, not once per change" do
+    view = ladder()
+    render(view)
+
+    one =
+      view_queries(view, fn ->
+        send(view.pid, {:boards_changed, %{}})
+        Process.sleep(600)
+        render(view)
+      end)
+
+    assert one > 0
+
+    burst =
+      view_queries(view, fn ->
+        for _ <- 1..20, do: send(view.pid, {:boards_changed, %{}})
+        Process.sleep(600)
+        render(view)
+      end)
+
+    assert burst <= 2 * one, "#{burst} queries for 20 changes, #{one} for one"
+  end
 end

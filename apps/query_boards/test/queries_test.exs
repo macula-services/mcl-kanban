@@ -462,4 +462,66 @@ defmodule QueryBoards.QueriesTest do
     assert Enum.sort(Enum.map(agent.held, & &1.card_id)) == Enum.sort([held, stuck])
     assert agent.next.card_id == next
   end
+
+  # Counts the read model queries this process runs while fun runs.
+  defp queries_during(fun) do
+    counter = :counters.new(1, [])
+    me = self()
+    handler = "count-queries-" <> uniq()
+
+    :ok =
+      :telemetry.attach(
+        handler,
+        [:project_boards, :repo, :query],
+        fn _event, _measurements, _meta, _config ->
+          if self() == me, do: :counters.add(counter, 1, 1)
+        end,
+        nil
+      )
+
+    result = fun.()
+    :telemetry.detach(handler)
+    {result, :counters.get(counter, 1)}
+  end
+
+  test "the ladder reads its cards' tags and links in a fixed number of queries, however many cards" do
+    repo = "example-org/batch" <> uniq()
+    b = board(repo)
+    ids = for n <- 1..30, do: card(repo, b, n, %{tags: ["t#{n}", "all"]})
+
+    for [from, to] <- Enum.chunk_every(ids, 2, 1, :discard),
+        do:
+          deliver(
+            %{
+              event_type: "card_linked_v1",
+              card_id: from,
+              to_card_id: to,
+              link: "blocks",
+              status: 1,
+              at: 50
+            },
+            1
+          )
+
+    {ladder, queries} = queries_during(&GetLadder.get_ladder/0)
+    assert queries <= 8, "#{queries} queries for 30 cards"
+
+    by_id = Map.new(ladder.loose, &{&1.card_id, &1})
+    [first, second | _] = ids
+    assert by_id[second].tags == ["all", "t2"]
+    assert by_id[second].links == [%{to_card_id: Enum.at(ids, 2), link: "blocks"}]
+    assert by_id[second].linked_from == [%{from_card_id: first, link: "blocks"}]
+    assert by_id[first].linked_from == []
+    assert by_id[List.last(ids)].links == []
+  end
+
+  test "waiting for a version polls the card row alone, not the whole card each time" do
+    repo = "example-org/poll" <> uniq()
+    id = card(repo, board(repo), 1, %{tags: ["x"]})
+
+    {result, queries} = queries_during(fn -> GetCardById.get_card_by_id(id, 5, 150) end)
+    assert result == {:error, :read_model_behind}
+    # About ten polls in 150 ms: one query each, never the five a full card costs.
+    assert queries <= 20, "#{queries} queries"
+  end
 end

@@ -58,4 +58,12 @@ defmodule MclKanban.ServiceTest do
   test "the scope is the org; the service asks for no topics" do
     assert %{scope: "mcl-kanban", resources: [], ttl_days: 30} = Service.identity_spec()
   end
+
+  test "health is ok while the read model and the event store both answer" do
+    assert Service.health() == :ok
+  end
+
+  test "health is degraded when the event store is gone, naming the store (#11)" do
+    assert {:degraded, %{event_store: _why}} = Service.health(:mcl_kanban_no_such_store)
+  end
 end
