@@ -246,6 +246,49 @@ defmodule GuideCardLifecycle.CardLifecycleTest do
       assert {:error, :not_blocked} = MaybeUnblockCard.handle(unblocked, not_blocked)
     end
 
+    test "a blocked card released by its holder can be unblocked by whoever may claim it (#16)" do
+      released =
+        claimed_by("bob")
+        |> run(MaybeBlockCard, cmd(BlockCardV1, %{card_id: card_id(), reason: "q", by: actor("bob")}))
+        |> run(MaybeReleaseCard, cmd(ReleaseCardV1, %{card_id: card_id(), reason: "r", by: actor("bob")}))
+
+      assert CardStatus.state_name(released.status) == "blocked"
+      assert released.holder == nil
+
+      unblocked =
+        run(released, MaybeUnblockCard, cmd(UnblockCardV1, %{card_id: card_id(), by: actor("cyd")}))
+
+      assert CardStatus.state_name(unblocked.status) == "queued"
+    end
+
+    test "an unheld blocked card in another agent's lane stays that lane's to unblock (#16)" do
+      in_cyds_lane =
+        queued()
+        |> run(
+          MaybeReserveCard,
+          cmd(ReserveCardV1, %{card_id: card_id(), lane: "cyd", lane_node_id: hex("cyd"), by: actor("ada")})
+        )
+        |> Map.update!(:status, &:evoq_bit_flags.set(&1, CardStatus.blocked()))
+
+      bob = cmd(UnblockCardV1, %{card_id: card_id(), by: actor("bob")})
+      assert {:error, :not_in_lane} = MaybeUnblockCard.handle(in_cyds_lane, bob)
+
+      cyd = cmd(UnblockCardV1, %{card_id: card_id(), by: actor("cyd")})
+      assert {:ok, [_]} = MaybeUnblockCard.handle(in_cyds_lane, cyd)
+    end
+
+    test "a held blocked card is still only its holder's to unblock (#16)" do
+      blocked =
+        run(
+          claimed_by("bob"),
+          MaybeBlockCard,
+          cmd(BlockCardV1, %{card_id: card_id(), reason: "q", by: actor("bob")})
+        )
+
+      cyd = cmd(UnblockCardV1, %{card_id: card_id(), by: actor("cyd")})
+      assert {:error, :not_holder} = MaybeUnblockCard.handle(blocked, cyd)
+    end
+
     test "another agent may not block someone else's card" do
       cmd = cmd(BlockCardV1, %{card_id: card_id(), reason: "x", by: actor("cyd")})
       assert {:error, :not_holder} = MaybeBlockCard.handle(claimed_by("bob"), cmd)
