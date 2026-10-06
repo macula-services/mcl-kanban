@@ -234,4 +234,30 @@ defmodule MclKanbanWeb.OwnerLadderLiveTest do
     view = ladder("/?view=repo&focus=example-org/none" <> uniq())
     assert render(view) =~ "example-org/none"
   end
+
+  test "a dialog keeps its open attribute across server patches, so typing never closes it" do
+    view = ladder()
+
+    for {button, dialog} <- [
+          {"#enlist-btn", "enlist"},
+          {"#open-board-btn", "open-board"},
+          {"#queue-btn", "queue"}
+        ] do
+      view |> element(button) |> render_click()
+
+      [mounted] =
+        view
+        |> render()
+        |> LazyHTML.from_fragment()
+        |> LazyHTML.query("dialog##{dialog}")
+        |> LazyHTML.attribute("phx-mounted")
+
+      assert mounted =~ "ignore_attrs" and mounted =~ "open", dialog
+      view |> render_hook("close_dialog", %{})
+    end
+
+    view |> element("#enlist-btn") |> render_click()
+    view |> form("#enlist-form", %{"name" => "Typing", "node_id" => "ab"}) |> render_change()
+    assert has_element?(view, "dialog#enlist")
+  end
 end
