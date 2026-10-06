@@ -38,6 +38,7 @@ defmodule MclKanbanWeb.OwnerLadderLiveTest do
 
   defp queue(view, repo, n, title, kind \\ "slice") do
     view |> element("#queue-btn") |> render_click()
+    assert eventually(fn -> render(view) =~ ~s(<option value="#{repo}">) end)
 
     view
     |> form("#queue-form", %{"repo" => repo, "number" => n, "title" => title, "kind" => kind})

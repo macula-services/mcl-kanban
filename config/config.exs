@@ -18,6 +18,6 @@ config :esbuild,
     env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
   ],
   mcl_kanban_web_css: [
-    args: ~w(css/app.css --bundle --outfile=../priv/static/assets/app.css),
+    args: ~w(css/app.css --bundle --loader:.woff2=file --outfile=../priv/static/assets/app.css),
     cd: Path.expand("../apps/mcl_kanban_web/assets", __DIR__)
   ]

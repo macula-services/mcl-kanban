@@ -18,7 +18,6 @@ defmodule MclKanbanWeb.Router do
   scope "/", MclKanbanWeb do
     pipe_through(:browser)
 
-    live("/", OverviewLive)
-    live("/boards/:owner/:name", BoardLive)
+    live("/", LadderLive)
   end
 end
