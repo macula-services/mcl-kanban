@@ -59,6 +59,9 @@ The image runs `bin/start`: `bin/migrate` brings the read model up to date
 new version opens an older read model and keeps its rows. A schema change is a
 new migration, never an edit to an existing one.
 
+`/health` is `ok` only while both the read model and the event store answer;
+either one failing reports `degraded`, naming it (`read_model`, `event_store`).
+
 | Variable | Default | |
 |---|---|---|
 | `MCL_DATA_DIR` | `/var/lib/mcl-kanban` (image) | the event store and `kanban.sqlite3`; a mounted volume on a bulk drive |

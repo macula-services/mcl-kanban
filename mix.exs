@@ -4,7 +4,7 @@ defmodule MclKanbanUmbrella.MixProject do
   def project do
     [
       apps_path: "apps",
-      version: "0.2.2",
+      version: "0.2.3",
       start_permanent: Mix.env() == :prod,
       elixirc_options: [warnings_as_errors: true],
       deps: deps(),

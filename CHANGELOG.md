@@ -5,6 +5,24 @@ Versioning: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-10-06
+
+A board fill no longer times out the mesh calls, and a dead event store no
+longer reports healthy (#11).
+
+### Fixed
+
+- The owner UI coalesces board changes into one reload per 200 ms window.
+  Before, every change reloaded every open tab at once.
+- A card read fetches the tags and links of all its cards in three queries,
+  instead of three per card (a ladder of 30 cards: 161 queries, now 8 or fewer).
+- A command's reply waits for its version by polling the card's version
+  alone, then reads the card once, instead of reading the whole card every
+  15 ms.
+- `/health` also asks the event store (bounded at 1 s). A store that is gone
+  or stuck reports `degraded` with `event_store`, so the container goes
+  unhealthy. Before, only the read model was checked.
+
 ## [0.2.2] - 2026-10-06
 
 An upgrade keeps its data (#10). Before, the read model's schema was code
