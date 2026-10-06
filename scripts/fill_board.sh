@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # This exists so the board fills itself: every crew agent enlisted under its
-# stable node id, every open work package a card, every crew:<name> label that
-# agent's lane. Run by the supervisor; idempotent, so a rerun changes nothing.
+# stable node id, every open work package a package with its own card and its
+# open sub-issues filed in it, every crew:<name> label that agent's lane. Run
+# by the supervisor; idempotent, so a rerun changes nothing.
 #
 # Usage: fill_board.sh [Name ...]
 #
@@ -19,11 +20,13 @@
 # The realm key: KANBAN_REALM_KEY names a file holding io.macula's public
 # realm key in hex, the same value the service runs with (MCL_REALM_KEY).
 #
-# Work packages: open issues labelled work-package owned by $KANBAN_ORGS.
+# Work packages: open issues labelled work-package owned by $KANBAN_ORGS. Each
+# opens a package (open_package) and its issue is a card filed in it; each
+# open sub-issue of it (GitHub sub-issues, any repo) is a card filed in it too.
 # kind: bug or ui from a label of that name, else slice.
 #
 # Refusals that mean "already done" (already_enlisted, already_open,
-# already_on_board) are not errors. Anything else is reported by name and the
+# already_on_board, already_filed) are not errors. Anything else is reported by name and the
 # script exits 1 after finishing the rest.
 #
 # Needs: gh (authenticated), jq, sha256sum, macula-cli >= 0.10.
@@ -92,7 +95,8 @@ for name in "${crew[@]}"; do
   esac
 done
 
-# 2. The work packages, one JSON object per line.
+# 2. The work packages, one JSON object per line, and the cards: each
+#    package's own issue and its open sub-issues, each naming its package.
 packages=$(for org in $orgs; do
   gh search issues --owner "$org" --label work-package --state open --limit 200 \
     --json repository,number,title,labels \
@@ -100,8 +104,23 @@ packages=$(for org in $orgs; do
                  title: .title[0:200], labels: [.labels[].name]}'
 done)
 
-# 3. One board per repo with open work.
-for repo in $(jq -r '.repo' <<<"$packages" | sort -u); do
+cards=$(while IFS= read -r p; do
+  [ -n "$p" ] || continue
+  ref=$(jq -r '.ref' <<<"$p")
+  jq -c '. + {package: .ref}' <<<"$p"
+  gh api "repos/${ref%#*}/issues/${ref##*#}/sub_issues" --paginate \
+    --jq '.[] | select(.state == "open") |
+      {repo: (.repository_url | sub("^.*/repos/"; "")), number, title: .title[0:200], labels: [.labels[].name]}' |
+    jq -c --arg pkg "$ref" '{repo, ref: "\(.repo)#\(.number)", title, labels, package: $pkg}'
+done <<<"$packages")
+
+# A sub-issue that is a work package itself is filed in its own package only,
+# so a rerun never moves it between the two.
+own=$(jq -sc '[.[].ref]' <<<"$packages")
+cards=$(jq -c --argjson own "$own" 'select(.package == .ref or (.ref | IN($own[]) | not))' <<<"$cards")
+
+# 3. One board per repo with open work, and one package per work package.
+for repo in $(jq -r '.repo' <<<"$cards" | sort -u); do
   r=$(reason "$(call open_board "$(jq -nc --arg r "$repo" '{repo: $r}')")")
   case "$r" in
     "") echo "opened $repo" ;;
@@ -110,7 +129,18 @@ for repo in $(jq -r '.repo' <<<"$packages" | sort -u); do
   esac
 done
 
-# 4. One card per package; a crew:<name> label reserves it to that lane.
+while IFS= read -r p; do
+  [ -n "$p" ] || continue
+  r=$(reason "$(call open_package "$(jq -c '{issue_ref: .ref, title: .title}' <<<"$p")")")
+  case "$r" in
+    "") echo "opened package $(jq -r '.ref' <<<"$p")" ;;
+    already_open) ;;
+    *) fail "open_package $(jq -r '.ref' <<<"$p"): $r" ;;
+  esac
+done <<<"$packages"
+
+# 4. One card per issue, filed in its package; a crew:<name> label reserves
+#    it to that lane.
 while IFS= read -r p; do
   [ -n "$p" ] || continue
   ref=$(jq -r '.ref' <<<"$p")
@@ -122,8 +152,15 @@ while IFS= read -r p; do
     already_on_board) ;;
     *) fail "queue_card $ref: $r"; continue ;;
   esac
-  [ -n "$lane" ] || continue
   id=$(card_id "$ref")
+  package=$(jq -r '.package' <<<"$p")
+  r=$(reason "$(call file_card "$(jq -nc --arg c "$id" --arg k "$package" '{card_id: $c, package_ref: $k}')")")
+  case "$r" in
+    "") echo "filed $ref in $package" ;;
+    already_filed) ;;
+    *) fail "file_card $ref in $package: $r" ;;
+  esac
+  [ -n "$lane" ] || continue
   card=$(call get_card_by_id "$(jq -nc --arg c "$id" '{card_id: $c}')")
   r=$(reason "$card")
   [ -z "$r" ] || { fail "get_card_by_id $ref ($id): $r"; continue; }
@@ -136,6 +173,6 @@ while IFS= read -r p; do
     "") echo "reserved $ref to $lane" ;;
     *) fail "reserve_card $ref to $lane: $r" ;;
   esac
-done <<<"$packages"
+done <<<"$cards"
 
 exit $failed
