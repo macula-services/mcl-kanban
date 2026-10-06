@@ -270,23 +270,26 @@ defmodule QueryBoards.QueriesTest do
       0
     )
 
-    if rank != nil,
-      do:
-        deliver(
-          %{
-            event_type: "package_prioritised_v1",
-            package_id: id,
-            issue_ref: ref,
-            rank: rank,
-            rationale: "why " <> ref,
-            status: 1 + pinned * 2,
-            by: "pia",
-            at: 2
-          },
-          version
-        )
-
+    ranked(id, ref, rank, version, pinned)
     ref
+  end
+
+  defp ranked(_id, _ref, nil, _version, _pinned), do: :ok
+
+  defp ranked(id, ref, rank, version, pinned) do
+    deliver(
+      %{
+        event_type: "package_prioritised_v1",
+        package_id: id,
+        issue_ref: ref,
+        rank: rank,
+        rationale: "why " <> ref,
+        status: 1 + pinned * 2,
+        by: "pia",
+        at: 2
+      },
+      version
+    )
   end
 
   defp file(card_id, ref, version),

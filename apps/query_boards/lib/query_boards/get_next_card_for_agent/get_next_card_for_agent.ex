@@ -1,7 +1,9 @@
 defmodule QueryBoards.GetNextCardForAgent.GetNextCardForAgent do
   # get_next_card_for_agent: the cards an agent may claim next, best first.
-  # Its own lane first, then unreserved cards; within each, by rank (one
-  # scale across all boards, unranked last), then oldest. Only queued cards
+  # Its own lane first, then unreserved cards; within each, in ladder order:
+  # cards in a package by the package's rank (unranked packages after ranked
+  # ones, loose cards after every package), then by card rank (unranked
+  # last), then the order they were ranked in, then oldest. Only queued cards
   # that are not blocked, on boards not known to be archived (the board's row
   # and the card's land through different projections, so a card may arrive
   # before its board).
@@ -18,7 +20,8 @@ defmodule QueryBoards.GetNextCardForAgent.GetNextCardForAgent do
       "LEFT JOIN boards b ON b.board_id = c.board_id " <>
         "WHERE c.status & 1 = 1 AND c.status & 30 = 0 AND (b.status IS NULL OR b.status & 2 = 0) " <>
         "AND (c.lane_node_id IS NULL OR c.lane_node_id = ?) " <>
-        "ORDER BY c.lane_node_id IS NULL, c.rank IS NULL, c.rank, c.queued_at LIMIT ?",
+        "ORDER BY c.lane_node_id IS NULL, c.work_package IS NULL, c.package_rank IS NULL, " <>
+        "c.package_rank, " <> CardRows.ladder_order() <> " LIMIT ?",
       [node_id, limit]
     )
   end
