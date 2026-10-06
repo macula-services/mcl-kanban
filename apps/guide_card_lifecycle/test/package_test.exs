@@ -11,10 +11,12 @@ defmodule GuideCardLifecycle.PackageTest do
   alias GuideCardLifecycle.IssueRef
   alias GuideCardLifecycle.PackageState
 
+  alias GuideCardLifecycle.DeferPackage.{DeferPackageV1, MaybeDeferPackage}
   alias GuideCardLifecycle.FileCard.{FileCardV1, MaybeFileCard}
   alias GuideCardLifecycle.OpenPackage.{MaybeOpenPackage, OpenPackageV1}
   alias GuideCardLifecycle.PrioritisePackage.{MaybePrioritisePackage, PrioritisePackageV1}
   alias GuideCardLifecycle.QueueCard.{MaybeQueueCard, QueueCardV1}
+  alias GuideCardLifecycle.ResumePackage.{MaybeResumePackage, ResumePackageV1}
   alias GuideCardLifecycle.UnfileCard.{MaybeUnfileCard, UnfileCardV1}
   alias GuideCardLifecycle.UnpinPackage.{MaybeUnpinPackage, UnpinPackageV1}
 
@@ -226,6 +228,47 @@ defmodule GuideCardLifecycle.PackageTest do
                  package_ref: "nope",
                  by: actor("ada")
                })
+    end
+  end
+
+  describe "defer and resume (#17)" do
+    defp pdefer(by),
+      do:
+        cmd(DeferPackageV1, %{
+          package_id: IssueRef.package_id(@package),
+          reason: "not now",
+          by: by
+        })
+
+    defp presume(by),
+      do: cmd(ResumePackageV1, %{package_id: IssueRef.package_id(@package), by: by})
+
+    test "deferring a package takes it out of the running: deferred, unranked, unpinned" do
+      pinned = run(opened(), MaybePrioritisePackage, rank_cmd(Actor.owner(), 2), PackageState)
+      deferred = run(pinned, MaybeDeferPackage, pdefer(actor("pia")), PackageState)
+      assert PackageState.deferred?(deferred)
+      assert deferred.rank == nil
+      refute PackageState.pinned?(deferred)
+
+      assert {:error, :already_deferred} =
+               MaybeDeferPackage.handle(deferred, pdefer(actor("pia")))
+
+      assert {:error, :deferred} =
+               MaybePrioritisePackage.handle(deferred, rank_cmd(actor("pia"), 1))
+
+      resumed = run(deferred, MaybeResumePackage, presume(Actor.owner()), PackageState)
+      refute PackageState.deferred?(resumed)
+      assert {:error, :not_deferred} = MaybeResumePackage.handle(resumed, presume(Actor.owner()))
+    end
+
+    test "only the owner and the prioritiser defer a package, and only an open one" do
+      assert {:error, :not_permitted} = MaybeDeferPackage.handle(opened(), pdefer(actor("bob")))
+
+      assert {:error, :unknown_package} =
+               MaybeDeferPackage.handle(
+                 PackageState.new(IssueRef.package_id(@package)),
+                 pdefer(actor("pia"))
+               )
     end
   end
 end

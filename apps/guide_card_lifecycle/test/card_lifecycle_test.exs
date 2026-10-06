@@ -15,6 +15,7 @@ defmodule GuideCardLifecycle.CardLifecycleTest do
   alias GuideCardLifecycle.BlockCard.{BlockCardV1, MaybeBlockCard}
   alias GuideCardLifecycle.ClaimCard.{ClaimCardV1, MaybeClaimCard}
   alias GuideCardLifecycle.CommentOnCard.{CommentOnCardV1, MaybeCommentOnCard}
+  alias GuideCardLifecycle.DeferCard.{DeferCardV1, MaybeDeferCard}
   alias GuideCardLifecycle.FinishCard.{FinishCardV1, MaybeFinishCard}
   alias GuideCardLifecycle.LiftCardReservation.{LiftCardReservationV1, MaybeLiftCardReservation}
   alias GuideCardLifecycle.LinkCard.{LinkCardV1, MaybeLinkCard}
@@ -23,6 +24,7 @@ defmodule GuideCardLifecycle.CardLifecycleTest do
   alias GuideCardLifecycle.ReclassifyCard.{MaybeReclassifyCard, ReclassifyCardV1}
   alias GuideCardLifecycle.ReleaseCard.{MaybeReleaseCard, ReleaseCardV1}
   alias GuideCardLifecycle.ReserveCard.{MaybeReserveCard, ReserveCardV1}
+  alias GuideCardLifecycle.ResumeCard.{MaybeResumeCard, ResumeCardV1}
   alias GuideCardLifecycle.RewordCard.{MaybeRewordCard, RewordCardV1}
   alias GuideCardLifecycle.TagCard.{MaybeTagCard, TagCardV1}
   alias GuideCardLifecycle.UnblockCard.{MaybeUnblockCard, UnblockCardV1}
@@ -627,5 +629,66 @@ defmodule GuideCardLifecycle.CardLifecycleTest do
       CardState.apply_event(CardState.new(card_id()), %{event_type: event.event_type, data: event})
 
     assert state.title == "Draw the board"
+  end
+
+  describe "defer and resume (#17)" do
+    defp defer(name, reason \\ "not now"),
+      do: cmd(DeferCardV1, %{card_id: card_id(), reason: reason, by: actor(name)})
+
+    defp resume(name), do: cmd(ResumeCardV1, %{card_id: card_id(), by: actor(name)})
+
+    defp ranked_and_pinned do
+      run(
+        queued(),
+        MaybePrioritiseCard,
+        cmd(PrioritiseCardV1, %{card_id: card_id(), rank: 3, rationale: "r", by: Actor.owner()})
+      )
+    end
+
+    test "the prioritiser defers a queued card: deferred, no longer ranked or pinned" do
+      deferred = run(ranked_and_pinned(), MaybeDeferCard, defer("pia"))
+      assert CardStatus.state_name(deferred.status) == "deferred"
+      assert deferred.rank == nil
+      refute CardStatus.pinned?(deferred.status)
+      assert {:error, :already_deferred} = MaybeDeferCard.handle(deferred, defer("pia"))
+    end
+
+    test "resumed, the card is queued again and unranked" do
+      resumed =
+        queued() |> run(MaybeDeferCard, defer("pia")) |> run(MaybeResumeCard, resume("pia"))
+
+      assert CardStatus.state_name(resumed.status) == "queued"
+      assert resumed.rank == nil
+      assert {:error, :not_deferred} = MaybeResumeCard.handle(resumed, resume("pia"))
+    end
+
+    test "only the owner and the prioritiser defer or resume" do
+      assert {:ok, [_]} = MaybeDeferCard.handle(queued(), defer_owner())
+      assert {:error, :not_permitted} = MaybeDeferCard.handle(queued(), defer("bob"))
+      deferred = run(queued(), MaybeDeferCard, defer("pia"))
+      assert {:error, :not_permitted} = MaybeResumeCard.handle(deferred, resume("bob"))
+    end
+
+    test "a held card is not deferred: its holder releases it first" do
+      assert {:error, :already_claimed} = MaybeDeferCard.handle(claimed_by("bob"), defer("pia"))
+    end
+
+    test "a deferred card is neither claimed nor ranked" do
+      deferred = run(queued(), MaybeDeferCard, defer("pia"))
+      claim = cmd(ClaimCardV1, %{card_id: card_id(), by: actor("bob")})
+      assert {:error, :deferred} = MaybeClaimCard.handle(deferred, claim)
+
+      rank =
+        cmd(PrioritiseCardV1, %{card_id: card_id(), rank: 1, rationale: "r", by: actor("pia")})
+
+      assert {:error, :deferred} = MaybePrioritiseCard.handle(deferred, rank)
+    end
+
+    test "deferring says why" do
+      assert {:error, :reason_required} =
+               DeferCardV1.new(%{card_id: card_id(), reason: "", by: actor("pia")})
+    end
+
+    defp defer_owner, do: cmd(DeferCardV1, %{card_id: card_id(), reason: "x", by: Actor.owner()})
   end
 end

@@ -7,8 +7,10 @@ defmodule GuideCardLifecycle.BoardTest do
   alias GuideCardLifecycle.Actor
   alias GuideCardLifecycle.ArchiveBoard.{ArchiveBoardV1, MaybeArchiveBoard}
   alias GuideCardLifecycle.BoardState
+  alias GuideCardLifecycle.DeferBoard.{DeferBoardV1, MaybeDeferBoard}
   alias GuideCardLifecycle.IssueRef
   alias GuideCardLifecycle.OpenBoard.{MaybeOpenBoard, OpenBoardV1}
+  alias GuideCardLifecycle.ResumeBoard.{MaybeResumeBoard, ResumeBoardV1}
 
   @repo "example-org/widget"
 
@@ -57,5 +59,26 @@ defmodule GuideCardLifecycle.BoardTest do
 
     {:ok, by_bob} = ArchiveBoardV1.new(%{repo: @repo, by: actor("bob")})
     assert {:error, :not_permitted} = MaybeArchiveBoard.handle(opened(), by_bob)
+  end
+
+  test "the owner or the prioritiser pauses a board's repo and resumes it (#17)" do
+    {:ok, defer} = DeferBoardV1.new(%{repo: @repo, reason: "not now", by: actor("pia")})
+    {:ok, events} = MaybeDeferBoard.handle(opened(), defer)
+    assert [%{event_type: "board_deferred_v1", repo: @repo, reason: "not now"}] = events
+    deferred = Enum.reduce(events, opened(), &BoardState.apply_event(&2, &1))
+    assert BoardState.deferred?(deferred)
+    assert {:error, :already_deferred} = MaybeDeferBoard.handle(deferred, defer)
+
+    {:ok, resume} = ResumeBoardV1.new(%{repo: @repo, by: Actor.owner()})
+    {:ok, events} = MaybeResumeBoard.handle(deferred, resume)
+    resumed = Enum.reduce(events, deferred, &BoardState.apply_event(&2, &1))
+    refute BoardState.deferred?(resumed)
+    assert {:error, :not_deferred} = MaybeResumeBoard.handle(resumed, resume)
+
+    {:ok, by_bob} = DeferBoardV1.new(%{repo: @repo, reason: "x", by: actor("bob")})
+    assert {:error, :not_permitted} = MaybeDeferBoard.handle(opened(), by_bob)
+
+    assert {:error, :unknown_board} =
+             MaybeDeferBoard.handle(BoardState.new(defer.board_id), defer)
   end
 end
