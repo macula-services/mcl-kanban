@@ -39,6 +39,7 @@ defmodule ProjectBoards.Application do
     ProjectBoards.CardUnpinnedV1ToCards,
     ProjectBoards.CardUntaggedV1ToCardTags,
     ProjectBoards.CardWithdrawnV1ToCards,
+    ProjectBoards.GoalAdoptedV1ToCrewGoal,
     ProjectBoards.PackageOpenedV1ToPackages,
     ProjectBoards.PackageDeferredV1ToPackages,
     ProjectBoards.PackagePrioritisedV1ToPackages,

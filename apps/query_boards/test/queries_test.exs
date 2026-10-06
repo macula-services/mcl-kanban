@@ -297,7 +297,14 @@ defmodule QueryBoards.QueriesTest do
   defp reserve(card_id, node, version),
     do:
       deliver(
-        %{event_type: "card_reserved_v1", card_id: card_id, lane: "me", lane_node_id: node, status: 1, at: 6},
+        %{
+          event_type: "card_reserved_v1",
+          card_id: card_id,
+          lane: "me",
+          lane_node_id: node,
+          status: 1,
+          at: 6
+        },
         version
       )
 
@@ -691,7 +698,14 @@ defmodule QueryBoards.QueriesTest do
     reserve(goal_lane, node, 2)
 
     deliver(
-      %{event_type: "goal_adopted_v1", goal: "So the goal ships", packages: [on_goal], by: "ada", by_kind: "agent", at: 1},
+      %{
+        event_type: "goal_adopted_v1",
+        goal: "So the goal ships",
+        packages: [on_goal],
+        by: "ada",
+        by_kind: "agent",
+        at: 1
+      },
       1
     )
 

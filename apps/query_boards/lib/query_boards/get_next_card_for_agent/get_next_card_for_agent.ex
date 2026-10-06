@@ -1,6 +1,7 @@
 defmodule QueryBoards.GetNextCardForAgent.GetNextCardForAgent do
   # get_next_card_for_agent: the cards an agent may claim next, best first.
-  # Its own lane first, then unreserved cards; within each, in ladder order:
+  # The crew goal's packages first (#18); within that and the rest, its own
+  # lane first, then unreserved cards; within each, in ladder order:
   # cards in a package by the package's rank (unranked packages after ranked
   # ones, loose cards after every package), then by card rank (unranked
   # last), then the order they were ranked in, then oldest. Only queued cards
@@ -32,9 +33,15 @@ defmodule QueryBoards.GetNextCardForAgent.GetNextCardForAgent do
 
     CardRows.cards(
       "LEFT JOIN boards b ON b.board_id = c.board_id WHERE #{claimable} " <>
-        "ORDER BY c.lane_node_id IS NULL, c.work_package IS NULL, c.package_rank IS NULL, " <>
+        "ORDER BY #{off_goal()}, c.lane_node_id IS NULL, c.work_package IS NULL, c.package_rank IS NULL, " <>
         "c.package_rank, " <> CardRows.ladder_order() <> " LIMIT ?",
       [node_id, limit]
     )
   end
+
+  # The crew's goal comes first (#18): its packages' cards, in the caller's
+  # lane first, then unreserved; then the caller's lane; then the rest. A
+  # reservation says who may do a card, not when (Fable's advice).
+  defp off_goal,
+    do: "(c.work_package IS NULL OR c.work_package NOT IN (SELECT ref FROM crew_goal_packages))"
 end
