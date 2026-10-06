@@ -81,9 +81,10 @@ defmodule ProjectBoards.ReadModelMigrationsTest do
     Repo.put_dynamic_repo(pid)
     on_exit(fn -> File.rm(path) end)
 
-    assert [_, _, _, _] = migrate(pid)
+    assert [_, _, _, _, _] = migrate(pid)
 
-    for table <- ~w(boards cards card_tags card_links card_comments crew packages) do
+    for table <- ~w(boards cards card_tags card_links card_comments crew packages crew_goal
+                    crew_goal_packages) do
       assert columns(table) != [], table
     end
   end

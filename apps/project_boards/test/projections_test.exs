@@ -52,7 +52,7 @@ defmodule ProjectBoards.ProjectionsTest do
                    package_opened_v1 package_prioritised_v1 package_unpinned_v1
                    card_filed_v1 card_unfiled_v1 card_deferred_v1 card_resumed_v1
                    package_deferred_v1 package_resumed_v1 board_deferred_v1
-                   board_resumed_v1) do
+                   board_resumed_v1 goal_adopted_v1) do
       assert type in types, type
     end
   end
@@ -658,5 +658,22 @@ defmodule ProjectBoards.ProjectionsTest do
       assert [[0, _]] = deferred_flag(a)
       assert [[0, _]] = deferred_flag(b)
     end
+  end
+
+  test "the crew's goal is one row with its packages; a new goal replaces it (#18)" do
+    adopt = fn goal, packages, at ->
+      deliver(
+        %{event_type: "goal_adopted_v1", goal: goal, packages: packages, by: "ada", by_kind: "agent", at: at},
+        at
+      )
+    end
+
+    adopt.("So the board ships", ["example-org/a#1", "example-org/b#2"], 1)
+    assert [["So the board ships", "ada", 1]] = ReadModel.q("SELECT goal, adopted_by, adopted_at FROM crew_goal", [])
+    assert [["example-org/a#1"], ["example-org/b#2"]] = ReadModel.q("SELECT ref FROM crew_goal_packages ORDER BY ref", [])
+
+    adopt.("So the demo runs", ["example-org/c#3"], 2)
+    assert [["So the demo runs", "ada", 2]] = ReadModel.q("SELECT goal, adopted_by, adopted_at FROM crew_goal", [])
+    assert [["example-org/c#3"]] = ReadModel.q("SELECT ref FROM crew_goal_packages", [])
   end
 end

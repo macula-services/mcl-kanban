@@ -10,6 +10,7 @@ defmodule QueryBoards.QueriesTest do
   alias QueryBoards.GetCardById.GetCardById
   alias QueryBoards.GetCardsByHolder.GetCardsByHolder
   alias QueryBoards.GetCrew.GetCrew
+  alias QueryBoards.GetGoal.GetGoal
   alias QueryBoards.GetLadder.GetLadder
   alias QueryBoards.GetNextCardForAgent.GetNextCardForAgent
   alias QueryBoards.GetRankedCards.GetRankedCards
@@ -23,7 +24,8 @@ defmodule QueryBoards.QueriesTest do
     on_exit(fn ->
       :ok =
         ProjectBoards.ReadModel.write(
-          for t <- ~w(cards card_tags card_links card_comments boards crew packages),
+          for t <- ~w(cards card_tags card_links card_comments boards crew packages crew_goal
+                      crew_goal_packages),
               do: {"DELETE FROM " <> t, []}
         )
     end)
@@ -291,6 +293,13 @@ defmodule QueryBoards.QueriesTest do
       version
     )
   end
+
+  defp reserve(card_id, node, version),
+    do:
+      deliver(
+        %{event_type: "card_reserved_v1", card_id: card_id, lane: "me", lane_node_id: node, status: 1, at: 6},
+        version
+      )
 
   defp file(card_id, ref, version),
     do:
@@ -663,5 +672,33 @@ defmodule QueryBoards.QueriesTest do
 
     assert %{deferred: 1, rank: nil} =
              Enum.find(GetLadder.get_ladder().packages, &(&1.issue_ref == ref))
+  end
+
+  test "the goal's packages come first: in the caller's lane, then unreserved, then its lane, then the rest (#18)" do
+    repo = "example-org/goal" <> uniq()
+    b = board(repo)
+    on_goal = package("#{repo}#100", 5)
+    off_goal = package("#{repo}#200", 1)
+    node = hex32("goal-agent" <> uniq()) <> hex32("pad")
+
+    lane_off = card(repo, b, 1)
+    file(lane_off, off_goal, 1)
+    reserve(lane_off, node, 2)
+    goal_free = card(repo, b, 2)
+    file(goal_free, on_goal, 1)
+    goal_lane = card(repo, b, 3)
+    file(goal_lane, on_goal, 1)
+    reserve(goal_lane, node, 2)
+
+    deliver(
+      %{event_type: "goal_adopted_v1", goal: "So the goal ships", packages: [on_goal], by: "ada", by_kind: "agent", at: 1},
+      1
+    )
+
+    assert %{goal: "So the goal ships", packages: [^on_goal], by: "ada"} = GetGoal.get_goal()
+
+    ids = GetNextCardForAgent.get_next_card_for_agent(node, 500) |> Enum.map(& &1.card_id)
+    mine = Enum.filter(ids, &(&1 in [lane_off, goal_free, goal_lane]))
+    assert mine == [goal_lane, goal_free, lane_off]
   end
 end
