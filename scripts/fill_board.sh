@@ -25,6 +25,13 @@
 # open sub-issue of it (GitHub sub-issues, any repo) is a card filed in it too.
 # kind: bug or ui from a label of that name, else slice.
 #
+# Lanes (#19): a crew:<name> label reserves the card to that agent's lane. A
+# card whose issue LOST its crew: label (the issue's events show the label
+# that names its current lane being removed) has the lane lifted; a lane set
+# by hand, never by a label, is left alone. A label naming nobody enlisted
+# is reported as WARN and changes nothing. A card someone holds is never
+# moved.
+#
 # Refusals that mean "already done" (already_enlisted, already_open,
 # already_on_board, already_filed) are not errors. Anything else is reported by name and the
 # script exits 1 after finishing the rest.
@@ -58,6 +65,7 @@ supervisor_key="$keys/agent-${supervisor,,}.key"
 
 failed=0
 fail() { echo "FAIL $*" >&2; failed=1; }
+warn() { echo "WARN $*" >&2; }
 
 # call <procedure> <payload json> -> the result JSON, or {"reason": "..."}
 call() {
@@ -139,8 +147,22 @@ while IFS= read -r p; do
   esac
 done <<<"$packages"
 
+# Every card on the board as it stands, card_id -> {lane, holder}: one read,
+# not one call per card.
+board=$(call get_ladder '{}')
+[ -z "$(reason "$board")" ] || { fail "get_ladder: $(reason "$board")"; exit 1; }
+lanes=$(jq -c '[(.packages[].cards[]), (.loose[])] | map({key: .card_id, value: {lane, holder}}) | from_entries' <<<"$board")
+
+# The crew: label that was removed from an issue and names its card's lane.
+lost_label() {
+  local ref=$1 lane=$2
+  gh api "repos/${ref%#*}/issues/${ref##*#}/events" --paginate \
+    --jq '.[] | select(.event == "unlabeled") | .label.name' |
+    grep -ix "crew:$lane" | head -1 || true
+}
+
 # 4. One card per issue, filed in its package; a crew:<name> label reserves
-#    it to that lane.
+#    it to that lane, a lost one lifts it.
 while IFS= read -r p; do
   [ -n "$p" ] || continue
   ref=$(jq -r '.ref' <<<"$p")
@@ -160,17 +182,27 @@ while IFS= read -r p; do
     already_filed) ;;
     *) fail "file_card $ref in $package: $r" ;;
   esac
-  [ -n "$lane" ] || continue
-  card=$(call get_card_by_id "$(jq -nc --arg c "$id" '{card_id: $c}')")
-  r=$(reason "$card")
-  [ -z "$r" ] || { fail "get_card_by_id $ref ($id): $r"; continue; }
-  holder=$(jq -r '.card.holder // empty' <<<"$card")
-  current=$(jq -r '.card.lane // empty' <<<"$card")
+  # A package's own card is never claimed (#15), so a lane means nothing on it.
+  [ "$ref" != "$package" ] || continue
+  holder=$(jq -r --arg c "$id" '.[$c].holder // empty' <<<"$lanes")
+  current=$(jq -r --arg c "$id" '.[$c].lane // empty' <<<"$lanes")
   [ -z "$holder" ] || continue
+
+  if [ -z "$lane" ]; then
+    [ -n "$current" ] && [ -n "$(lost_label "$ref" "$current")" ] || continue
+    r=$(reason "$(call lift_card_reservation "$(jq -nc --arg c "$id" '{card_id: $c}')")")
+    case "$r" in
+      "") echo "lifted $ref from $current (crew:$current label removed)" ;;
+      *) fail "lift_card_reservation $ref: $r" ;;
+    esac
+    continue
+  fi
+
   [ "${current,,}" != "${lane,,}" ] || continue
   r=$(reason "$(call reserve_card "$(jq -nc --arg c "$id" --arg l "$lane" '{card_id: $c, lane: $l}')")")
   case "$r" in
     "") echo "reserved $ref to $lane" ;;
+    unknown_agent) warn "$ref is labelled crew:$lane, but nobody named $lane is enlisted: left open to anyone" ;;
     *) fail "reserve_card $ref to $lane: $r" ;;
   esac
 done <<<"$cards"

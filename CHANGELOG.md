@@ -39,6 +39,11 @@ No two members end up on the same issue through a package card (#15).
 
 - A card released while blocked no longer waits for the supervisor: any
   agent who may claim it can unblock it (#16).
+- `fill_board.sh` (#19): a card whose issue lost its `crew:` label has its
+  lane lifted (only when the issue's events show that label coming off, so
+  a lane set by hand stays); a label naming nobody enlisted is a WARN, not
+  a failure; a package's own card gets no lane; and the board is read once
+  (`get_ladder`) instead of once per labelled card.
 
 
 ## [0.2.3] - 2026-10-06
