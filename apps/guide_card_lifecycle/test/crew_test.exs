@@ -7,6 +7,7 @@ defmodule GuideCardLifecycle.CrewTest do
   import GuideCardLifecycle.TestCrew
 
   alias GuideCardLifecycle.Actor
+  alias GuideCardLifecycle.AdoptGoal.{AdoptGoalV1, MaybeAdoptGoal}
   alias GuideCardLifecycle.AppointPrioritiser.{AppointPrioritiserV1, MaybeAppointPrioritiser}
   alias GuideCardLifecycle.AppointSupervisor.{AppointSupervisorV1, MaybeAppointSupervisor}
   alias GuideCardLifecycle.CrewAggregate
@@ -167,5 +168,42 @@ defmodule GuideCardLifecycle.CrewTest do
 
   test "the crew has one fixed stream id that reckon-db accepts" do
     assert :ok = :reckon_gater_stream_id.validate(CrewAggregate.stream_id())
+  end
+
+  describe "adopt_goal (#18)" do
+    defp goal(by, packages \\ ["example-org/widget#1"], text \\ "So the crew ships the board") do
+      AdoptGoalV1.new(%{goal: text, packages: packages, by: by})
+    end
+
+    test "the supervisor or the owner adopts the crew's one goal: a sentence and its packages" do
+      {:ok, cmd} = goal(actor("ada"), ["example-org/widget#1", "example-org/gadget#2"])
+
+      assert {:ok, [%{event_type: "goal_adopted_v1", goal: "So the crew ships the board"} = e]} =
+               MaybeAdoptGoal.handle(crew(), cmd)
+
+      assert e.packages == ["example-org/widget#1", "example-org/gadget#2"]
+      adopted = CrewState.apply_event(crew(), e)
+      assert adopted.goal == %{goal: "So the crew ships the board", packages: e.packages, by: "ada", at: e.at}
+
+      {:ok, by_owner} = goal(Actor.owner())
+      assert {:ok, [_]} = MaybeAdoptGoal.handle(crew(), by_owner)
+    end
+
+    test "nobody else adopts a goal" do
+      {:ok, by_bob} = goal(actor("bob"))
+      assert {:error, :not_permitted} = MaybeAdoptGoal.handle(crew(), by_bob)
+      {:ok, by_pia} = goal(actor("pia"))
+      assert {:error, :not_permitted} = MaybeAdoptGoal.handle(crew(), by_pia)
+    end
+
+    test "a goal is one sentence and one or two packages" do
+      assert {:error, :goal_required} = goal(actor("ada"), ["example-org/widget#1"], " ")
+      assert {:error, :invalid_goal_packages} = goal(actor("ada"), [])
+
+      assert {:error, :invalid_goal_packages} =
+               goal(actor("ada"), ["example-org/a#1", "example-org/b#2", "example-org/c#3"])
+
+      assert {:error, :invalid_issue_ref} = goal(actor("ada"), ["not a ref"])
+    end
   end
 end
