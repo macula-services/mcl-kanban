@@ -53,6 +53,8 @@ defmodule MclKanban.Service do
     WithdrawCard
   }
 
+  @store_probe_ms 1_000
+
   @procedures [
     {"claim_next_card", ClaimNextCard.ClaimNextCardResponder},
     {"claim_card", ClaimCard.ClaimCardResponder},
@@ -103,15 +105,40 @@ defmodule MclKanban.Service do
   @impl true
   def stop(_state), do: :ok
 
-  # The board is reachable when the read model answers.
+  # The board works when both halves answer: the read model serves every
+  # query, the event store takes every write. A dead store behind a live read
+  # model once reported ok for over an hour (#11).
   @impl true
-  def health do
+  def health, do: health(event_store().id)
+
+  @doc false
+  def health(store_id), do: verdict(Map.merge(read_model_problem(), store_problem(store_id)))
+
+  defp verdict(problems) when map_size(problems) == 0, do: :ok
+  defp verdict(problems), do: {:degraded, problems}
+
+  defp read_model_problem do
     case ProjectBoards.Repo.query("SELECT 1", [], timeout: 1_000) do
-      {:ok, _} -> :ok
-      {:error, reason} -> {:degraded, %{read_model: inspect(reason)}}
+      {:ok, _} -> %{}
+      {:error, reason} -> %{read_model: inspect(reason)}
     end
   catch
-    :exit, _ -> {:degraded, %{read_model: :missing}}
+    :exit, _ -> %{read_model: :missing}
+  end
+
+  # reckon_db_store:is_ready/1 reads the store's root through khepri: false
+  # once the store or its Ra server is gone. Bounded, so a store stuck on its
+  # disk cannot hang the health check. khepri's own error tuple can come
+  # through is_ready unchanged.
+  defp store_problem(store_id) do
+    task = Task.async(fn -> :reckon_db_store.is_ready(store_id) end)
+
+    case Task.yield(task, @store_probe_ms) || Task.shutdown(task, :brutal_kill) do
+      {:ok, true} -> %{}
+      {:ok, false} -> %{event_store: :not_ready}
+      {:ok, other} -> %{event_store: inspect(other)}
+      nil -> %{event_store: :timeout}
+    end
   end
 
   @impl true

@@ -20,38 +20,82 @@ defmodule QueryBoards.CardRows do
   @doc "SELECT <card columns> FROM cards c <rest>."
   def select(rest), do: "SELECT #{@columns} FROM cards c " <> rest
 
+  @doc """
+  The cards the select matches, with their tags and links. Three queries
+  read the tags and links of every card at once, however many cards there
+  are: one query per card each made an owner UI reload cost hundreds.
+  """
   @spec cards(String.t(), list()) :: [map()]
-  def cards(rest, args), do: select(rest) |> ReadModel.q(args) |> Enum.map(&card/1)
+  def cards(rest, args) do
+    rows = select(rest) |> ReadModel.q(args)
+    related = related(Enum.map(rows, &hd/1))
+    Enum.map(rows, &card(&1, related))
+  end
 
-  defp card([
-         id,
-         ref,
-         repo,
-         board_id,
-         title,
-         role,
-         ask,
-         value,
-         kind,
-         rank,
-         rationale,
-         ranked_by,
-         lane,
-         lane_node_id,
-         holder,
-         holder_node_id,
-         status,
-         comment_count,
-         note,
-         queued_by,
-         queued_at,
-         claimed_at,
-         changed_at,
-         version,
-         ranked_at,
-         work_package,
-         package_rank
-       ]) do
+  defp related([]), do: %{tags: %{}, links: %{}, linked_from: %{}}
+
+  defp related(ids) do
+    marks = Enum.map_join(ids, ", ", fn _ -> "?" end)
+
+    %{
+      tags:
+        grouped(
+          "SELECT card_id, tag FROM card_tags WHERE card_id IN (#{marks}) ORDER BY tag",
+          ids,
+          fn [_id, tag] -> tag end
+        ),
+      links:
+        grouped(
+          "SELECT card_id, to_card_id, link FROM card_links WHERE card_id IN (#{marks}) " <>
+            "ORDER BY linked_at",
+          ids,
+          fn [_id, to, link] -> %{to_card_id: to, link: link} end
+        ),
+      linked_from:
+        grouped(
+          "SELECT to_card_id, card_id, link FROM card_links WHERE to_card_id IN (#{marks}) " <>
+            "ORDER BY linked_at",
+          ids,
+          fn [_id, from, link] -> %{from_card_id: from, link: link} end
+        )
+    }
+  end
+
+  # Rows keyed by their first column, each group in the order the query read it.
+  defp grouped(sql, ids, value), do: sql |> ReadModel.q(ids) |> Enum.group_by(&hd/1, value)
+
+  defp card(
+         [
+           id,
+           ref,
+           repo,
+           board_id,
+           title,
+           role,
+           ask,
+           value,
+           kind,
+           rank,
+           rationale,
+           ranked_by,
+           lane,
+           lane_node_id,
+           holder,
+           holder_node_id,
+           status,
+           comment_count,
+           note,
+           queued_by,
+           queued_at,
+           claimed_at,
+           changed_at,
+           version,
+           ranked_at,
+           work_package,
+           package_rank
+         ],
+         related
+       ) do
     %{
       card_id: id,
       issue_ref: ref,
@@ -61,7 +105,7 @@ defmodule QueryBoards.CardRows do
       story: story(role, ask, value),
       kind: kind,
       colour: CardKind.colour(kind),
-      tags: tags(id),
+      tags: Map.get(related.tags, id, []),
       rank: rank,
       rationale: rationale,
       ranked_by: ranked_by,
@@ -73,8 +117,8 @@ defmodule QueryBoards.CardRows do
       state: CardStatus.state_name(status),
       pinned: pinned(CardStatus.pinned?(status)),
       note: note,
-      links: links(id),
-      linked_from: linked_from(id),
+      links: Map.get(related.links, id, []),
+      linked_from: Map.get(related.linked_from, id, []),
       comment_count: comment_count,
       queued_by: queued_by,
       queued_at: queued_at,
@@ -92,23 +136,6 @@ defmodule QueryBoards.CardRows do
 
   defp pinned(true), do: 1
   defp pinned(false), do: 0
-
-  defp tags(id),
-    do:
-      ReadModel.q("SELECT tag FROM card_tags WHERE card_id = ? ORDER BY tag", [id])
-      |> Enum.map(&hd/1)
-
-  defp links(id) do
-    "SELECT to_card_id, link FROM card_links WHERE card_id = ? ORDER BY linked_at"
-    |> ReadModel.q([id])
-    |> Enum.map(fn [to, link] -> %{to_card_id: to, link: link} end)
-  end
-
-  defp linked_from(id) do
-    "SELECT card_id, link FROM card_links WHERE to_card_id = ? ORDER BY linked_at"
-    |> ReadModel.q([id])
-    |> Enum.map(fn [from, link] -> %{from_card_id: from, link: link} end)
-  end
 
   @doc "A card's comment thread, oldest first."
   def comments(id) do

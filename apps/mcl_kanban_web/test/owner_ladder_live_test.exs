@@ -21,8 +21,14 @@ defmodule MclKanbanWeb.OwnerLadderLiveTest do
   defp node_hex(name),
     do: :crypto.hash(:sha256, "synthetic ladder node " <> name) |> Base.encode16(case: :lower)
 
-  defp eventually(fun, tries \\ 150) do
-    fun.() || (tries > 0 && (Process.sleep(20) || eventually(fun, tries - 1)))
+  # Retries fun every 20 ms, up to tries times, until it returns truthy.
+  defp eventually(fun, tries \\ 150), do: fun.() || retry(fun, tries)
+
+  defp retry(_fun, 0), do: false
+
+  defp retry(fun, tries) do
+    Process.sleep(20)
+    eventually(fun, tries - 1)
   end
 
   defp ladder(path \\ "/") do
@@ -44,8 +50,11 @@ defmodule MclKanbanWeb.OwnerLadderLiveTest do
     |> form("#queue-form", %{"repo" => repo, "number" => n, "title" => title, "kind" => kind})
     |> render_submit()
 
-    assert eventually(fn -> render(view) =~ title end)
-    IssueRef.card_id("#{repo}##{n}")
+    # The toast names the card at once; the ladder row lands with the next
+    # coalesced reload, so wait for the row itself.
+    id = IssueRef.card_id("#{repo}##{n}")
+    assert eventually(fn -> has_element?(view, ~s([data-card-id="#{id}"])) end)
+    id
   end
 
   defp owner(command, desk, args) do
@@ -112,9 +121,9 @@ defmodule MclKanbanWeb.OwnerLadderLiveTest do
     owner(OpenPackageV1, MaybeOpenPackage, %{issue_ref: pkg, title: "Ship the ladder"})
     owner(FileCardV1, MaybeFileCard, %{card_id: card, package_ref: pkg})
 
-    assert eventually(fn -> render(view) =~ "Ship the ladder" end)
+    assert eventually(fn -> has_element?(view, ~s(section[data-key="#{pkg}"])) end)
     html = render(view)
-    assert html =~ ~s(data-key="#{pkg}")
+    assert html =~ "Ship the ladder"
     assert html =~ "Not in a package"
 
     focused = ladder("/?" <> URI.encode_query(%{"view" => "pkg", "focus" => pkg}))

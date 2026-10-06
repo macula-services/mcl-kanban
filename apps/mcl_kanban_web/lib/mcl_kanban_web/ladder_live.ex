@@ -23,6 +23,7 @@ defmodule MclKanbanWeb.LadderLive do
 
   @params ~w(view focus filter q card)
   @defaults %{"view" => "pkg", "focus" => "all", "filter" => nil, "q" => "", "card" => nil}
+  @reload_after_ms 200
 
   @impl true
   def mount(_params, _session, socket) do
@@ -33,6 +34,7 @@ defmodule MclKanbanWeb.LadderLive do
      assign(socket,
        page_title: "Crew board",
        selected: nil,
+       reload: nil,
        collapsed: MapSet.new(),
        dialog: nil,
        toasts: [],
@@ -154,8 +156,15 @@ defmodule MclKanbanWeb.LadderLive do
 
   defp ladder_key(c), do: {c.rank == nil, c.rank || 0, c.ranked_at || 0, c.queued_at}
 
+  # A fill or a busy crew changes the board many times a second, and each
+  # reload reads the whole ladder. Changes inside one window share a reload.
   @impl true
-  def handle_info({:boards_changed, _change}, socket), do: {:noreply, load(socket)}
+  def handle_info({:boards_changed, _change}, %{assigns: %{reload: nil}} = socket),
+    do: {:noreply, assign(socket, reload: Process.send_after(self(), :reload, @reload_after_ms))}
+
+  def handle_info({:boards_changed, _change}, socket), do: {:noreply, socket}
+
+  def handle_info(:reload, socket), do: {:noreply, socket |> assign(reload: nil) |> load()}
 
   # ---------- navigation ----------
 

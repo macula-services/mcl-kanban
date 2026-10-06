@@ -7,6 +7,7 @@ defmodule QueryBoards.GetCardById.GetCardById do
   @moduledoc false
 
   alias QueryBoards.CardRows
+  alias QueryBoards.ReadModel
 
   @spec get_card_by_id(String.t()) :: {:ok, map()} | {:error, :unknown_card}
   def get_card_by_id(card_id) when is_binary(card_id) do
@@ -23,10 +24,12 @@ defmodule QueryBoards.GetCardById.GetCardById do
   def get_card_by_id(card_id, version, timeout_ms \\ 5_000),
     do: await(card_id, version, System.monotonic_time(:millisecond) + timeout_ms)
 
+  # Each poll reads the card's version alone; the whole card (tags, links,
+  # comments) is read once, when the version has arrived.
   defp await(card_id, version, deadline) do
-    case get_card_by_id(card_id) do
-      {:ok, %{version: v} = card} when v >= version ->
-        {:ok, card}
+    case ReadModel.q("SELECT version FROM cards WHERE card_id = ?", [card_id]) do
+      [[v]] when v >= version ->
+        get_card_by_id(card_id)
 
       _behind ->
         retry(card_id, version, deadline, System.monotonic_time(:millisecond) >= deadline)
