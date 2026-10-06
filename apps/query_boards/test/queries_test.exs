@@ -577,4 +577,16 @@ defmodule QueryBoards.QueriesTest do
     assert pkg.cards == []
     assert pkg.done == 0
   end
+
+  test "a board's counts never count a package's own card as waiting work (#15)" do
+    repo = "example-org/counts" <> uniq()
+    b = board(repo)
+    ref = package("#{repo}#1", 1)
+    head = card(repo, b, 1)
+    member = card(repo, b, 2)
+    for id <- [head, member], do: file(id, ref, 1)
+
+    board = Enum.find(GetBoards.get_boards(), &(&1.board_id == b))
+    assert board.counts == %{queued: 1, claimed: 0, blocked: 0, finished: 0}
+  end
 end
