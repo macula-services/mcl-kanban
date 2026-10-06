@@ -325,4 +325,39 @@ defmodule MclKanbanWeb.OwnerLadderLiveTest do
 
     assert burst <= 2 * one, "#{burst} queries for 20 changes, #{one} for one"
   end
+
+  test "the owner pauses a package and a repo with a reason and resumes them; a card is deferred from its drawer (#17)" do
+    view = ladder()
+    repo = "example-org/pause" <> uniq()
+    open_board(view, repo)
+    id = queue(view, repo, 1, "Pause me")
+    pkg = "#{repo}#70"
+    owner(OpenPackageV1, MaybeOpenPackage, %{issue_ref: pkg, title: "Later"})
+    owner(FileCardV1, MaybeFileCard, %{card_id: id, package_ref: pkg})
+    assert eventually(fn -> has_element?(view, ~s([data-pause="#{pkg}"])) end)
+
+    view |> element(~s([data-pause="#{pkg}"])) |> render_click()
+    view |> form("#pause-form", %{"reason" => "after the demo"}) |> render_submit()
+    assert eventually(fn -> has_element?(view, ~s([data-resume="#{pkg}"])) end)
+    assert render(view) =~ "paused"
+
+    view |> element(~s([data-resume="#{pkg}"])) |> render_click()
+    assert eventually(fn -> has_element?(view, ~s([data-pause="#{pkg}"])) end)
+
+    by_repo = ladder("/?" <> URI.encode_query(%{"view" => "repo", "focus" => repo}))
+    by_repo |> element(~s([data-pause="#{repo}"])) |> render_click()
+    by_repo |> form("#pause-form", %{"reason" => "not now"}) |> render_submit()
+    assert eventually(fn -> has_element?(by_repo, ~s([data-resume="#{repo}"])) end)
+    by_repo |> element(~s([data-resume="#{repo}"])) |> render_click()
+    assert eventually(fn -> has_element?(by_repo, ~s([data-pause="#{repo}"])) end)
+
+    drawer = ladder("/?" <> URI.encode_query(%{"card" => id}))
+    drawer |> element(~s(#drawer [phx-value-action="defer"])) |> render_click()
+    drawer |> form("#reason-form", %{"action" => "defer", "reason" => "not this week"}) |> render_submit()
+    assert eventually(fn -> match?({:ok, %{state: "deferred"}}, GetCardById.get_card_by_id(id)) end)
+
+    assert eventually(fn -> has_element?(drawer, ~s(#drawer [phx-click="resume"])) end)
+    drawer |> element(~s(#drawer [phx-click="resume"])) |> render_click()
+    assert eventually(fn -> match?({:ok, %{state: "queued"}}, GetCardById.get_card_by_id(id)) end)
+  end
 end
