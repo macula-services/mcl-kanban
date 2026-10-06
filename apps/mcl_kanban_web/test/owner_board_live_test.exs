@@ -9,7 +9,9 @@ defmodule MclKanbanWeb.OwnerBoardLiveTest do
   @endpoint MclKanbanWeb.Endpoint
 
   defp uniq, do: Integer.to_string(System.unique_integer([:positive]))
-  defp node_hex(name), do: :crypto.hash(:sha256, "synthetic web node " <> name) |> Base.encode16(case: :lower)
+
+  defp node_hex(name),
+    do: :crypto.hash(:sha256, "synthetic web node " <> name) |> Base.encode16(case: :lower)
 
   defp eventually(fun, tries \\ 100) do
     fun.() || (tries > 0 && (Process.sleep(20) || eventually(fun, tries - 1)))
@@ -37,7 +39,11 @@ defmodule MclKanbanWeb.OwnerBoardLiveTest do
     {:ok, board, _} = live(build_conn(), "/boards/" <> repo)
 
     board
-    |> form("#queue-card", %{"issue_ref" => repo <> "#5", "title" => "Owner card", "kind" => "bug"})
+    |> form("#queue-card", %{
+      "issue_ref" => repo <> "#5",
+      "title" => "Owner card",
+      "kind" => "bug"
+    })
     |> render_submit()
 
     assert eventually(fn -> render(board) =~ "Owner card" end)
@@ -45,7 +51,10 @@ defmodule MclKanbanWeb.OwnerBoardLiveTest do
     board |> element("[data-card-ref='#{repo}#5']") |> render_click()
     assert render(board) =~ "https://github.com/#{repo}/issues/5"
 
-    board |> form("#rank-card", %{"rank" => "3", "rationale" => "Raf wants it"}) |> render_submit()
+    board
+    |> form("#rank-card", %{"rank" => "3", "rationale" => "Raf wants it"})
+    |> render_submit()
+
     assert eventually(fn -> render(board) =~ "pinned" end)
 
     board |> form("#comment-card", %{"text" => "go for it"}) |> render_submit()

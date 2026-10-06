@@ -1,0 +1,245 @@
+name: ci
+
+# The tests gate the image. A push to main or a v* tag builds and pushes the
+# image only after the test job passed, and only after the built release was
+# checked against the dependency resolve the tests ran on. Pull requests run
+# the tests only.
+#
+#   push to main : ghcr.io/macula-services/mcl-kanban:main and :<sha>
+#   push of v*   : ghcr.io/macula-services/mcl-kanban:<X.Y.Z>, then :latest once attest signed it
+#
+# ONLY A RELEASE MOVES :latest (promote-latest, after attest), the dev fleet's deploy channel: each box's reconciler
+# pulls it, verifies the digest it resolved to and runs that digest, so a green v* tag
+# is the deploy. A push to main deploys nothing.
+#
+# PATH FILTERS. A docs-only change must not rebuild or re-push an image. Keep
+# this list to things that cannot change what the image contains.
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push cancels an older run, image build included, so an older
+# commit's image never lands after a newer one's.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: gates (OTP 28.4.3 / Elixir 1.18.4)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    # THE TOOLCHAIN IS THE IMAGE, and the same image by digest is the
+    # Containerfile's builder, so the gates run on exactly the toolchain the
+    # release ships with. macula-io/macula-ci-images asserts at build time that
+    # its OpenSSL serves ML-DSA; the first step checks it again here.
+    container:
+      image: ghcr.io/macula-io/macula-ci-pq:ex118-20261005-1119@sha256:f8b10b0cbb04651dd6ddcdd8e9856c12c0927e5bf4e93e8de11f6c0711e300de
+
+    env:
+      MIX_ENV: test
+      MACULA_FORCE_SOURCE_BUILD: "1"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify the toolchain
+        run: |
+          erl -noshell -eval 'io:format("OTP ~s~n",[erlang:system_info(otp_release)]),halt().'
+          elixir --version | tail -1
+          erl -noshell -eval '
+            case lists:member(mldsa87, crypto:supports(public_keys)) of
+                true  -> io:format("mldsa87 supported~n"), halt(0);
+                false -> io:format("mldsa87 MISSING~n"), halt(1)
+            end.'
+
+      - name: Cache deps and _build
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          # Keyed on mix.exs: this org does not commit lock files. The
+          # toolchain is in the key, so a _build from another OTP never returns.
+          key: ${{ runner.os }}-ex1.18.4-otp28.4.3-mix-${{ hashFiles('**/mix.exs') }}
+          restore-keys: |
+            ${{ runner.os }}-ex1.18.4-otp28.4.3-mix-
+
+      - name: Get deps
+        run: mix deps.get
+
+      # SHIPPED == TESTED. The resolve above is the only record of what these
+      # gates ran on; the image job builds from it and asserts the release
+      # matches it before anything is pushed.
+      - name: Hand the tested resolve to the image job
+        uses: actions/upload-artifact@v4
+        with:
+          name: tested-mix-lock
+          path: mix.lock
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Format
+        run: mix format --check-formatted
+
+      - name: Compile
+        run: mix compile --warnings-as-errors
+
+      - name: Credo
+        run: mix credo
+
+      - name: Test
+        run: mix test
+
+      - name: Cache Dialyzer PLTs
+        uses: actions/cache@v4
+        with:
+          path: priv/plts
+          key: ${{ runner.os }}-plt-otp28.4.3-ex1.18.4-${{ hashFiles('**/mix.exs') }}
+          restore-keys: |
+            ${{ runner.os }}-plt-otp28.4.3-ex1.18.4-
+
+      - name: Dialyzer
+        run: mix dialyzer
+
+  image:
+    outputs:
+      digest: ${{ steps.push.outputs.digest }}
+    name: image (amd64)
+    needs: test
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE_NAME: ghcr.io/macula-services/mcl-kanban
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Take the resolve the tests ran on
+        uses: actions/download-artifact@v4
+        with:
+          name: tested-mix-lock
+          path: .
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch,enable=${{ github.ref == 'refs/heads/main' }}
+            type=sha,prefix=,format=long,enable=${{ github.ref == 'refs/heads/main' }}
+            type=semver,pattern={{version}},enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+          flavor: |
+            latest=false
+
+      # Built and LOADED first, not pushed: the check below runs against this
+      # exact image, and only a passing image reaches ghcr.
+      - name: Build (not pushed yet)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Containerfile
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: mcl-kanban:tested-${{ github.sha }}
+          cache-from: type=gha
+          provenance: false
+          build-args: |
+            CACHE_BUST=${{ github.sha }}
+            GIT_SHA=${{ github.sha }}
+
+      - name: Assert the release is the tested resolve
+        run: ./scripts/assert_release_matches_lock.sh mcl-kanban:tested-${{ github.sha }} mix.lock
+
+      - name: Push
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Containerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+          build-args: |
+            CACHE_BUST=${{ github.sha }}
+            GIT_SHA=${{ github.sha }}
+
+  # SIGNED BY DIGEST, SBOM AND PROVENANCE ATTESTED, keyless, so a box can refuse any digest that did
+  # not come from this workflow on a commit of this repository (macula-fleet's reconciler checks it
+  # before it runs the image). Pinned by full commit sha: the signing identity is that file at that
+  # ref. See macula-ci-images' README.
+  attest:
+    needs: image
+    if: needs.image.outputs.digest != ''
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    uses: macula-io/macula-ci-images/.github/workflows/attest-image.yml@b304162c9b46b366f93af362d3a76f17ae01794f
+    with:
+      image: ghcr.io/macula-services/mcl-kanban
+      digest: ${{ needs.image.outputs.digest }}
+
+  # :latest is the dev fleet's deploy channel, so it moves LAST: only on a v* tag, and only once
+  # attest has signed and attested this digest. A box that pulls :latest in the window between
+  # push and signature would otherwise refuse the release (and remember that for an hour).
+  promote-latest:
+    needs: [image, attest]
+    if: startsWith(github.ref, 'refs/tags/v') && needs.image.outputs.digest != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Log in to the registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Point :latest at the signed digest
+        env:
+          IMAGE: ghcr.io/macula-services/mcl-kanban
+          DIGEST: ${{ needs.image.outputs.digest }}
+        # --prefer-index=false: a CARBON COPY of the signed manifest. Without it imagetools wraps a
+        # single manifest in a new index, a digest attest never signed, and :latest would point at it.
+        run: |
+          docker buildx imagetools create --prefer-index=false --tag "$IMAGE:latest" "$IMAGE@$DIGEST"
+          got="$(docker buildx imagetools inspect "$IMAGE:latest" --format '{{.Manifest.Digest}}')"
+          if [ "$got" != "$DIGEST" ]; then
+            echo "::error:::latest resolves to $got, not the signed $DIGEST"
+            exit 1
+          fi

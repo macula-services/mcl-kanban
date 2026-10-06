@@ -160,7 +160,9 @@ defmodule GuideCardLifecycle.CardLifecycleTest do
       assert {:error, :not_in_lane} = MaybeClaimCard.handle(reserved, bob)
 
       cyd = cmd(ClaimCardV1, %{card_id: card_id(), by: actor("cyd")})
-      assert {:ok, [%{event_type: "card_claimed_v1", holder: "cyd"}]} = MaybeClaimCard.handle(reserved, cyd)
+
+      assert {:ok, [%{event_type: "card_claimed_v1", holder: "cyd"}]} =
+               MaybeClaimCard.handle(reserved, cyd)
     end
 
     test "a blocked card cannot be claimed" do
@@ -219,7 +221,11 @@ defmodule GuideCardLifecycle.CardLifecycleTest do
       assert {:error, :already_blocked} = MaybeBlockCard.handle(blocked, again)
 
       unblocked =
-        run(blocked, MaybeUnblockCard, cmd(UnblockCardV1, %{card_id: card_id(), by: actor("bob")}))
+        run(
+          blocked,
+          MaybeUnblockCard,
+          cmd(UnblockCardV1, %{card_id: card_id(), by: actor("bob")})
+        )
 
       assert CardStatus.state_name(unblocked.status) == "claimed"
       assert unblocked.holder == "bob"
@@ -271,7 +277,9 @@ defmodule GuideCardLifecycle.CardLifecycleTest do
     test "the supervisor or the owner withdraws; an agent may not" do
       for by <- [actor("ada"), Actor.owner()] do
         cmd = cmd(WithdrawCardV1, %{card_id: card_id(), reason: "duplicate", by: by})
-        assert {:ok, [%{event_type: "card_withdrawn_v1"}]} = MaybeWithdrawCard.handle(queued(), cmd)
+
+        assert {:ok, [%{event_type: "card_withdrawn_v1"}]} =
+                 MaybeWithdrawCard.handle(queued(), cmd)
       end
 
       bob = cmd(WithdrawCardV1, %{card_id: card_id(), reason: "x", by: actor("bob")})
@@ -287,14 +295,21 @@ defmodule GuideCardLifecycle.CardLifecycleTest do
         )
 
       claim = cmd(ClaimCardV1, %{card_id: card_id(), by: actor("bob")})
-      assert {:error, :withdrawn} = CardAggregate.execute(withdrawn, ClaimCardV1.to_payload(claim))
+
+      assert {:error, :withdrawn} =
+               CardAggregate.execute(withdrawn, ClaimCardV1.to_payload(claim))
     end
   end
 
   describe "prioritise and unpin" do
     test "the prioritiser ranks with a rationale" do
       cmd =
-        cmd(PrioritiseCardV1, %{card_id: card_id(), rank: 10, rationale: "unblocks two", by: actor("pia")})
+        cmd(PrioritiseCardV1, %{
+          card_id: card_id(),
+          rank: 10,
+          rationale: "unblocks two",
+          by: actor("pia")
+        })
 
       ranked = run(queued(), MaybePrioritiseCard, cmd)
       assert ranked.rank == 10
@@ -303,12 +318,21 @@ defmodule GuideCardLifecycle.CardLifecycleTest do
     end
 
     test "an owner rank pins the card, and the prioritiser cannot change it" do
-      owner = cmd(PrioritiseCardV1, %{card_id: card_id(), rank: 1, rationale: "", by: Actor.owner()})
+      owner =
+        cmd(PrioritiseCardV1, %{card_id: card_id(), rank: 1, rationale: "", by: Actor.owner()})
+
       pinned = run(queued(), MaybePrioritiseCard, owner)
       assert CardStatus.pinned?(pinned.status)
       assert pinned.ranked_by == "owner"
 
-      pia = cmd(PrioritiseCardV1, %{card_id: card_id(), rank: 50, rationale: "later", by: actor("pia")})
+      pia =
+        cmd(PrioritiseCardV1, %{
+          card_id: card_id(),
+          rank: 50,
+          rationale: "later",
+          by: actor("pia")
+        })
+
       assert {:error, :pinned_by_owner} = MaybePrioritiseCard.handle(pinned, pia)
 
       unpinned =
@@ -320,7 +344,9 @@ defmodule GuideCardLifecycle.CardLifecycleTest do
 
     test "nobody else ranks, and only the owner unpins" do
       for name <- ~w(ada bob) do
-        cmd = cmd(PrioritiseCardV1, %{card_id: card_id(), rank: 3, rationale: "r", by: actor(name)})
+        cmd =
+          cmd(PrioritiseCardV1, %{card_id: card_id(), rank: 3, rationale: "r", by: actor(name)})
+
         assert {:error, :not_permitted} = MaybePrioritiseCard.handle(queued(), cmd)
       end
 
@@ -333,24 +359,49 @@ defmodule GuideCardLifecycle.CardLifecycleTest do
 
     test "the prioritiser must give a rationale; a rank is a non-negative integer" do
       assert {:error, :rationale_required} =
-               PrioritiseCardV1.new(%{card_id: card_id(), rank: 2, rationale: "", by: actor("pia")})
+               PrioritiseCardV1.new(%{
+                 card_id: card_id(),
+                 rank: 2,
+                 rationale: "",
+                 by: actor("pia")
+               })
 
       assert {:error, :invalid_rank} =
-               PrioritiseCardV1.new(%{card_id: card_id(), rank: -1, rationale: "r", by: actor("pia")})
+               PrioritiseCardV1.new(%{
+                 card_id: card_id(),
+                 rank: -1,
+                 rationale: "r",
+                 by: actor("pia")
+               })
 
       assert {:error, :invalid_rank} =
-               PrioritiseCardV1.new(%{card_id: card_id(), rank: "1", rationale: "r", by: actor("pia")})
+               PrioritiseCardV1.new(%{
+                 card_id: card_id(),
+                 rank: "1",
+                 rationale: "r",
+                 by: actor("pia")
+               })
     end
   end
 
   describe "reserve and lift" do
     test "supervisor, prioritiser and owner reserve; a plain agent may not" do
       for by <- [actor("ada"), actor("pia"), Actor.owner()] do
-        cmd = cmd(ReserveCardV1, %{card_id: card_id(), lane: "bob", lane_node_id: hex("bob"), by: by})
-        assert {:ok, [%{event_type: "card_reserved_v1", lane: "bob"}]} = MaybeReserveCard.handle(queued(), cmd)
+        cmd =
+          cmd(ReserveCardV1, %{card_id: card_id(), lane: "bob", lane_node_id: hex("bob"), by: by})
+
+        assert {:ok, [%{event_type: "card_reserved_v1", lane: "bob"}]} =
+                 MaybeReserveCard.handle(queued(), cmd)
       end
 
-      cmd = cmd(ReserveCardV1, %{card_id: card_id(), lane: "bob", lane_node_id: hex("bob"), by: actor("cyd")})
+      cmd =
+        cmd(ReserveCardV1, %{
+          card_id: card_id(),
+          lane: "bob",
+          lane_node_id: hex("bob"),
+          by: actor("cyd")
+        })
+
       assert {:error, :not_permitted} = MaybeReserveCard.handle(queued(), cmd)
     end
 
@@ -362,7 +413,12 @@ defmodule GuideCardLifecycle.CardLifecycleTest do
         run(
           queued(),
           MaybeReserveCard,
-          cmd(ReserveCardV1, %{card_id: card_id(), lane: "bob", lane_node_id: hex("bob"), by: actor("ada")})
+          cmd(ReserveCardV1, %{
+            card_id: card_id(),
+            lane: "bob",
+            lane_node_id: hex("bob"),
+            by: actor("ada")
+          })
         )
 
       lifted = run(reserved, MaybeLiftCardReservation, lift)
@@ -397,14 +453,24 @@ defmodule GuideCardLifecycle.CardLifecycleTest do
 
   describe "tags, links, comments" do
     test "any agent tags and untags; a tag is held once" do
-      tagged = run(queued(), MaybeTagCard, cmd(TagCardV1, %{card_id: card_id(), tag: "infra", by: actor("cyd")}))
+      tagged =
+        run(
+          queued(),
+          MaybeTagCard,
+          cmd(TagCardV1, %{card_id: card_id(), tag: "infra", by: actor("cyd")})
+        )
+
       assert "infra" in tagged.tags
 
       again = cmd(TagCardV1, %{card_id: card_id(), tag: "infra", by: actor("bob")})
       assert {:error, :already_tagged} = MaybeTagCard.handle(tagged, again)
 
       untagged =
-        run(tagged, MaybeUntagCard, cmd(UntagCardV1, %{card_id: card_id(), tag: "infra", by: actor("bob")}))
+        run(
+          tagged,
+          MaybeUntagCard,
+          cmd(UntagCardV1, %{card_id: card_id(), tag: "infra", by: actor("bob")})
+        )
 
       refute "infra" in untagged.tags
       gone = cmd(UntagCardV1, %{card_id: card_id(), tag: "infra", by: actor("bob")})
@@ -412,12 +478,26 @@ defmodule GuideCardLifecycle.CardLifecycleTest do
     end
 
     test "a link names the other card and its kind; it is stored once, on the source" do
-      link = cmd(LinkCardV1, %{card_id: card_id(), to_card_id: other_id(), link: "blocks", by: actor("bob")})
+      link =
+        cmd(LinkCardV1, %{
+          card_id: card_id(),
+          to_card_id: other_id(),
+          link: "blocks",
+          by: actor("bob")
+        })
+
       linked = run(queued(), MaybeLinkCard, link)
       assert linked.links == [%{to_card_id: other_id(), link: "blocks"}]
       assert {:error, :already_linked} = MaybeLinkCard.handle(linked, link)
 
-      unlink = cmd(UnlinkCardV1, %{card_id: card_id(), to_card_id: other_id(), link: "blocks", by: actor("bob")})
+      unlink =
+        cmd(UnlinkCardV1, %{
+          card_id: card_id(),
+          to_card_id: other_id(),
+          link: "blocks",
+          by: actor("bob")
+        })
+
       unlinked = run(linked, MaybeUnlinkCard, unlink)
       assert unlinked.links == []
       assert {:error, :not_linked} = MaybeUnlinkCard.handle(unlinked, unlink)
@@ -425,13 +505,28 @@ defmodule GuideCardLifecycle.CardLifecycleTest do
 
     test "a link kind is blocks, relates_to or follows_up, and never to itself" do
       assert {:error, :invalid_link} =
-               LinkCardV1.new(%{card_id: card_id(), to_card_id: other_id(), link: "owns", by: actor("bob")})
+               LinkCardV1.new(%{
+                 card_id: card_id(),
+                 to_card_id: other_id(),
+                 link: "owns",
+                 by: actor("bob")
+               })
 
       assert {:error, :self_link} =
-               LinkCardV1.new(%{card_id: card_id(), to_card_id: card_id(), link: "blocks", by: actor("bob")})
+               LinkCardV1.new(%{
+                 card_id: card_id(),
+                 to_card_id: card_id(),
+                 link: "blocks",
+                 by: actor("bob")
+               })
 
       assert {:error, :invalid_card_id} =
-               LinkCardV1.new(%{card_id: card_id(), to_card_id: "nope", link: "blocks", by: actor("bob")})
+               LinkCardV1.new(%{
+                 card_id: card_id(),
+                 to_card_id: "nope",
+                 link: "blocks",
+                 by: actor("bob")
+               })
     end
 
     test "a comment carries a fresh id, its author and the text; the count follows" do
@@ -457,7 +552,10 @@ defmodule GuideCardLifecycle.CardLifecycleTest do
 
   test "the state folds an event as evoq delivers it, inside an envelope" do
     {:ok, [event]} = MaybeQueueCard.handle(CardState.new(card_id()), queue_cmd())
-    state = CardState.apply_event(CardState.new(card_id()), %{event_type: event.event_type, data: event})
+
+    state =
+      CardState.apply_event(CardState.new(card_id()), %{event_type: event.event_type, data: event})
+
     assert state.title == "Draw the board"
   end
 end

@@ -33,7 +33,9 @@ defmodule GuideCardLifecycle.CrewTest do
 
     test "the owner enlists, so the first agent can be enlisted at all" do
       cmd = enlist("ada", hex("ada"), Actor.owner())
-      assert {:ok, [%{by: "owner", by_kind: "owner"}]} = MaybeEnlistAgent.handle(CrewState.new(), cmd)
+
+      assert {:ok, [%{by: "owner", by_kind: "owner"}]} =
+               MaybeEnlistAgent.handle(CrewState.new(), cmd)
     end
 
     test "a plain agent or the prioritiser may not enlist" do
@@ -56,7 +58,11 @@ defmodule GuideCardLifecycle.CrewTest do
                EnlistAgentV1.new(%{name: "dan", node_id: "abc", by: actor("ada")})
 
       assert {:error, :invalid_node_id} =
-               EnlistAgentV1.new(%{name: "dan", node_id: String.duplicate("z", 64), by: actor("ada")})
+               EnlistAgentV1.new(%{
+                 name: "dan",
+                 node_id: String.duplicate("z", 64),
+                 by: actor("ada")
+               })
 
       assert {:error, :invalid_name} =
                EnlistAgentV1.new(%{name: "", node_id: hex("dan"), by: actor("ada")})

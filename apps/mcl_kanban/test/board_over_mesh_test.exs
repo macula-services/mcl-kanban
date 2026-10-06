@@ -57,7 +57,9 @@ defmodule MclKanban.BoardOverMeshTest do
 
     for name <- ~w(bob cyd) do
       agent = name <> uniq()
-      %{agent: %{name: ^agent}} = call(EnlistAgentResponder, sup, %{name: agent, node_id: hex(agent)})
+
+      %{agent: %{name: ^agent}} =
+        call(EnlistAgentResponder, sup, %{name: agent, node_id: hex(agent)})
     end
 
     repo = "example-org/kanban" <> uniq()
@@ -73,7 +75,11 @@ defmodule MclKanban.BoardOverMeshTest do
 
   defp queue(agent, repo, n) do
     %{card_id: id} =
-      call(QueueCardResponder, agent, %{issue_ref: "#{repo}##{n}", title: "Card #{n}", kind: "slice"})
+      call(QueueCardResponder, agent, %{
+        issue_ref: "#{repo}##{n}",
+        title: "Card #{n}",
+        kind: "slice"
+      })
 
     id
   end
@@ -93,6 +99,7 @@ defmodule MclKanban.BoardOverMeshTest do
     assert %{cards: [%{card_id: ^id}]} = call(GetMyCardsResponder, bob, %{})
 
     assert %{comment_id: _} = call(CommentOnCardResponder, bob, %{card_id: id, text: "picked up"})
+
     assert %{card: %{comment_count: 1, comments: [%{text: "picked up"}]}} =
              call(GetCardByIdResponder, bob, %{card_id: id})
 
@@ -107,7 +114,9 @@ defmodule MclKanban.BoardOverMeshTest do
 
     replies =
       [bob, cyd]
-      |> Enum.map(fn agent -> Task.async(fn -> call(ClaimCardResponder, agent, %{card_id: id}) end) end)
+      |> Enum.map(fn agent ->
+        Task.async(fn -> call(ClaimCardResponder, agent, %{card_id: id}) end)
+      end)
       |> Enum.map(&Task.await(&1, 30_000))
 
     assert Enum.count(replies, &match?(%{card: %{state: "claimed"}}, &1)) == 1
@@ -122,35 +131,61 @@ defmodule MclKanban.BoardOverMeshTest do
 
     # Other tests leave queued cards behind; drain until this test's card is
     # taken, then until the board has nothing left for dan.
-    taken = Stream.repeatedly(fn -> call(ClaimNextCardResponder, dan, %{}) end) |> Enum.take_while(&match?(%{card: _}, &1))
-    assert Enum.any?(taken, &(&1.card.card_id == first))
-    assert %{reason: "board_empty"} = call(ClaimNextCardResponder, dan, %{})
+    [last | taken] =
+      Enum.reduce_while(1..500, [], fn _, acc ->
+        case call(ClaimNextCardResponder, dan, %{}) do
+          %{card: card} -> {:cont, [card | acc]}
+          other -> {:halt, [other | acc]}
+        end
+      end)
+
+    assert last == %{reason: "board_empty"}
+    assert first in Enum.map(taken, & &1.card_id)
   end
 
   test "a caller the crew does not know gets nothing", %{repo: repo} do
     assert %{reason: "not_enlisted"} = call(GetMyCardsResponder, "stranger" <> uniq(), %{})
 
     assert %{reason: "not_enlisted"} =
-             call(QueueCardResponder, "stranger" <> uniq(), %{issue_ref: "#{repo}#99", title: "x", kind: "bug"})
+             call(QueueCardResponder, "stranger" <> uniq(), %{
+               issue_ref: "#{repo}#99",
+               title: "x",
+               kind: "bug"
+             })
   end
 
-  test "a plain agent may not enlist, and naming a role in the payload changes nothing", %{sup: sup} do
+  test "a plain agent may not enlist, and naming a role in the payload changes nothing", %{
+    sup: sup
+  } do
     bob = enlist(sup)
 
     assert %{reason: "not_permitted"} =
-             call(EnlistAgentResponder, bob, %{name: "eve" <> uniq(), node_id: hex("eve"), role: "owner"})
+             call(EnlistAgentResponder, bob, %{
+               name: "eve" <> uniq(),
+               node_id: hex("eve"),
+               role: "owner"
+             })
   end
 
   test "a refusal names its reason", %{sup: sup, repo: repo} do
     bob = enlist(sup)
-    assert %{reason: "already_on_board"} = call(QueueCardResponder, bob, %{issue_ref: "#{repo}#1", title: "again", kind: "slice"}) |> refused_or_first(bob, repo)
-    assert %{reason: "invalid_kind"} = call(QueueCardResponder, bob, %{issue_ref: "#{repo}#77", title: "x", kind: "epic"})
-    assert %{reason: "unknown_board"} = call(QueueCardResponder, bob, %{issue_ref: "example-org/none#1", title: "x", kind: "bug"})
+    queue(bob, repo, 41)
+
+    assert %{reason: "already_on_board"} =
+             call(QueueCardResponder, bob, %{
+               issue_ref: "#{repo}#41",
+               title: "again",
+               kind: "slice"
+             })
+
+    assert %{reason: "invalid_kind"} =
+             call(QueueCardResponder, bob, %{issue_ref: "#{repo}#77", title: "x", kind: "epic"})
+
+    assert %{reason: "unknown_board"} =
+             call(QueueCardResponder, bob, %{
+               issue_ref: "example-org/none#1",
+               title: "x",
+               kind: "bug"
+             })
   end
-
-  # Card 1 of the shared repo may not exist yet when this test runs first.
-  defp refused_or_first(%{card_id: _}, bob, repo),
-    do: call(QueueCardResponder, bob, %{issue_ref: "#{repo}#1", title: "again", kind: "slice"})
-
-  defp refused_or_first(reply, _bob, _repo), do: reply
 end

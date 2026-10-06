@@ -1,0 +1,25 @@
+defmodule QueryBoards.GetNextCardForAgent.GetNextCardForAgent do
+  # get_next_card_for_agent: the cards an agent may claim next, best first.
+  # Its own lane first, then unreserved cards; within each, by rank (one
+  # scale across all boards, unranked last), then oldest. Only queued cards
+  # that are not blocked, on boards not known to be archived (the board's row
+  # and the card's land through different projections, so a card may arrive
+  # before its board).
+  #
+  # This is a candidate list: claim_next_card claims down it, because another
+  # agent may take a card between this read and the claim.
+  @moduledoc false
+
+  alias QueryBoards.CardRows
+
+  @spec get_next_card_for_agent(String.t(), pos_integer()) :: [map()]
+  def get_next_card_for_agent(node_id, limit) when is_binary(node_id) and is_integer(limit) do
+    CardRows.cards(
+      "LEFT JOIN boards b ON b.board_id = c.board_id " <>
+        "WHERE c.status & 1 = 1 AND c.status & 30 = 0 AND (b.status IS NULL OR b.status & 2 = 0) " <>
+        "AND (c.lane_node_id IS NULL OR c.lane_node_id = ?) " <>
+        "ORDER BY c.lane_node_id IS NULL, c.rank IS NULL, c.rank, c.queued_at LIMIT ?",
+      [node_id, limit]
+    )
+  end
+end

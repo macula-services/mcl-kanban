@@ -9,6 +9,19 @@ defmodule ProjectBoards.ProjectionsTest do
 
   @projections ProjectBoards.Application.projections()
 
+  # The synthetic rows written here have no stream behind them. The umbrella
+  # runs every app's tests in one VM over one read model, so they go when
+  # this module is done, before the service's tests claim from the queue.
+  setup_all do
+    on_exit(fn ->
+      :ok =
+        ProjectBoards.ReadModel.write(
+          for t <- ~w(cards card_tags card_links card_comments boards crew),
+              do: {"DELETE FROM " <> t, []}
+        )
+    end)
+  end
+
   defp deliver(event, version) do
     type = event.event_type
     [module] = Enum.filter(@projections, &(type in &1.interested_in()))
@@ -79,7 +92,18 @@ defmodule ProjectBoards.ProjectionsTest do
 
     assert_receive {:boards_changed, %{card_id: ^id, event_type: "card_queued_v1"}}
 
-    deliver(%{event_type: "card_claimed_v1", card_id: id, holder: "bob", holder_node_id: "ab", status: 2, at: 200}, 1)
+    deliver(
+      %{
+        event_type: "card_claimed_v1",
+        card_id: id,
+        holder: "bob",
+        holder_node_id: "ab",
+        status: 2,
+        at: 200
+      },
+      1
+    )
+
     deliver(%{event_type: "card_tagged_v1", card_id: id, tag: "c", status: 2, at: 201}, 2)
     deliver(%{event_type: "card_untagged_v1", card_id: id, tag: "a", status: 2, at: 202}, 3)
     # Replayed: the same event twice is the same write twice.
@@ -117,23 +141,68 @@ defmodule ProjectBoards.ProjectionsTest do
       0
     )
 
-    deliver(%{event_type: "card_linked_v1", card_id: id, to_card_id: to, link: "blocks", status: 1, at: 1}, 1)
+    deliver(
+      %{
+        event_type: "card_linked_v1",
+        card_id: id,
+        to_card_id: to,
+        link: "blocks",
+        status: 1,
+        at: 1
+      },
+      1
+    )
 
     deliver(
-      %{event_type: "card_commented_v1", card_id: id, comment_id: "c1" <> uniq(), text: "hi", by: "cyd", by_kind: "agent", status: 1, at: 2},
+      %{
+        event_type: "card_commented_v1",
+        card_id: id,
+        comment_id: "c1" <> uniq(),
+        text: "hi",
+        by: "cyd",
+        by_kind: "agent",
+        status: 1,
+        at: 2
+      },
       2
     )
 
     # A late redelivery of version 1 does not move the row back.
-    deliver(%{event_type: "card_linked_v1", card_id: id, to_card_id: to, link: "blocks", status: 1, at: 1}, 1)
+    deliver(
+      %{
+        event_type: "card_linked_v1",
+        card_id: id,
+        to_card_id: to,
+        link: "blocks",
+        status: 1,
+        at: 1
+      },
+      1
+    )
 
     assert [[^id, ^to, "blocks"]] =
-             ReadModel.q("SELECT card_id, to_card_id, link FROM card_links WHERE card_id = ?", [id])
+             ReadModel.q("SELECT card_id, to_card_id, link FROM card_links WHERE card_id = ?", [
+               id
+             ])
 
-    assert [["hi", "cyd"]] = ReadModel.q("SELECT text, author FROM card_comments WHERE card_id = ?", [id])
-    assert [[2, 1]] = ReadModel.q("SELECT version, comment_count FROM cards WHERE card_id = ?", [id])
+    assert [["hi", "cyd"]] =
+             ReadModel.q("SELECT text, author FROM card_comments WHERE card_id = ?", [id])
 
-    deliver(%{event_type: "card_unlinked_v1", card_id: id, to_card_id: to, link: "blocks", status: 1, at: 3}, 3)
+    assert [[2, 1]] =
+             ReadModel.q("SELECT version, comment_count FROM cards WHERE card_id = ?", [id])
+
+    deliver(
+      %{
+        event_type: "card_unlinked_v1",
+        card_id: id,
+        to_card_id: to,
+        link: "blocks",
+        status: 1,
+        at: 3
+      },
+      3
+    )
+
     assert [] = ReadModel.q("SELECT 1 FROM card_links WHERE card_id = ?", [id])
   end
 
@@ -153,7 +222,12 @@ defmodule ProjectBoards.ProjectionsTest do
 
   test "a board row is opened and archived" do
     id = "board-" <> String.pad_leading(uniq(), 32, "f")
-    deliver(%{event_type: "board_opened_v1", board_id: id, repo: "example-org/r" <> uniq(), at: 1}, 0)
+
+    deliver(
+      %{event_type: "board_opened_v1", board_id: id, repo: "example-org/r" <> uniq(), at: 1},
+      0
+    )
+
     assert [[1]] = ReadModel.q("SELECT status FROM boards WHERE board_id = ?", [id])
     deliver(%{event_type: "board_archived_v1", board_id: id, at: 2}, 1)
     assert [[3]] = ReadModel.q("SELECT status FROM boards WHERE board_id = ?", [id])

@@ -10,7 +10,9 @@ defmodule MclKanban.ServiceTest do
                  get_my_cards enlist_agent discharge_agent open_board withdraw_card)
 
   test "the service module declares the mcl_om behaviour" do
-    behaviours = Service.module_info(:attributes) |> Keyword.get_values(:behaviour) |> List.flatten()
+    behaviours =
+      Service.module_info(:attributes) |> Keyword.get_values(:behaviour) |> List.flatten()
+
     assert :mcl_om_service in behaviours
   end
 

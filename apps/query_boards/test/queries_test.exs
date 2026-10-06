@@ -15,6 +15,19 @@ defmodule QueryBoards.QueriesTest do
 
   @projections ProjectBoards.Application.projections()
 
+  # The synthetic rows written here have no stream behind them. The umbrella
+  # runs every app's tests in one VM over one read model, so they go when
+  # this module is done, before the service's tests claim from the queue.
+  setup_all do
+    on_exit(fn ->
+      :ok =
+        ProjectBoards.ReadModel.write(
+          for t <- ~w(cards card_tags card_links card_comments boards crew),
+              do: {"DELETE FROM " <> t, []}
+        )
+    end)
+  end
+
   defp deliver(event, version) do
     [module] = Enum.filter(@projections, &(event.event_type in &1.interested_in()))
     envelope = %{event_type: event.event_type, version: version, data: event}
@@ -94,16 +107,51 @@ defmodule QueryBoards.QueriesTest do
     rank(claimed, 1, 1)
     rank(blocked, 1, 1)
 
-    deliver(%{event_type: "card_reserved_v1", card_id: mine, lane: "me", lane_node_id: me, status: 1, at: 6}, 2)
-    deliver(%{event_type: "card_reserved_v1", card_id: theirs, lane: "them", lane_node_id: other, status: 1, at: 6}, 1)
-    deliver(%{event_type: "card_claimed_v1", card_id: claimed, holder: "x", holder_node_id: other, status: 2, at: 7}, 2)
+    deliver(
+      %{
+        event_type: "card_reserved_v1",
+        card_id: mine,
+        lane: "me",
+        lane_node_id: me,
+        status: 1,
+        at: 6
+      },
+      2
+    )
+
+    deliver(
+      %{
+        event_type: "card_reserved_v1",
+        card_id: theirs,
+        lane: "them",
+        lane_node_id: other,
+        status: 1,
+        at: 6
+      },
+      1
+    )
+
+    deliver(
+      %{
+        event_type: "card_claimed_v1",
+        card_id: claimed,
+        holder: "x",
+        holder_node_id: other,
+        status: 2,
+        at: 7
+      },
+      2
+    )
+
     deliver(%{event_type: "card_blocked_v1", card_id: blocked, reason: "r", status: 5, at: 7}, 2)
 
     ids =
       me
       |> GetNextCardForAgent.get_next_card_for_agent(50)
       |> Enum.map(& &1.card_id)
-      |> Enum.filter(&(&1 in [old_unranked, ranked_low, ranked_high, mine, theirs, claimed, blocked]))
+      |> Enum.filter(
+        &(&1 in [old_unranked, ranked_low, ranked_high, mine, theirs, claimed, blocked])
+      )
 
     assert ids == [mine, ranked_high, ranked_low, old_unranked]
   end
@@ -114,10 +162,29 @@ defmodule QueryBoards.QueriesTest do
     a = card(repo, b, 1, %{tags: ["x"], story: %{role: "r", ask: "a", value: "v"}})
     c = card(repo, b, 2, %{kind: "bug"})
 
-    deliver(%{event_type: "card_linked_v1", card_id: a, to_card_id: c, link: "blocks", status: 1, at: 2}, 1)
+    deliver(
+      %{
+        event_type: "card_linked_v1",
+        card_id: a,
+        to_card_id: c,
+        link: "blocks",
+        status: 1,
+        at: 2
+      },
+      1
+    )
 
     deliver(
-      %{event_type: "card_commented_v1", card_id: c, comment_id: hex32("cm" <> uniq()), text: "hello", by: "cyd", by_kind: "agent", status: 1, at: 3},
+      %{
+        event_type: "card_commented_v1",
+        card_id: c,
+        comment_id: hex32("cm" <> uniq()),
+        text: "hello",
+        by: "cyd",
+        by_kind: "agent",
+        status: 1,
+        at: 3
+      },
       1
     )
 
@@ -154,16 +221,30 @@ defmodule QueryBoards.QueriesTest do
     two = card(repo, b, 2)
     rank(two, 0, 1, 1)
     node = hex32("holder" <> uniq()) <> hex32("x")
-    deliver(%{event_type: "card_claimed_v1", card_id: one, holder: "bob", holder_node_id: node, status: 2, at: 9}, 1)
+
+    deliver(
+      %{
+        event_type: "card_claimed_v1",
+        card_id: one,
+        holder: "bob",
+        holder_node_id: node,
+        status: 2,
+        at: 9
+      },
+      1
+    )
 
     assert Enum.any?(GetBoards.get_boards(), &(&1.repo == repo and &1.board_id == b))
     assert {:ok, %{board: %{repo: ^repo}, cards: cards}} = GetBoardByRepo.get_board_by_repo(repo)
     assert Enum.sort(Enum.map(cards, & &1.card_id)) == Enum.sort([one, two])
-    assert {:error, :unknown_board} = GetBoardByRepo.get_board_by_repo("example-org/none" <> uniq())
+
+    assert {:error, :unknown_board} =
+             GetBoardByRepo.get_board_by_repo("example-org/none" <> uniq())
 
     assert [%{card_id: ^one, holder: "bob"}] = GetCardsByHolder.get_cards_by_holder(node)
 
     ranked = GetRankedCards.get_ranked_cards() |> Enum.map(& &1.card_id)
+
     assert Enum.find_index(ranked, &(&1 == two)) < Enum.find_index(ranked, &(&1 == one)) or
              one not in ranked
 
