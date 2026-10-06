@@ -80,6 +80,14 @@ config :mcl_kanban_web, MclKanbanWeb.Endpoint,
   server: config_env() != :test,
   secret_key_base: secret_key_base,
   live_view: [signing_salt: "mkb_live_view_salt"],
-  # Loopback plus a tunnel: the Origin is whatever the tunnel maps to, so it is
-  # not checked. Reaching the UI remotely under Raf's own identity is part 2.
-  check_origin: false
+  # The socket is the owner's only action path, so it answers only the local
+  # origins a tunnel (`ssh -L 4010:127.0.0.1:4010 box`) produces. Without
+  # this, a page on any name the attacker rebinds to 127.0.0.1 would drive
+  # the UI as the owner. MCL_HTTP_ORIGINS adds origins (comma separated, as
+  # //host:port) for a tunnel on another local port. Reaching the UI under
+  # Raf's own identity from elsewhere is part 2.
+  check_origin:
+    Enum.map(["localhost", "127.0.0.1", "[::1]"], &"//#{&1}:#{http_port}") ++
+      (System.get_env("MCL_HTTP_ORIGINS", "")
+       |> String.split(",", trim: true)
+       |> Enum.map(&String.trim/1))

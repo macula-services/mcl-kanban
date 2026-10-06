@@ -83,9 +83,11 @@ ENV MCL_DATA_DIR=/var/lib/mcl-kanban
 ENV MCL_IDENTITY_KEY_PATH=/etc/mcl/secrets/identity.key
 ENV MCL_HEALTH_PORT=8492
 ENV MCL_HTTP_PORT=4010
-# Inside the container the UI listens on every interface so a port can be
-# published; publish it on the HOST's loopback only (127.0.0.1:4010:4010).
-ENV MCL_HTTP_IP=0.0.0.0
+# The UI acts as the owner, so it listens on loopback. Run the container on
+# the host's network (podman --network=host, docker network_mode: host) and
+# the box's own loopback is the only way in. A published port on a bridge is
+# NOT the same: every container on that network would reach the UI.
+ENV MCL_HTTP_IP=127.0.0.1
 VOLUME ["/var/lib/mcl-kanban", "/etc/mcl/secrets"]
 EXPOSE 8492 4010
 

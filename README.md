@@ -45,7 +45,8 @@ the box that runs the board.
 | `MCL_REALM_NAME` | `io.macula` | the realm; its tag is derived |
 | `MCL_REALM_KEY` | | the realm's public signing key, hex; without it, no mesh |
 | `MCL_HEALTH_PORT` | `8492` | `/health` |
-| `MCL_HTTP_IP`, `MCL_HTTP_PORT` | `0.0.0.0`, `4010` (image) | the UI. Publish it on the host's loopback only: `127.0.0.1:4010:4010` |
+| `MCL_HTTP_IP`, `MCL_HTTP_PORT` | `127.0.0.1`, `4010` | the UI, which acts as the owner. Run the container on the host's network so the box's loopback is the only way in; never publish it on a bridge |
+| `MCL_HTTP_ORIGINS` | | extra socket origins (`//localhost:5010`) for a tunnel on another local port; only local origins are accepted by default |
 | `SECRET_KEY_BASE` | | signs the LiveView socket; required |
 | `MCL_COOKIE` | | Erlang distribution cookie for this box; required |
 
