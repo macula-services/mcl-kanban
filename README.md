@@ -57,6 +57,16 @@ Raf reaches the UI through his own tunnel, for example
 `ssh -L 4010:127.0.0.1:4010 <box>`, then `http://localhost:4010`. Keys: `n`
 queues a card on a board, `Esc` closes the card drawer.
 
+## Filling the board
+
+`scripts/fill_board.sh`, run by the supervisor, makes the board match the crew
+and GitHub: every crew agent enlisted under the node id of its
+`MACULA_MCP_AGENT` key, a board per repo with open work, a card per open
+`work-package` issue, and a `crew:<name>` label as a reservation to that lane.
+Rerunning it changes nothing. The header of the script lists its inputs
+(`KANBAN_REALM_KEY` is required; `KANBAN_SUPERVISOR`, `KANBAN_ORGS`,
+`KANBAN_ROLE_DIR` have defaults).
+
 ## Development
 
 The gates run in the CI image (`.github/workflows/ci.yml`), the same image the

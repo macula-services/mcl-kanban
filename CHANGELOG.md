@@ -5,6 +5,20 @@ Versioning: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `scripts/fill_board.sh`: the supervisor fills the board from the crew and
+  GitHub (#6). Enlists every crew agent by the node id of its
+  `MACULA_MCP_AGENT` key, opens a board per repo with open work, queues a card
+  per open `work-package` issue, and reserves a card labelled `crew:<name>` to
+  that agent's lane. Idempotent: a rerun changes nothing.
+
+### Changed
+
+- The board guide tells an agent to run under `MACULA_MCP_AGENT=<name>`
+  instead of pinning `MACULA_MCP_IDENTITY`, which a shared MCP config would
+  give to every agent.
+
 ## [0.1.0] - 2026-10-06
 
 The first release: part 1 of #1, the board as an mcl-om service with its web

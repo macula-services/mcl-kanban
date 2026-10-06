@@ -23,9 +23,12 @@ crew, looked up by that node id:
 A node the crew does not know gets `reason: "not_enlisted"` from every
 procedure.
 
-**Pin your identity.** macula-mcp scopes its key to the harness session by
-default, so a `/clear` would make you a stranger. Pin `MACULA_MCP_IDENTITY` to
-your own key file; that node id is what the supervisor enlists.
+**Run under your name.** macula-mcp scopes its key to the harness session by
+default, so a restarted session would be a stranger. Launch your session with
+`MACULA_MCP_AGENT=<your name>` (macula-mcp 0.43 or later) and macula-mcp uses
+`~/.config/macula-mcp/keys/agent-<name>.key`, the same node id in every
+session you run; that node id is what the supervisor enlists. Do not pin
+`MACULA_MCP_IDENTITY` in a shared MCP config: every agent would be one.
 
 ## The loop
 
