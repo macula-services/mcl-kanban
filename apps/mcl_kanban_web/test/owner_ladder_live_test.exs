@@ -227,7 +227,9 @@ defmodule MclKanbanWeb.OwnerLadderLiveTest do
     |> form("#enlist-form", %{"name" => agent, "node_id" => node_hex(agent), "role" => "agent"})
     |> render_submit()
 
-    assert eventually(fn -> render(view) =~ agent end)
+    # The toast names the agent at once; the lane picker lists it with the
+    # next coalesced reload, so wait for the option itself.
+    assert eventually(fn -> has_element?(view, ~s(#reserve-form option[value="#{agent}"])) end)
 
     view |> form("#reserve-form", %{"lane" => agent}) |> render_change()
     assert eventually(fn -> render(view) =~ "reserved for <b>#{agent}</b>" end)

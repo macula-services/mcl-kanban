@@ -11,12 +11,11 @@ defmodule GuideCardLifecycle.AdoptGoal.MaybeAdoptGoal do
 
   def handle_payload(state, payload), do: handle(state, struct(AdoptGoalV1, payload))
 
-  def handle(%CrewState{}, %AdoptGoalV1{} = cmd) do
-    cond do
-      not Actor.allowed?(cmd.by, @who) -> {:error, :not_permitted}
-      true -> {:ok, [GoalAdoptedV1.new(cmd)]}
-    end
-  end
+  def handle(%CrewState{}, %AdoptGoalV1{} = cmd),
+    do: adopted(Actor.allowed?(cmd.by, @who), cmd)
+
+  defp adopted(true, cmd), do: {:ok, [GoalAdoptedV1.new(cmd)]}
+  defp adopted(false, _cmd), do: {:error, :not_permitted}
 
   def dispatch(%AdoptGoalV1{} = cmd) do
     :evoq_command.new(
