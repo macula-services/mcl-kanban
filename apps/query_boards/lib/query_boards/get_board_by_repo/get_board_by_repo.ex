@@ -10,7 +10,7 @@ defmodule QueryBoards.GetBoardByRepo.GetBoardByRepo do
   @spec get_board_by_repo(String.t()) ::
           {:ok, %{board: map(), cards: [map()]}} | {:error, :unknown_board}
   def get_board_by_repo(repo) when is_binary(repo) do
-    "SELECT board_id, repo, status, opened_at, 0, 0, 0, 0 FROM boards WHERE repo = ?"
+    "SELECT board_id, repo, status, opened_at, 0, 0, 0, 0, 0 FROM boards WHERE repo = ?"
     |> ReadModel.q([repo])
     |> found()
   end

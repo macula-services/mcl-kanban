@@ -49,6 +49,18 @@ defmodule ProjectBoards.Projection do
   defp flag(true), do: 1
   defp flag(false), do: 0
 
+  @doc """
+  Recomputes cards.deferred for the cards the condition picks (#17): 1 while
+  the card's own DEFERRED bit is set, its package is paused or its board is.
+  Every projection that can change one of the three runs it.
+  """
+  def deferred(condition, args),
+    do:
+      {"UPDATE cards SET deferred = (status & 64 = 64 " <>
+         "OR EXISTS (SELECT 1 FROM packages p WHERE p.issue_ref = cards.work_package AND p.deferred = 1) " <>
+         "OR EXISTS (SELECT 1 FROM boards b WHERE b.board_id = cards.board_id AND b.status & 4 = 4)) " <>
+         "WHERE " <> condition, args}
+
   @doc "A statement that runs only while the card row is older than this event."
   def guarded(sql, args, data, version),
     do:

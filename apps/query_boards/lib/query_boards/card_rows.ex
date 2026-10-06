@@ -12,7 +12,7 @@ defmodule QueryBoards.CardRows do
              "c.story_value, c.kind, c.rank, c.rationale, c.ranked_by, c.lane, c.lane_node_id, " <>
              "c.holder, c.holder_node_id, c.status, c.comment_count, c.note, c.queued_by, " <>
              "c.queued_at, c.claimed_at, c.changed_at, c.version, c.ranked_at, c.work_package, " <>
-             "c.package_rank, c.package_card"
+             "c.package_rank, c.package_card, c.deferred"
 
   @doc "The order of the ladder inside a group: rank (unranked last), then when ranked, then age."
   def ladder_order, do: "c.rank IS NULL, c.rank, c.ranked_at, c.queued_at"
@@ -22,6 +22,12 @@ defmodule QueryBoards.CardRows do
   heads its package and is never waiting work.
   """
   def not_package_card, do: "c.package_card = 0"
+
+  @doc """
+  The condition a query adds to leave out deferred work (#17): the card, its
+  package or its board is paused, so nobody is handed it.
+  """
+  def not_deferred, do: "c.deferred = 0"
 
   @doc "SELECT <card columns> FROM cards c <rest>."
   def select(rest), do: "SELECT #{@columns} FROM cards c " <> rest
@@ -99,7 +105,8 @@ defmodule QueryBoards.CardRows do
            ranked_at,
            work_package,
            package_rank,
-           package_card
+           package_card,
+           deferred
          ],
          related
        ) do
@@ -135,7 +142,8 @@ defmodule QueryBoards.CardRows do
       ranked_at: ranked_at,
       work_package: work_package,
       package_rank: package_rank,
-      package_card: package_card
+      package_card: package_card,
+      deferred: deferred
     }
   end
 

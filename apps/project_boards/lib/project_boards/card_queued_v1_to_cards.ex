@@ -4,7 +4,7 @@ defmodule ProjectBoards.CardQueuedV1ToCards do
 
   @behaviour :evoq_event_handler
 
-  import ProjectBoards.Projection, only: [project: 3]
+  import ProjectBoards.Projection, only: [deferred: 2, project: 3]
 
   @impl true
   def interested_in, do: ["card_queued_v1"]
@@ -45,6 +45,6 @@ defmodule ProjectBoards.CardQueuedV1ToCards do
       Enum.map(
         data.tags,
         &{"INSERT OR IGNORE INTO card_tags (card_id, tag) VALUES (?, ?)", [data.card_id, &1]}
-      )
+      ) ++ [deferred("card_id = ?", [data.card_id])]
   end
 end

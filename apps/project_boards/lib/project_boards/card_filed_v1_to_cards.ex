@@ -6,7 +6,7 @@ defmodule ProjectBoards.CardFiledV1ToCards do
 
   @behaviour :evoq_event_handler
 
-  import ProjectBoards.Projection, only: [project: 3]
+  import ProjectBoards.Projection, only: [deferred: 2, project: 3]
 
   @impl true
   def interested_in, do: ["card_filed_v1"]
@@ -36,6 +36,7 @@ defmodule ProjectBoards.CardFiledV1ToCards do
          version,
          data.card_id,
          version
-       ]}
+       ]},
+      deferred("card_id = ?", [data.card_id])
     ]
 end

@@ -20,7 +20,8 @@ defmodule QueryBoards.GetLadder.GetLadder do
       |> Enum.group_by(& &1.work_package)
 
     packages =
-      ("SELECT package_id, issue_ref, title, rank, pinned, ranked_by, rationale, opened_at FROM packages " <>
+      ("SELECT package_id, issue_ref, title, rank, pinned, ranked_by, rationale, opened_at, deferred " <>
+         "FROM packages " <>
          "ORDER BY rank IS NULL, rank, opened_at")
       |> ReadModel.q([])
       |> Enum.map(&package(&1, cards))
@@ -28,7 +29,7 @@ defmodule QueryBoards.GetLadder.GetLadder do
     %{packages: packages, loose: Map.get(cards, nil, [])}
   end
 
-  defp package([id, ref, title, rank, pinned, ranked_by, rationale, opened_at], cards) do
+  defp package([id, ref, title, rank, pinned, ranked_by, rationale, opened_at, deferred], cards) do
     mine = cards |> Map.get(ref, []) |> Enum.reject(&(&1.package_card == 1))
 
     %{
@@ -40,6 +41,7 @@ defmodule QueryBoards.GetLadder.GetLadder do
       ranked_by: ranked_by,
       rationale: rationale,
       opened_at: opened_at,
+      deferred: deferred,
       repos: mine |> Enum.map(& &1.board) |> Enum.uniq() |> Enum.sort(),
       cards: mine,
       done: done(mine)

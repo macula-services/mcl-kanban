@@ -520,12 +520,28 @@ defmodule ProjectBoards.ProjectionsTest do
       queue(id, "example-org/widget#" <> uniq())
 
       deliver(
-        %{event_type: "card_prioritised_v1", card_id: id, rank: 4, rationale: "r", status: 33, by: "owner", at: 2},
+        %{
+          event_type: "card_prioritised_v1",
+          card_id: id,
+          rank: 4,
+          rationale: "r",
+          status: 33,
+          by: "owner",
+          at: 2
+        },
         1
       )
 
       deliver(
-        %{event_type: "card_deferred_v1", card_id: id, reason: "not now", rank: nil, status: 65, by: "pia", at: 3},
+        %{
+          event_type: "card_deferred_v1",
+          card_id: id,
+          reason: "not now",
+          rank: nil,
+          status: 65,
+          by: "pia",
+          at: 3
+        },
         2
       )
 
@@ -542,25 +558,70 @@ defmodule ProjectBoards.ProjectionsTest do
       queue(b, "example-org/widget#" <> uniq())
 
       deliver(
-        %{event_type: "package_opened_v1", package_id: pkg, issue_ref: ref, title: "P", status: 1, by: "ada", at: 1},
+        %{
+          event_type: "package_opened_v1",
+          package_id: pkg,
+          issue_ref: ref,
+          title: "P",
+          status: 1,
+          by: "ada",
+          at: 1
+        },
         0
       )
 
-      deliver(%{event_type: "card_filed_v1", card_id: a, work_package: ref, status: 1, by: "ada", at: 2}, 1)
+      deliver(
+        %{
+          event_type: "card_filed_v1",
+          card_id: a,
+          work_package: ref,
+          status: 1,
+          by: "ada",
+          at: 2
+        },
+        1
+      )
 
       deliver(
-        %{event_type: "package_deferred_v1", package_id: pkg, issue_ref: ref, reason: "later", rank: nil, status: 5, by: "pia", at: 3},
+        %{
+          event_type: "package_deferred_v1",
+          package_id: pkg,
+          issue_ref: ref,
+          reason: "later",
+          rank: nil,
+          status: 5,
+          by: "pia",
+          at: 3
+        },
         1
       )
 
       assert [[1, _]] = deferred_flag(a)
       assert [[1]] = ReadModel.q("SELECT deferred FROM packages WHERE package_id = ?", [pkg])
 
-      deliver(%{event_type: "card_filed_v1", card_id: b, work_package: ref, status: 1, by: "ada", at: 4}, 1)
+      deliver(
+        %{
+          event_type: "card_filed_v1",
+          card_id: b,
+          work_package: ref,
+          status: 1,
+          by: "ada",
+          at: 4
+        },
+        1
+      )
+
       assert [[1, _]] = deferred_flag(b)
 
       deliver(
-        %{event_type: "package_resumed_v1", package_id: pkg, issue_ref: ref, status: 1, by: "pia", at: 5},
+        %{
+          event_type: "package_resumed_v1",
+          package_id: pkg,
+          issue_ref: ref,
+          status: 1,
+          by: "pia",
+          at: 5
+        },
         2
       )
 
@@ -575,7 +636,18 @@ defmodule ProjectBoards.ProjectionsTest do
       deliver(%{event_type: "board_opened_v1", board_id: board, repo: repo, at: 1}, 0)
       card_on(a, repo <> "#1", board)
 
-      deliver(%{event_type: "board_deferred_v1", board_id: board, repo: repo, reason: "not now", by: "pia", at: 2}, 1)
+      deliver(
+        %{
+          event_type: "board_deferred_v1",
+          board_id: board,
+          repo: repo,
+          reason: "not now",
+          by: "pia",
+          at: 2
+        },
+        1
+      )
+
       assert [[1, _]] = deferred_flag(a)
       assert [[5]] = ReadModel.q("SELECT status FROM boards WHERE board_id = ?", [board])
 

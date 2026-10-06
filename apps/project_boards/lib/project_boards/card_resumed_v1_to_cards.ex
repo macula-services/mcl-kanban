@@ -1,6 +1,5 @@
-defmodule ProjectBoards.CardUnfiledV1ToCards do
-  # Projects card_unfiled_v1 into cards: a loose card again, no package rank,
-  # heading no package.
+defmodule ProjectBoards.CardResumedV1ToCards do
+  # Projects card_resumed_v1 into cards: queued again, unless its package or board is still paused.
   @moduledoc false
 
   @behaviour :evoq_event_handler
@@ -8,7 +7,7 @@ defmodule ProjectBoards.CardUnfiledV1ToCards do
   import ProjectBoards.Projection, only: [card_update: 3, deferred: 2, project: 3]
 
   @impl true
-  def interested_in, do: ["card_unfiled_v1"]
+  def interested_in, do: ["card_resumed_v1"]
 
   @impl true
   def replay_policy, do: :deliver
@@ -22,12 +21,5 @@ defmodule ProjectBoards.CardUnfiledV1ToCards do
   end
 
   defp statements(data, version),
-    do: [
-      card_update(data, version, [
-        {"work_package", nil},
-        {"package_rank", nil},
-        {"package_card", 0}
-      ]),
-      deferred("card_id = ?", [data.card_id])
-    ]
+    do: [card_update(data, version, []), deferred("card_id = ?", [data.card_id])]
 end

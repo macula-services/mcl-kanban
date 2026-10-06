@@ -59,7 +59,9 @@ defmodule ProjectBoards.ReadModelMigrationsTest do
       pid = file_from(unquote(version))
       assert [_ | _] = migrate(pid)
 
-      assert ~w(ranked_at work_package package_rank package_card deferred) -- columns("cards") == []
+      assert ~w(ranked_at work_package package_rank package_card deferred) -- columns("cards") ==
+               []
+
       assert "deferred" in columns("packages")
       assert "issue_ref" in columns("packages")
 

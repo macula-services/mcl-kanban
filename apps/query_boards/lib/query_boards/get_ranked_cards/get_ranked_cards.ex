@@ -10,7 +10,8 @@ defmodule QueryBoards.GetRankedCards.GetRankedCards do
     do:
       CardRows.cards(
         "WHERE c.status & 24 = 0 AND " <>
-          CardRows.not_package_card() <> " ORDER BY c.rank IS NULL, c.rank, c.queued_at",
+          CardRows.not_package_card() <>
+          " AND " <> CardRows.not_deferred() <> " ORDER BY c.rank IS NULL, c.rank, c.queued_at",
         []
       )
 end
