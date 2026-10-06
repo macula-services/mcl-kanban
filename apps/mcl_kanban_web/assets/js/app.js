@@ -64,7 +64,14 @@ const Keys = {
       }
       if (typing || e.metaKey || e.ctrlKey || e.altKey || document.querySelector("dialog[open]")) return;
       const list = cards(), sel = selected(), i = list.indexOf(sel);
-      const pick = (li) => { if (li) { this.pushEvent("select", { card: li.dataset.cardId }); li.scrollIntoView({ block: "nearest" }); } };
+      // Selection shows at once, so quick j/k presses never read a stale one;
+      // the server's render then agrees.
+      const pick = (li) => {
+        if (!li) return;
+        list.forEach((x) => x.setAttribute("aria-selected", String(x === li)));
+        this.pushEvent("select", { card: li.dataset.cardId });
+        li.scrollIntoView({ block: "nearest" });
+      };
       const k = e.key;
       if (k === "/") { e.preventDefault(); document.getElementById("q")?.focus(); }
       else if (k === "1") this.pushEvent("view", { view: "pkg" });

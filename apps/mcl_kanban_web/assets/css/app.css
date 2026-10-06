@@ -297,6 +297,8 @@ dialog .row{display:flex;justify-content:flex-end;gap:8px;margin-top:6px}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 /* what the LiveView adds to the mock's markup */
 .navmeta{display:flex;gap:6px;align-items:center}
+.brand{text-decoration:none}
+.rail .doings{display:flex;flex-direction:column;gap:2px;min-width:0}
 .main-head .btn{margin-left:auto}
 .nav .enlist{margin:4px 0 0;display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px dashed var(--line);border-radius:8px;color:var(--ink-2);font-weight:600;width:100%}
 .nav .enlist:hover{border-color:var(--ink);color:var(--ink)}

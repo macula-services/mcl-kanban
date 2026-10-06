@@ -496,11 +496,13 @@ defmodule MclKanbanWeb.LadderComponents do
               </div>
             </details>
           </span>
-          <span :if={a.held == []} class="doing idle">idle · next in lane: {if a.next, do: short_ref(a.next.issue_ref), else: "nothing reserved"}</span>
-          <span :for={c <- a.held} class={["doing", c.state == "blocked" && "blk"]}>
-            <span class={"dot " <> if(c.state == "blocked", do: "blocked", else: "live")}></span>
-            <b tabindex="0" role="link" phx-click="open" phx-value-card={c.card_id}>{short_ref(c.issue_ref)}</b>
-            {if c.state == "blocked", do: "blocked", else: since(c.claimed_at, @now)}
+          <span class="doings">
+            <span :if={a.held == []} class="doing idle">idle · next in lane: {if a.next, do: short_ref(a.next.issue_ref), else: "nothing reserved"}</span>
+            <span :for={c <- a.held} class={["doing", c.state == "blocked" && "blk"]}>
+              <span class={"dot " <> if(c.state == "blocked", do: "blocked", else: "live")}></span>
+              <b tabindex="0" role="link" phx-click="open" phx-value-card={c.card_id}>{short_ref(c.issue_ref)}</b>
+              {if c.state == "blocked", do: "blocked", else: since(c.claimed_at, @now)}
+            </span>
           </span>
         </li>
       </ul>
