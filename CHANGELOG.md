@@ -5,6 +5,18 @@ Versioning: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-10-06
+
+No two members end up on the same issue through a package card (#15).
+
+### Changed
+
+- A package's own card (the work-package issue, filed into itself) is never
+  claimed: `claim_card` refuses it with `package_card`, and `claim_next_card`
+  never offers it. Packages only group and order cards; members hold
+  ordinary cards. A card already holding a package card keeps it until it is
+  finished or released.
+
 ## [0.2.3] - 2026-10-06
 
 A board fill no longer times out the mesh calls, and a dead event store no
