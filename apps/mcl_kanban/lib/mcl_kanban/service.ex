@@ -27,15 +27,19 @@ defmodule MclKanban.Service do
     CommentOnCard,
     DischargeAgent,
     EnlistAgent,
+    FileCard,
     FinishCard,
     GetBoardByRepo,
     GetBoards,
     GetCardById,
+    GetLadder,
     GetMyCards,
     LiftCardReservation,
     LinkCard,
     OpenBoard,
+    OpenPackage,
     PrioritiseCard,
+    PrioritisePackage,
     QueueCard,
     ReclassifyCard,
     ReleaseCard,
@@ -43,6 +47,7 @@ defmodule MclKanban.Service do
     RewordCard,
     TagCard,
     UnblockCard,
+    UnfileCard,
     UnlinkCard,
     UntagCard,
     WithdrawCard
@@ -74,7 +79,12 @@ defmodule MclKanban.Service do
     {"enlist_agent", EnlistAgent.EnlistAgentResponder},
     {"discharge_agent", DischargeAgent.DischargeAgentResponder},
     {"open_board", OpenBoard.OpenBoardResponder},
-    {"archive_board", ArchiveBoard.ArchiveBoardResponder}
+    {"archive_board", ArchiveBoard.ArchiveBoardResponder},
+    {"open_package", OpenPackage.OpenPackageResponder},
+    {"prioritise_package", PrioritisePackage.PrioritisePackageResponder},
+    {"file_card", FileCard.FileCardResponder},
+    {"unfile_card", UnfileCard.UnfileCardResponder},
+    {"get_ladder", GetLadder.GetLadderResponder}
   ]
 
   @impl true

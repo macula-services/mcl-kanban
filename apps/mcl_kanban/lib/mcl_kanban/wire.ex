@@ -12,7 +12,8 @@ defmodule MclKanban.Wire do
   alias QueryBoards.GetCardById.GetCardById
 
   @card_fields ~w(card_id issue_ref board title story kind colour tags rank rationale lane holder
-                  status state pinned note links linked_from comment_count queued_at claimed_at comments)a
+                  status state pinned note links linked_from comment_count queued_at claimed_at comments
+                  work_package package_rank)a
 
   @doc "An argument, unwrapped."
   def arg(payload, key), do: :mcl_om_wire.field(key, payload, nil)
