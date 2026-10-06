@@ -392,10 +392,12 @@ defmodule MclKanbanWeb.LadderLive do
   defp reasoned("release", id, reason), do: OwnerActions.release(id, reason)
   defp reasoned("block", id, reason), do: OwnerActions.block(id, reason)
   defp reasoned("withdraw", id, reason), do: OwnerActions.withdraw(id, reason)
+  defp reasoned(_unknown, _id, _reason), do: {:error, :unknown_command}
 
   defp past("release"), do: "released to the queue"
   defp past("block"), do: "blocked"
   defp past("withdraw"), do: "withdrawn"
+  defp past(_unknown), do: "changed"
 
   # ---------- helpers ----------
 

@@ -177,7 +177,8 @@ defmodule MclKanbanWeb.OwnerActions do
   above it, before_id below it, nil at an edge) in a group: a package's
   issue reference or "loose" in the packages view, a repo in the repos view.
   One owner rank between the neighbours (LadderRank), which pins the card;
-  in the packages view a move into another group files it there as well.
+  in the packages view a move into another group files it there first, so a
+  refused filing leaves the card as it was.
   Returns what changed and what undoes it.
   """
   @spec rerank(map(), [map()], String.t()) :: {:ok, map()} | {:error, atom()}
@@ -186,8 +187,8 @@ defmodule MclKanbanWeb.OwnerActions do
 
     with %{} = card <- Enum.find(cards, &(&1.card_id == id)) || {:error, :unknown_card},
          {:ok, rank} <- LadderRank.place(Map.delete(ranks, id), after_id, before_id),
-         :ok <- rank_at(id, rank),
-         {:ok, moved} <- refile(card, target(view, group)) do
+         {:ok, moved} <- refile(card, target(view, group)),
+         :ok <- rank_at(id, rank) do
       {:ok,
        %{
          card_id: id,
