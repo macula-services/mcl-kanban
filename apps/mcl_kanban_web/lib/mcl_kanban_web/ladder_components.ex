@@ -11,6 +11,7 @@ defmodule MclKanbanWeb.LadderComponents do
   alias GuideCardLifecycle.CardKind
   alias GuideCardLifecycle.CardStory
   alias GuideCardLifecycle.IssueRef
+  alias Phoenix.LiveView.JS
 
   @avatars ~w(#2E7D6B #6B4FBB #B8732A #B23A3A #3A6FB2 #8A6D2F #5B6470 #2F7F9A)
 
@@ -104,7 +105,7 @@ defmodule MclKanbanWeb.LadderComponents do
       <div class="toasts" id="toasts" aria-live="polite">
         <.toast :for={t <- @toasts} toast={t} />
       </div>
-      <.dialogs dialog={@dialog} enlist={@enlist} boards={@boards} card={@card} cards={@cards} crew={@crew} />
+      <.dialogs dialog={@dialog} enlist={@enlist} values={@values} boards={@boards} card={@card} cards={@cards} crew={@crew} />
     </div>
     """
   end
@@ -720,8 +721,14 @@ defmodule MclKanbanWeb.LadderComponents do
 
   # ---------- dialogs ----------
 
+  # showModal() sets <dialog open> in the browser; a server patch (every
+  # phx-change keystroke) would strip it, close the dialog and lose what the
+  # owner typed. The server never owns that attribute.
+  defp keep_open, do: JS.ignore_attributes(["open"])
+
   attr(:dialog, :any, required: true)
   attr(:enlist, :map, required: true)
+  attr(:values, :map, default: %{})
   attr(:boards, :list, required: true)
   attr(:card, :map, default: nil)
   attr(:cards, :list, required: true)
@@ -729,26 +736,26 @@ defmodule MclKanbanWeb.LadderComponents do
 
   def dialogs(%{dialog: :enlist} = assigns) do
     ~H"""
-    <dialog id="enlist" phx-hook="Dialog">
+    <dialog id="enlist" phx-hook="Dialog" phx-mounted={keep_open()}>
       <form id="enlist-form" phx-change="validate_enlist" phx-submit="enlist">
         <h2>Enlist an agent</h2>
         <p class="lead">The node id is what the agent's MACULA_MCP_AGENT key signs with. Paste it from the agent's first <em>info</em> reply.</p>
         <div class="field">
           <label for="e-name">Name</label>
-          <input id="e-name" name="name" placeholder="Mercury" required autocomplete="off" phx-debounce="150" aria-invalid={to_string(elem(@enlist.name, 0) == :bad)} />
+          <input id="e-name" name="name" value={@values["name"]} placeholder="Mercury" required autocomplete="off" phx-debounce="150" aria-invalid={to_string(elem(@enlist.name, 0) == :bad)} />
           <span class={["hint", hint_class(@enlist.name)]}>{elem(@enlist.name, 1)}</span>
         </div>
         <div class="field">
           <label for="e-node">Node id</label>
-          <input id="e-node" name="node_id" placeholder="64 hex characters" required spellcheck="false" autocomplete="off" phx-debounce="150" aria-invalid={to_string(elem(@enlist.node, 0) == :bad)} />
+          <input id="e-node" name="node_id" value={@values["node_id"]} placeholder="64 hex characters" required spellcheck="false" autocomplete="off" phx-debounce="150" aria-invalid={to_string(elem(@enlist.node, 0) == :bad)} />
           <span class={["hint", hint_class(@enlist.node)]}>{elem(@enlist.node, 1)}</span>
         </div>
         <div class="field">
           <label for="e-role">Role</label>
           <select id="e-role" name="role">
             <option value="agent">Agent</option>
-            <option value="supervisor">Agent, and appoint as supervisor</option>
-            <option value="prioritiser">Agent, and appoint as prioritiser</option>
+            <option value="supervisor" selected={@values["role"] == "supervisor"}>Agent, and appoint as supervisor</option>
+            <option value="prioritiser" selected={@values["role"] == "prioritiser"}>Agent, and appoint as prioritiser</option>
           </select>
         </div>
         <div class="row"><button class="btn" type="button" phx-click="close_dialog">Cancel</button><button class="btn primary" type="submit">Enlist</button></div>
@@ -759,13 +766,13 @@ defmodule MclKanbanWeb.LadderComponents do
 
   def dialogs(%{dialog: :open_board} = assigns) do
     ~H"""
-    <dialog id="open-board" phx-hook="Dialog">
-      <form id="open-board-form" phx-submit="open_board">
+    <dialog id="open-board" phx-hook="Dialog" phx-mounted={keep_open()}>
+      <form id="open-board-form" phx-change="dialog_change" phx-submit="open_board">
         <h2>Open a board</h2>
         <p class="lead">One board per GitHub repo. Agents then queue its issues as cards.</p>
         <div class="field">
           <label for="ob-repo">Repo</label>
-          <input id="ob-repo" name="repo" placeholder="owner/repo" required autocomplete="off" pattern="[A-Za-z0-9][A-Za-z0-9_.\-]*/[A-Za-z0-9_.\-]+" />
+          <input id="ob-repo" name="repo" value={@values["repo"]} placeholder="owner/repo" required autocomplete="off" pattern="[A-Za-z0-9][A-Za-z0-9_.\-]*/[A-Za-z0-9_.\-]+" />
           <span class="hint">As on GitHub: owner/repo</span>
         </div>
         <div class="row"><button class="btn" type="button" phx-click="close_dialog">Cancel</button><button class="btn primary" type="submit">Open the board</button></div>
@@ -776,31 +783,31 @@ defmodule MclKanbanWeb.LadderComponents do
 
   def dialogs(%{dialog: :queue} = assigns) do
     ~H"""
-    <dialog id="queue" phx-hook="Dialog">
-      <form :if={@boards != []} id="queue-form" phx-submit="queue_card">
+    <dialog id="queue" phx-hook="Dialog" phx-mounted={keep_open()}>
+      <form :if={@boards != []} id="queue-form" phx-change="dialog_change" phx-submit="queue_card">
         <h2>Queue a card</h2>
         <p class="lead">A card is a GitHub issue. It lands at the bottom, unranked, until it is ranked.</p>
         <div class="field-row">
           <div class="field grow">
             <label for="qc-repo">Repo</label>
-            <select id="qc-repo" name="repo"><option :for={b <- @boards} value={b.repo}>{b.repo}</option></select>
+            <select id="qc-repo" name="repo"><option :for={b <- @boards} value={b.repo} selected={@values["repo"] == b.repo}>{b.repo}</option></select>
           </div>
           <div class="field num">
             <label for="qc-number">Issue</label>
-            <input id="qc-number" name="number" type="number" min="1" placeholder="#" required />
+            <input id="qc-number" name="number" value={@values["number"]} type="number" min="1" placeholder="#" required />
           </div>
         </div>
-        <div class="field"><label for="qc-title">Title</label><input id="qc-title" name="title" required maxlength="200" placeholder="The issue's title" /></div>
+        <div class="field"><label for="qc-title">Title</label><input id="qc-title" name="title" value={@values["title"]} required maxlength="200" placeholder="The issue's title" /></div>
         <div class="field">
           <label for="qc-kind">Kind</label>
-          <select id="qc-kind" name="kind"><option :for={k <- CardKind.kinds()} value={k}>{k}</option></select>
+          <select id="qc-kind" name="kind"><option :for={k <- CardKind.kinds()} value={k} selected={@values["kind"] == k}>{k}</option></select>
         </div>
         <details class="more">
           <summary>Story and tags</summary>
-          <div class="field"><label for="qc-role">As a</label><input id="qc-role" name="role" placeholder="fleet operator" /></div>
-          <div class="field"><label for="qc-ask">I want</label><input id="qc-ask" name="ask" /></div>
-          <div class="field"><label for="qc-value">so that</label><input id="qc-value" name="value" /><span class="hint">All three parts, or none.</span></div>
-          <div class="field"><label for="qc-tags">Tags</label><input id="qc-tags" name="tags" placeholder="comma, separated" /></div>
+          <div class="field"><label for="qc-role">As a</label><input id="qc-role" name="role" value={@values["role"]} placeholder="fleet operator" /></div>
+          <div class="field"><label for="qc-ask">I want</label><input id="qc-ask" name="ask" value={@values["ask"]} /></div>
+          <div class="field"><label for="qc-value">so that</label><input id="qc-value" name="value" value={@values["value"]} /><span class="hint">All three parts, or none.</span></div>
+          <div class="field"><label for="qc-tags">Tags</label><input id="qc-tags" name="tags" value={@values["tags"]} placeholder="comma, separated" /></div>
         </details>
         <div class="row"><button class="btn" type="button" phx-click="close_dialog">Cancel</button><button class="btn primary" type="submit">Queue the card</button></div>
       </form>
@@ -817,12 +824,12 @@ defmodule MclKanbanWeb.LadderComponents do
     assigns = assign(assigns, action: action)
 
     ~H"""
-    <dialog id="reason" phx-hook="Dialog">
-      <form id="reason-form" phx-submit="reason">
+    <dialog id="reason" phx-hook="Dialog" phx-mounted={keep_open()}>
+      <form id="reason-form" phx-change="dialog_change" phx-submit="reason">
         <input type="hidden" name="action" value={@action} />
         <h2>{reason_title(@action)} {short_ref(@card.issue_ref)}</h2>
         <p class="lead">{reason_lead(@action)}</p>
-        <div class="field"><label for="r-reason">Why</label><input id="r-reason" name="reason" required={@action != "withdraw"} autocomplete="off" /></div>
+        <div class="field"><label for="r-reason">Why</label><input id="r-reason" name="reason" value={@values["reason"]} required={@action != "withdraw"} autocomplete="off" /></div>
         <div class="row">
           <button class="btn" type="button" phx-click="close_dialog">Cancel</button>
           <button class={["btn", if(@action == "withdraw", do: "danger", else: "primary")]} type="submit"
@@ -841,14 +848,14 @@ defmodule MclKanbanWeb.LadderComponents do
       )
 
     ~H"""
-    <dialog id="reserve-for" phx-hook="Dialog">
-      <form id="reserve-for-form" phx-submit="reserve_for">
+    <dialog id="reserve-for" phx-hook="Dialog" phx-mounted={keep_open()}>
+      <form id="reserve-for-form" phx-change="dialog_change" phx-submit="reserve_for">
         <input type="hidden" name="lane" value={@name} />
         <h2>Reserve a card for {@name}</h2>
         <p class="lead">Only {@name} may then claim it.</p>
         <div :if={@open != []} class="field">
           <label for="rf-card">Card</label>
-          <select id="rf-card" name="card_id"><option :for={c <- @open} value={c.card_id}>{short_ref(c.issue_ref)}: {String.slice(c.title, 0, 60)}</option></select>
+          <select id="rf-card" name="card_id"><option :for={c <- @open} value={c.card_id} selected={@values["card_id"] == c.card_id}>{short_ref(c.issue_ref)}: {String.slice(c.title, 0, 60)}</option></select>
         </div>
         <p :if={@open == []} class="lead">Every queued card is reserved already.</p>
         <div class="row"><button class="btn" type="button" phx-click="close_dialog">Cancel</button><button :if={@open != []} class="btn primary" type="submit">Reserve</button></div>
@@ -859,7 +866,7 @@ defmodule MclKanbanWeb.LadderComponents do
 
   def dialogs(%{dialog: :help} = assigns) do
     ~H"""
-    <dialog id="help" phx-hook="Dialog">
+    <dialog id="help" phx-hook="Dialog" phx-mounted={keep_open()}>
       <form method="dialog">
         <h2>Keys</h2>
         <p class="lead">Nothing here needs the mouse.</p>

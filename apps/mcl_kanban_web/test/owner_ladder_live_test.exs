@@ -259,5 +259,17 @@ defmodule MclKanbanWeb.OwnerLadderLiveTest do
     view |> element("#enlist-btn") |> render_click()
     view |> form("#enlist-form", %{"name" => "Typing", "node_id" => "ab"}) |> render_change()
     assert has_element?(view, "dialog#enlist")
+
+    # What the owner typed survives any later render (a board change, a hint),
+    # not only while its field has focus.
+    send(view.pid, {:boards_changed, %{}})
+    assert has_element?(view, ~s(#e-name[value="Typing"]))
+    assert has_element?(view, ~s(#e-node[value="ab"]))
+
+    view |> render_hook("close_dialog", %{})
+    view |> element("#open-board-btn") |> render_click()
+    view |> form("#open-board-form", %{"repo" => "example-org/half"}) |> render_change()
+    send(view.pid, {:boards_changed, %{}})
+    assert has_element?(view, ~s(#ob-repo[value="example-org/half"]))
   end
 end

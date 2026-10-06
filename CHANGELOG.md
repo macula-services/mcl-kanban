@@ -5,6 +5,16 @@ Versioning: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-06
+
+### Fixed
+
+- The owner's dialogs closed at the first keystroke: every live hint is a
+  server render, and the patch stripped the `open` attribute the browser set,
+  so Enlist could not be filled in. Dialogs now keep `open` across patches,
+  and what the owner typed in any dialog is kept and drawn back on every
+  render (a board change used to clear a field that had lost focus).
+
 ## [0.2.0] - 2026-10-06
 
 The owner's ladder and work packages (#9), and the board filling itself (#6).

@@ -36,6 +36,7 @@ defmodule MclKanbanWeb.LadderLive do
        collapsed: MapSet.new(),
        dialog: nil,
        toasts: [],
+       values: %{},
        enlist: enlist_hints(%{})
      )}
   end
@@ -188,7 +189,14 @@ defmodule MclKanbanWeb.LadderLive do
   # ---------- dialogs and toasts ----------
 
   def handle_event("open_dialog", %{"dialog" => dialog} = p, socket),
-    do: {:noreply, assign(socket, dialog: dialog(dialog, p), enlist: enlist_hints(%{}))}
+    do:
+      {:noreply,
+       assign(socket, dialog: dialog(dialog, p), values: %{}, enlist: enlist_hints(%{}))}
+
+  # What the owner typed in a dialog, kept so any later render (a board change
+  # on the pubsub, a hint) draws it back instead of clearing the field.
+  def handle_event("dialog_change", params, socket),
+    do: {:noreply, assign(socket, values: params)}
 
   def handle_event("close_dialog", _params, socket), do: {:noreply, assign(socket, dialog: nil)}
 
@@ -201,7 +209,9 @@ defmodule MclKanbanWeb.LadderLive do
   # ---------- the crew ----------
 
   def handle_event("validate_enlist", params, socket),
-    do: {:noreply, assign(socket, enlist: enlist_hints(params, socket.assigns.crew))}
+    do:
+      {:noreply,
+       assign(socket, values: params, enlist: enlist_hints(params, socket.assigns.crew))}
 
   def handle_event("enlist", params, socket) do
     socket
