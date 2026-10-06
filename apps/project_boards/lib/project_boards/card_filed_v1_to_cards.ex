@@ -1,6 +1,7 @@
 defmodule ProjectBoards.CardFiledV1ToCards do
   # Projects card_filed_v1 into cards: the package, and the package's rank as
   # the packages table holds it now (package_prioritised_v1 keeps it current).
+  # A card filed into its own package is that package's header (#15).
   @moduledoc false
 
   @behaviour :evoq_event_handler
@@ -24,8 +25,10 @@ defmodule ProjectBoards.CardFiledV1ToCards do
   defp statements(data, version),
     do: [
       {"UPDATE cards SET work_package = ?, package_rank = (SELECT rank FROM packages WHERE issue_ref = ?), " <>
-         "status = ?, changed_at = ?, version = ? WHERE card_id = ? AND version < ?",
+         "package_card = (issue_ref = ?), status = ?, changed_at = ?, version = ? " <>
+         "WHERE card_id = ? AND version < ?",
        [
+         data.work_package,
          data.work_package,
          data.work_package,
          data.status,

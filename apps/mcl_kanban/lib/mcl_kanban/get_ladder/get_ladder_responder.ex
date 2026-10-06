@@ -8,7 +8,7 @@ defmodule MclKanban.GetLadder.GetLadderResponder do
   alias MclKanban.Wire
   alias QueryBoards.GetLadder.GetLadder
 
-  @package_fields ~w(package_id issue_ref title rank pinned ranked_by rationale repos)a
+  @package_fields ~w(package_id issue_ref title rank pinned ranked_by rationale repos done)a
 
   @impl true
   def init(_args), do: {:ok, nil}

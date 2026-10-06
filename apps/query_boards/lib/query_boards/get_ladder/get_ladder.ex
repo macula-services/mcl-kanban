@@ -4,6 +4,10 @@ defmodule QueryBoards.GetLadder.GetLadder do
   # (unranked last, then the order they were ranked in, then age), and the
   # loose cards that sit in no package. Withdrawn cards are gone; finished
   # ones stay, so a package shows how far it got.
+  #
+  # A package's own card heads it (#15): never one of its cards and never
+  # counted. A package is done (1) when it has cards and every one is
+  # finished; the board works that out, nobody claims or finishes a package.
   @moduledoc false
 
   alias QueryBoards.CardRows
@@ -25,7 +29,7 @@ defmodule QueryBoards.GetLadder.GetLadder do
   end
 
   defp package([id, ref, title, rank, pinned, ranked_by, rationale, opened_at], cards) do
-    mine = Map.get(cards, ref, [])
+    mine = cards |> Map.get(ref, []) |> Enum.reject(&(&1.package_card == 1))
 
     %{
       package_id: id,
@@ -37,7 +41,14 @@ defmodule QueryBoards.GetLadder.GetLadder do
       rationale: rationale,
       opened_at: opened_at,
       repos: mine |> Enum.map(& &1.board) |> Enum.uniq() |> Enum.sort(),
-      cards: mine
+      cards: mine,
+      done: done(mine)
     }
   end
+
+  defp done([]), do: 0
+  defp done(cards), do: cards |> Enum.all?(&(&1.state == "finished")) |> one_or_zero()
+
+  defp one_or_zero(true), do: 1
+  defp one_or_zero(false), do: 0
 end

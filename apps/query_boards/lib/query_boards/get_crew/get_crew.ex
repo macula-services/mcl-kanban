@@ -24,7 +24,9 @@ defmodule QueryBoards.GetCrew.GetCrew do
   end
 
   defp next_in_lane(node_id) do
-    ("WHERE c.lane_node_id = ? AND c.status & 1 = 1 AND c.status & 30 = 0 ORDER BY " <>
+    ("WHERE c.lane_node_id = ? AND c.status & 1 = 1 AND c.status & 30 = 0 AND " <>
+       CardRows.not_package_card() <>
+       " ORDER BY " <>
        "c.package_rank IS NULL, c.package_rank, " <> CardRows.ladder_order() <> " LIMIT 1")
     |> CardRows.cards([node_id])
     |> List.first()

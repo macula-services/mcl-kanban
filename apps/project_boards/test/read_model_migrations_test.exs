@@ -91,8 +91,17 @@ defmodule ProjectBoards.ReadModelMigrationsTest do
     Repo.query!(
       "INSERT INTO cards (card_id, issue_ref, repo, board_id, title, kind, status, version, work_package) " <>
         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      ["card-head", "example-org/widget#2", "example-org/widget", "board-old", "Head", "slice", 1, 2,
-       "example-org/widget#2"]
+      [
+        "card-head",
+        "example-org/widget#2",
+        "example-org/widget",
+        "board-old",
+        "Head",
+        "slice",
+        1,
+        2,
+        "example-org/widget#2"
+      ]
     )
 
     migrate(pid)

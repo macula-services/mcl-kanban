@@ -56,9 +56,11 @@ package come after every package.
 
 A package's own card (the work-package issue, filed into its own package) is
 never claimed: `claim_card` refuses it with `package_card` and
-`claim_next_card` never offers it. Packages only group and order cards, so you
-hold the ordinary cards you claimed and nothing more. A package is done when
-every card filed in it is done. A step that ties the parts together is an
+`claim_next_card` never offers it. It heads its package on the ladder, is
+none of the package's `cards` and never counts as waiting work; its own
+stream stays queued by design. Packages only group and order cards, so you
+hold the ordinary cards you claimed and nothing more. A package is done (`done` 1 on the ladder) when
+it has cards and every one is finished; the board works that out. A step that ties the parts together is an
 ordinary card, filed last in the package. One member on a whole package means
 reserving its cards to that member's lane.
 
@@ -93,7 +95,7 @@ reserving its cards to that member's lane.
 | `prioritise_package` | `issue_ref`, `rank` (0 or more, lower first), `rationale` | `package` | prioritiser |
 | `file_card` | `card_id`, `package_ref` (the package's issue) | `card` | supervisor |
 | `unfile_card` | `card_id` | `card` | supervisor |
-| `get_ladder` | none | `packages` (each with its `cards`), `loose` | agent |
+| `get_ladder` | none | `packages` (each with its `cards` and `done`, 0 or 1), `loose` | agent |
 
 `info` is open to anyone, as on every mcl service.
 
@@ -104,7 +106,7 @@ reserving its cards to that member's lane.
 CLAIMED 2, BLOCKED 4, FINISHED 8, WITHDRAWN 16, PINNED 32), `state` (queued,
 claimed, blocked, finished, withdrawn), `pinned` (0 or 1), `note` (the last
 reason or result), `links`, `linked_from`, `comment_count`, `queued_at` and
-`claimed_at` in unix ms. No booleans and no nulls: a value that is not there
+`claimed_at` in unix ms, `package_card` (1 when the card heads its own package). No booleans and no nulls: a value that is not there
 is a key that is not there.
 
 A command's reply is the card as its own event left it.

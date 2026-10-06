@@ -13,7 +13,7 @@ defmodule MclKanban.Wire do
 
   @card_fields ~w(card_id issue_ref board title story kind colour tags rank rationale lane holder
                   status state pinned note links linked_from comment_count queued_at claimed_at comments
-                  work_package package_rank)a
+                  work_package package_rank package_card)a
 
   @doc "An argument, unwrapped."
   def arg(payload, key), do: :mcl_om_wire.field(key, payload, nil)

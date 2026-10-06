@@ -1,5 +1,6 @@
 defmodule ProjectBoards.CardUnfiledV1ToCards do
-  # Projects card_unfiled_v1 into cards: a loose card again, no package rank.
+  # Projects card_unfiled_v1 into cards: a loose card again, no package rank,
+  # heading no package.
   @moduledoc false
 
   @behaviour :evoq_event_handler
@@ -21,5 +22,11 @@ defmodule ProjectBoards.CardUnfiledV1ToCards do
   end
 
   defp statements(data, version),
-    do: [card_update(data, version, [{"work_package", nil}, {"package_rank", nil}])]
+    do: [
+      card_update(data, version, [
+        {"work_package", nil},
+        {"package_rank", nil},
+        {"package_card", 0}
+      ])
+    ]
 end

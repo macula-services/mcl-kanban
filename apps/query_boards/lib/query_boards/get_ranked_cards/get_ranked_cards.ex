@@ -7,5 +7,10 @@ defmodule QueryBoards.GetRankedCards.GetRankedCards do
 
   @spec get_ranked_cards() :: [map()]
   def get_ranked_cards,
-    do: CardRows.cards("WHERE c.status & 24 = 0 ORDER BY c.rank IS NULL, c.rank, c.queued_at", [])
+    do:
+      CardRows.cards(
+        "WHERE c.status & 24 = 0 AND " <>
+          CardRows.not_package_card() <> " ORDER BY c.rank IS NULL, c.rank, c.queued_at",
+        []
+      )
 end

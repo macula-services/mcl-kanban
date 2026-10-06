@@ -457,7 +457,14 @@ defmodule ProjectBoards.ProjectionsTest do
     for id <- [head, member],
         do:
           deliver(
-            %{event_type: "card_filed_v1", card_id: id, work_package: ref, status: 1, by: "ada", at: 3},
+            %{
+              event_type: "card_filed_v1",
+              card_id: id,
+              work_package: ref,
+              status: 1,
+              by: "ada",
+              at: 3
+            },
             1
           )
 
@@ -466,7 +473,14 @@ defmodule ProjectBoards.ProjectionsTest do
     assert [[0]] = flag.(member)
 
     deliver(
-      %{event_type: "card_unfiled_v1", card_id: head, work_package: ref, status: 1, by: "ada", at: 5},
+      %{
+        event_type: "card_unfiled_v1",
+        card_id: head,
+        work_package: ref,
+        status: 1,
+        by: "ada",
+        at: 5
+      },
       2
     )
 
