@@ -5,6 +5,25 @@ Versioning: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-10-06
+
+An upgrade keeps its data (#10). Before, the read model's schema was code
+that ran CREATE ... IF NOT EXISTS at boot, so a release that changed it
+crash-looped on the previous release's file until the data was wiped.
+
+### Changed
+
+- The read model is `ProjectBoards.Repo` (Ecto, ecto_sqlite3) and its schema
+  is migrations (`apps/project_boards/priv/repo/migrations`): v0.1.0's tables,
+  then v0.2.0's packages and card columns. Both adopt a file that v0.1.0 or
+  v0.2.0 created from code and keep its rows.
+- The image runs `bin/start` (rel/overlays): `bin/migrate`
+  (`ProjectBoards.Release.migrate`) brings the read model up to date, then
+  `bin/server` starts the release. A failed migration stops before anything
+  reads.
+- The query department reads through the same Repo; its own connection
+  process is gone.
+
 ## [0.2.1] - 2026-10-06
 
 ### Fixed

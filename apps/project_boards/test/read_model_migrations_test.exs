@@ -2,7 +2,8 @@ defmodule ProjectBoards.ReadModelMigrationsTest do
   # A new release opens the read model an older release wrote, through its
   # migrations, and keeps every row (#10). The fixtures are the schemas
   # v0.1.0 and v0.2.0 created from code, before the read model had
-  # migrations, extracted from those tags; the live board holds a v0.2.0 file.
+  # migrations, extracted from those tags (v0.2.1 changed no schema; the live
+  # board holds its file).
   use ExUnit.Case, async: false
 
   alias ProjectBoards.Repo
@@ -53,7 +54,7 @@ defmodule ProjectBoards.ReadModelMigrationsTest do
     Repo.query!("SELECT name FROM pragma_table_info('#{table}')").rows |> List.flatten()
   end
 
-  for version <- ["v0.1.0", "v0.2.0"] do
+  for version <- ["v0.1.0", "v0.2.0", "v0.2.1"] do
     test "a read model written by #{version} migrates and keeps its rows" do
       pid = file_from(unquote(version))
       assert [_ | _] = migrate(pid)

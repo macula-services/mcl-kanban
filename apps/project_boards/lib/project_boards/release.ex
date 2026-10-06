@@ -10,7 +10,7 @@ defmodule ProjectBoards.Release do
   @app :project_boards
 
   def migrate do
-    Application.load(@app)
+    :ok = load_app()
 
     for repo <- repos() do
       :ok = ensure_storage(repo)
@@ -21,13 +21,20 @@ defmodule ProjectBoards.Release do
   end
 
   def rollback(version) do
-    Application.load(@app)
+    :ok = load_app()
 
     for repo <- repos(),
         do:
           {:ok, _, _} = Ecto.Migrator.with_repo(repo, &Ecto.Migrator.run(&1, :down, to: version))
 
     :ok
+  end
+
+  defp load_app do
+    case Application.load(@app) do
+      :ok -> :ok
+      {:error, {:already_loaded, @app}} -> :ok
+    end
   end
 
   defp repos, do: Application.fetch_env!(@app, :ecto_repos)

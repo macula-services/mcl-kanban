@@ -19,7 +19,7 @@ department:
 | App | Department | Holds |
 |---|---|---|
 | `guide_card_lifecycle` | CMD | the `board`, `card`, `package` and `crew` aggregates, one desk per command (command, event, `maybe_*` handler), the role gate (`Actor`) |
-| `project_boards` | PRJ | one `{event}_to_{table}` projection per event into one sqlite file: boards, cards, card_tags, card_links, card_comments, crew |
+| `project_boards` | PRJ | one `{event}_to_{table}` projection per event into one sqlite file (`ProjectBoards.Repo`, schema in `priv/repo/migrations`): boards, cards, card_tags, card_links, card_comments, crew, packages |
 | `query_boards` | QRY | `get_ladder`, `get_boards`, `get_board_by_repo`, `get_card_by_id`, `get_cards_by_holder`, `get_next_card_for_agent`, `get_ranked_cards`, `get_crew` |
 | `mcl_kanban` | service | the mcl_om contract, the event store it opens itself, and one responder per procedure |
 | `mcl_kanban_web` | UI | the owner's LiveView |
@@ -53,6 +53,11 @@ The **owner** is not a mesh role: it is the web UI, which listens on loopback on
 the box that runs the board.
 
 ## Running it
+
+The image runs `bin/start`: `bin/migrate` brings the read model up to date
+(`ProjectBoards.Release.migrate`), then `bin/server` starts the release, so a
+new version opens an older read model and keeps its rows. A schema change is a
+new migration, never an edit to an existing one.
 
 | Variable | Default | |
 |---|---|---|
