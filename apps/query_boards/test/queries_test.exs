@@ -10,6 +10,7 @@ defmodule QueryBoards.QueriesTest do
   alias QueryBoards.GetCardById.GetCardById
   alias QueryBoards.GetCardsByHolder.GetCardsByHolder
   alias QueryBoards.GetCrew.GetCrew
+  alias QueryBoards.GetLadder.GetLadder
   alias QueryBoards.GetNextCardForAgent.GetNextCardForAgent
   alias QueryBoards.GetRankedCards.GetRankedCards
 
@@ -22,7 +23,7 @@ defmodule QueryBoards.QueriesTest do
     on_exit(fn ->
       :ok =
         ProjectBoards.ReadModel.write(
-          for t <- ~w(cards card_tags card_links card_comments boards crew),
+          for t <- ~w(cards card_tags card_links card_comments boards crew packages),
               do: {"DELETE FROM " <> t, []}
         )
     end)
@@ -251,5 +252,211 @@ defmodule QueryBoards.QueriesTest do
     name = "q" <> uniq()
     deliver(%{event_type: "agent_enlisted_v1", node_id: node, name: name, at: 1}, 0)
     assert Enum.any?(GetCrew.get_crew(), &(&1.name == name and &1.roles == ["agent"]))
+  end
+
+  defp package(ref, rank, version \\ 1, pinned \\ 0) do
+    id = "package-" <> hex32(ref)
+
+    deliver(
+      %{
+        event_type: "package_opened_v1",
+        package_id: id,
+        issue_ref: ref,
+        title: "P " <> ref,
+        status: 1,
+        by: "ada",
+        at: 1
+      },
+      0
+    )
+
+    if rank != nil,
+      do:
+        deliver(
+          %{
+            event_type: "package_prioritised_v1",
+            package_id: id,
+            issue_ref: ref,
+            rank: rank,
+            rationale: "why " <> ref,
+            status: 1 + pinned * 2,
+            by: "pia",
+            at: 2
+          },
+          version
+        )
+
+    ref
+  end
+
+  defp file(card_id, ref, version),
+    do:
+      deliver(
+        %{
+          event_type: "card_filed_v1",
+          card_id: card_id,
+          work_package: ref,
+          status: 1,
+          by: "ada",
+          at: 3
+        },
+        version
+      )
+
+  test "the ladder: packages by rank, unranked last, each with its cards by rank; loose cards apart; withdrawn gone" do
+    repo = "example-org/ladder" <> uniq()
+    b = board(repo)
+    second = package(repo <> "#100", 2)
+    first = package(repo <> "#101", 1, 1, 1)
+    unranked = package(repo <> "#102", nil)
+
+    a = card(repo, b, 1)
+    c = card(repo, b, 2)
+    d = card(repo, b, 3)
+    loose = card(repo, b, 4)
+    gone = card(repo, b, 5)
+
+    rank(a, 5, 1)
+    rank(c, 3, 1)
+    file(a, first, 2)
+    file(c, first, 2)
+    file(d, second, 1)
+    deliver(%{event_type: "card_withdrawn_v1", card_id: gone, reason: "no", status: 16, at: 9}, 1)
+
+    ladder = GetLadder.get_ladder()
+    mine = Enum.filter(ladder.packages, &String.starts_with?(&1.issue_ref, repo <> "#"))
+    assert Enum.map(mine, & &1.issue_ref) == [first, second, unranked]
+
+    [p1, p2, p3] = mine
+    assert p1.rank == 1 and p1.pinned == 1 and p1.rationale == "why " <> first
+    assert Enum.map(p1.cards, & &1.card_id) == [c, a]
+    assert Enum.map(p2.cards, & &1.card_id) == [d]
+    assert p3.cards == [] and p3.rank == nil
+    assert p1.repos == [repo]
+
+    loose_ids = Enum.map(ladder.loose, & &1.card_id)
+    assert loose in loose_ids
+    refute gone in loose_ids
+    assert hd(p1.cards).work_package == first
+    assert hd(p1.cards).package_rank == 1
+  end
+
+  test "equal ranks keep the order they were ranked in" do
+    repo = "example-org/ties" <> uniq()
+    b = board(repo)
+    older = card(repo, b, 1)
+    newer = card(repo, b, 2)
+
+    deliver(
+      %{
+        event_type: "card_prioritised_v1",
+        card_id: newer,
+        rank: 4,
+        rationale: "",
+        by: "owner",
+        status: 33,
+        at: 50
+      },
+      1
+    )
+
+    deliver(
+      %{
+        event_type: "card_prioritised_v1",
+        card_id: older,
+        rank: 4,
+        rationale: "",
+        by: "owner",
+        status: 33,
+        at: 60
+      },
+      1
+    )
+
+    ids =
+      GetLadder.get_ladder().loose
+      |> Enum.map(& &1.card_id)
+      |> Enum.filter(&(&1 in [older, newer]))
+
+    assert ids == [newer, older]
+  end
+
+  test "the next card follows the ladder: package rank first, then card rank; loose cards after every package" do
+    repo = "example-org/order" <> uniq()
+    b = board(repo)
+    me = hex32("order" <> uniq()) <> hex32("me")
+    top = package(repo <> "#200", 1)
+    low = package(repo <> "#201", 2)
+
+    in_low = card(repo, b, 1)
+    in_top = card(repo, b, 2)
+    loose = card(repo, b, 3)
+    rank(in_low, 0, 1)
+    rank(in_top, 50, 1)
+    rank(loose, 0, 1)
+    file(in_low, low, 2)
+    file(in_top, top, 2)
+
+    ids =
+      me
+      |> GetNextCardForAgent.get_next_card_for_agent(500)
+      |> Enum.map(& &1.card_id)
+      |> Enum.filter(&(&1 in [in_low, in_top, loose]))
+
+    assert ids == [in_top, in_low, loose]
+  end
+
+  test "the crew carries what each agent holds and the next card in its lane" do
+    repo = "example-org/crew" <> uniq()
+    b = board(repo)
+    node = hex32("crew" <> uniq()) <> hex32("n")
+    name = "c" <> uniq()
+    deliver(%{event_type: "agent_enlisted_v1", node_id: node, name: name, at: 1}, 0)
+
+    held = card(repo, b, 1)
+    stuck = card(repo, b, 2)
+    next = card(repo, b, 3)
+
+    deliver(
+      %{
+        event_type: "card_claimed_v1",
+        card_id: held,
+        holder: name,
+        holder_node_id: node,
+        status: 2,
+        at: 4
+      },
+      1
+    )
+
+    deliver(
+      %{
+        event_type: "card_claimed_v1",
+        card_id: stuck,
+        holder: name,
+        holder_node_id: node,
+        status: 2,
+        at: 4
+      },
+      1
+    )
+
+    deliver(%{event_type: "card_blocked_v1", card_id: stuck, reason: "r", status: 6, at: 5}, 2)
+
+    deliver(
+      %{
+        event_type: "card_reserved_v1",
+        card_id: next,
+        lane: name,
+        lane_node_id: node,
+        status: 1,
+        at: 6
+      },
+      1
+    )
+
+    agent = Enum.find(GetCrew.get_crew(), &(&1.node_id == node))
+    assert Enum.sort(Enum.map(agent.held, & &1.card_id)) == Enum.sort([held, stuck])
+    assert agent.next.card_id == next
   end
 end
