@@ -10,6 +10,7 @@ defmodule MclKanban.Wire do
   require Logger
 
   alias QueryBoards.GetCardById.GetCardById
+  alias QueryBoards.GetGoal.GetGoal
 
   @card_fields ~w(card_id issue_ref board title story kind colour tags rank rationale lane holder
                   status state pinned note links linked_from comment_count queued_at claimed_at comments
@@ -17,6 +18,23 @@ defmodule MclKanban.Wire do
 
   @doc "An argument, unwrapped."
   def arg(payload, key), do: :mcl_om_wire.field(key, payload, nil)
+
+  @doc "A list argument of texts, each unwrapped; anything else as it came."
+  def texts(list) when is_list(list), do: Enum.map(list, &text/1)
+  def texts(other), do: other
+
+  defp text({:text, t}), do: t
+  defp text(t), do: t
+
+  @doc """
+  A claim's reply with the crew's goal sentence (#18), so each member reads
+  why with the card it got. No goal adopted: the reply as it is.
+  """
+  def with_goal({:ok, map}), do: {:ok, goal_into(map, GetGoal.get_goal())}
+  def with_goal(other), do: other
+
+  defp goal_into(map, nil), do: map
+  defp goal_into(map, %{goal: goal}), do: Map.put(map, :goal, goal)
 
   @doc "The optional story argument: a map of role, ask and value."
   def story(payload) do

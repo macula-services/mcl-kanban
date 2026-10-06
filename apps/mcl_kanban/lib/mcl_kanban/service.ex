@@ -20,6 +20,7 @@ defmodule MclKanban.Service do
   @behaviour :mcl_om_service
 
   alias MclKanban.{
+    AdoptGoal,
     ArchiveBoard,
     BlockCard,
     ClaimCard,
@@ -35,6 +36,7 @@ defmodule MclKanban.Service do
     GetBoardByRepo,
     GetBoards,
     GetCardById,
+    GetGoal,
     GetLadder,
     GetMyCards,
     LiftCardReservation,
@@ -98,7 +100,9 @@ defmodule MclKanban.Service do
     {"defer_package", DeferPackage.DeferPackageResponder},
     {"resume_package", ResumePackage.ResumePackageResponder},
     {"defer_board", DeferBoard.DeferBoardResponder},
-    {"resume_board", ResumeBoard.ResumeBoardResponder}
+    {"resume_board", ResumeBoard.ResumeBoardResponder},
+    {"adopt_goal", AdoptGoal.AdoptGoalResponder},
+    {"get_goal", GetGoal.GetGoalResponder}
   ]
 
   @impl true
