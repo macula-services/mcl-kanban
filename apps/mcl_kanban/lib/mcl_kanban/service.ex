@@ -25,6 +25,9 @@ defmodule MclKanban.Service do
     ClaimCard,
     ClaimNextCard,
     CommentOnCard,
+    DeferBoard,
+    DeferCard,
+    DeferPackage,
     DischargeAgent,
     EnlistAgent,
     FileCard,
@@ -44,6 +47,9 @@ defmodule MclKanban.Service do
     ReclassifyCard,
     ReleaseCard,
     ReserveCard,
+    ResumeBoard,
+    ResumeCard,
+    ResumePackage,
     RewordCard,
     TagCard,
     UnblockCard,
@@ -86,7 +92,13 @@ defmodule MclKanban.Service do
     {"prioritise_package", PrioritisePackage.PrioritisePackageResponder},
     {"file_card", FileCard.FileCardResponder},
     {"unfile_card", UnfileCard.UnfileCardResponder},
-    {"get_ladder", GetLadder.GetLadderResponder}
+    {"get_ladder", GetLadder.GetLadderResponder},
+    {"defer_card", DeferCard.DeferCardResponder},
+    {"resume_card", ResumeCard.ResumeCardResponder},
+    {"defer_package", DeferPackage.DeferPackageResponder},
+    {"resume_package", ResumePackage.ResumePackageResponder},
+    {"defer_board", DeferBoard.DeferBoardResponder},
+    {"resume_board", ResumeBoard.ResumeBoardResponder}
   ]
 
   @impl true

@@ -27,6 +27,20 @@ defmodule QueryBoards.GetBoards.GetBoards do
     |> Enum.map(&board/1)
   end
 
+  @doc """
+  Waits (bounded) until the read model shows the board paused (1) or not
+  (0), so a pause or a resume replies only once the next read sees it.
+  """
+  @spec await_deferred(String.t(), 0 | 1, pos_integer()) :: :ok | {:error, :read_model_behind}
+  def await_deferred(board_id, deferred, timeout_ms \\ 5_000),
+    do:
+      ReadModel.await(
+        "SELECT (status & 4) / 4 FROM boards WHERE board_id = ?",
+        [board_id],
+        [[deferred]],
+        timeout_ms
+      )
+
   @doc false
   def board([id, repo, status, opened_at, queued, claimed, blocked, finished, deferred]) do
     %{

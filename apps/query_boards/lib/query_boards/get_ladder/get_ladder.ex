@@ -29,6 +29,21 @@ defmodule QueryBoards.GetLadder.GetLadder do
     %{packages: packages, loose: Map.get(cards, nil, [])}
   end
 
+  @doc """
+  Waits (bounded) until the read model shows the package paused (1) or not
+  (0), its cards included, so a pause or a resume replies only once the next
+  read sees it.
+  """
+  @spec await_deferred(String.t(), 0 | 1, pos_integer()) :: :ok | {:error, :read_model_behind}
+  def await_deferred(package_id, deferred, timeout_ms \\ 5_000),
+    do:
+      ReadModel.await(
+        "SELECT deferred FROM packages WHERE package_id = ?",
+        [package_id],
+        [[deferred]],
+        timeout_ms
+      )
+
   defp package([id, ref, title, rank, pinned, ranked_by, rationale, opened_at, deferred], cards) do
     mine = cards |> Map.get(ref, []) |> Enum.reject(&(&1.package_card == 1))
 

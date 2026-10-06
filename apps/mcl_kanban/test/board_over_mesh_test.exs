@@ -251,9 +251,12 @@ defmodule MclKanban.BoardOverMeshTest do
     id = queue(bob, repo, 1)
     %{card: %{lane: ^bob}} = call(ReserveCardResponder, sup, %{card_id: id, lane: bob})
 
-    claims_mine? = fn -> match?(%{card: %{card_id: ^id}}, call(ClaimNextCardResponder, bob, %{})) end
+    claims_mine? = fn ->
+      match?(%{card: %{card_id: ^id}}, call(ClaimNextCardResponder, bob, %{}))
+    end
 
     assert %{reason: "not_permitted"} = call(DeferBoardResponder, bob, %{repo: repo, reason: "x"})
+
     assert %{board: %{repo: ^repo, deferred: 1}} =
              call(DeferBoardResponder, pia, %{repo: repo, reason: "not now"})
 
@@ -264,17 +267,24 @@ defmodule MclKanban.BoardOverMeshTest do
              call(DeferCardResponder, pia, %{card_id: id, reason: "not now"})
 
     refute claims_mine?.()
-    assert %{card: %{state: "queued", deferred: 0}} = call(ResumeCardResponder, pia, %{card_id: id})
+
+    assert %{card: %{state: "queued", deferred: 0}} =
+             call(ResumeCardResponder, pia, %{card_id: id})
 
     ref = "#{repo}#900"
-    %{package: %{issue_ref: ^ref}} = call(OpenPackageResponder, sup, %{issue_ref: ref, title: "P"})
+
+    %{package: %{issue_ref: ^ref}} =
+      call(OpenPackageResponder, sup, %{issue_ref: ref, title: "P"})
+
     %{card: _} = call(FileCardResponder, sup, %{card_id: id, package_ref: ref})
 
     assert %{package: %{issue_ref: ^ref, deferred: 1}} =
              call(DeferPackageResponder, pia, %{issue_ref: ref, reason: "later"})
 
     refute claims_mine?.()
-    assert %{package: %{issue_ref: ^ref, deferred: 0}} = call(ResumePackageResponder, pia, %{issue_ref: ref})
+
+    assert %{package: %{issue_ref: ^ref, deferred: 0}} =
+             call(ResumePackageResponder, pia, %{issue_ref: ref})
 
     assert claims_mine?.()
   end
