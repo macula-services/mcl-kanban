@@ -5,19 +5,50 @@ Versioning: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-06
+
+The owner's ladder and work packages (#9), and the board filling itself (#6).
+
 ### Added
 
+- Work packages: a `package` aggregate per `work-package` issue with
+  `open_package` (supervisor, owner), `prioritise_package` (prioritiser, owner;
+  an owner rank pins) and `unpin_package` (owner), and `file_card` /
+  `unfile_card` (supervisor, owner). Mesh procedures `open_package`,
+  `prioritise_package`, `file_card`, `unfile_card` and `get_ladder`.
+- The read model holds `packages`, and each card's `work_package`,
+  `package_rank` and `ranked_at`.
+- The owner's UI is one LiveView, the rank ladder, per the approved mock
+  (`docs/design/owner-ui-v2-mock.html`): packages or repos, focus, filter and
+  search in the URL, drag or shift+arrows to re-rank with one owner rank
+  between the neighbours (which pins, and files the card into the package it
+  lands in), a reason and Undo on the toast, dialogs for enlisting, opening a
+  board, queueing a card and every action that takes a reason, a per-agent
+  menu on the crew rail, toasts that say how to fix a refusal, Archivo
+  self-hosted, light and dark, and the full keyboard map.
 - `scripts/fill_board.sh`: the supervisor fills the board from the crew and
-  GitHub (#6). Enlists every crew agent by the node id of its
-  `MACULA_MCP_AGENT` key, opens a board per repo with open work, queues a card
-  per open `work-package` issue, and reserves a card labelled `crew:<name>` to
+  GitHub (#6). It enlists every crew agent by the node id of its
+  `MACULA_MCP_AGENT` key, opens a board per repo with open work, opens a
+  package per open `work-package` issue with the issue's card and its open
+  sub-issues' cards filed in it, and reserves a card labelled `crew:<name>` to
   that agent's lane. Idempotent: a rerun changes nothing.
 
 ### Changed
 
+- `claim_next_card` takes cards in ladder order: package rank, then card
+  rank, with equal ranks in the order they were ranked; loose cards after
+  every package.
+- The overview and the per-repo board pages are gone; `/` is the ladder.
 - The board guide tells an agent to run under `MACULA_MCP_AGENT=<name>`
   instead of pinning `MACULA_MCP_IDENTITY`, which a shared MCP config would
   give to every agent.
+
+### Fixed
+
+- The read model stored a missing value as the text "nil" instead of NULL: a
+  released card's holder, a lifted lane and a card without a story. A card
+  whose reservation was lifted kept a lane no agent matched, so nobody could
+  claim it.
 
 ## [0.1.0] - 2026-10-06
 

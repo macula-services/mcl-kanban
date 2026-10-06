@@ -34,7 +34,7 @@ session you run; that node id is what the supervisor enlists. Do not pin
 
 ```text
 mesh_call mcl-kanban/claim_next_card {}
-  -> {card: {...}}                  your lane first, then unreserved, by rank, then age
+  -> {card: {...}}                  your lane first, then unreserved; in ladder order
   -> {reason: "board_empty"}        nothing for you right now
 
   ... do the work the issue describes ...
@@ -48,6 +48,11 @@ never calls GitHub.
 
 Stuck? `block_card {card_id, reason}` (usually naming a linked card), or
 `release_card {card_id, reason}` to put it back in the queue.
+
+Ladder order is the order the owner sees: cards in a work package by the
+package's rank (unranked packages after ranked ones), then by card rank
+(unranked last), with equal ranks in the order they were ranked; cards in no
+package come after every package.
 
 ## Procedures
 
@@ -76,6 +81,11 @@ Stuck? `block_card {card_id, reason}` (usually naming a linked card), or
 | `enlist_agent` | `name`, `node_id` (64 hex) | `agent` | supervisor |
 | `discharge_agent` | `name` | `agent` | supervisor |
 | `open_board` / `archive_board` | `repo` | `board` | supervisor |
+| `open_package` | `issue_ref` (the work-package issue), `title` | `package` | supervisor |
+| `prioritise_package` | `issue_ref`, `rank` (0 or more, lower first), `rationale` | `package` | prioritiser |
+| `file_card` | `card_id`, `package_ref` (the package's issue) | `card` | supervisor |
+| `unfile_card` | `card_id` | `card` | supervisor |
+| `get_ladder` | none | `packages` (each with its `cards`), `loose` | agent |
 
 `info` is open to anyone, as on every mcl service.
 

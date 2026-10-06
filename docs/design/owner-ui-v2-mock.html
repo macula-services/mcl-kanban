@@ -1,0 +1,736 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Crew board</title>
+<meta name="description" content="mcl-kanban owner UI redesign mock: the rank ladder by work package or by repo, with the crew on duty.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,300..800;1,62..125,300..800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E9ECEF; --panel:#FFFFFF; --panel-2:#F4F5F7; --ink:#14181F; --ink-2:#4B5563; --mute:#8A939F; --line:#D5D9DF; --line-2:#E8EBEF;
+  --hand:#D3651B; --hand-ink:#8A3F0C; --hand-soft:#FBEBDD;
+  --live:#D3651B; --blocked:#B8232F; --blocked-soft:#F9E3E5; --done:#5B6470;
+  --bug:#D83A2E; --slice:#3F9E3A; --ui:#2E86D6;
+  --focus:#14181F;
+  --shadow:0 10px 30px rgba(20,24,31,.16);
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#151A21; --panel:#1C232C; --panel-2:#222A34; --ink:#E6EAEF; --ink-2:#B4BCC6; --mute:#7C8792; --line:#2E3842; --line-2:#28313B;
+    --hand:#F08A3C; --hand-ink:#FFC58F; --hand-soft:#3A2614;
+    --live:#F08A3C; --blocked:#F26B74; --blocked-soft:#3E1C20; --done:#8A939F;
+    --bug:#F0574B; --slice:#5DBE55; --ui:#5AA6EC;
+    --focus:#F08A3C;
+    --shadow:0 12px 36px rgba(0,0,0,.5);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#151A21; --panel:#1C232C; --panel-2:#222A34; --ink:#E6EAEF; --ink-2:#B4BCC6; --mute:#7C8792; --line:#2E3842; --line-2:#28313B;
+  --hand:#F08A3C; --hand-ink:#FFC58F; --hand-soft:#3A2614;
+  --live:#F08A3C; --blocked:#F26B74; --blocked-soft:#3E1C20; --done:#8A939F;
+  --bug:#F0574B; --slice:#5DBE55; --ui:#5AA6EC;
+  --focus:#F08A3C;
+  --shadow:0 12px 36px rgba(0,0,0,.5);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 "Archivo",system-ui,sans-serif;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:0;padding:0}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:3px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+kbd{font-family:inherit;font-size:11px;font-weight:600;color:var(--ink-2);background:var(--panel-2);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;line-height:16px;display:inline-block;min-width:18px;text-align:center}
+
+/* top bar */
+.top{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:12px;padding:0 16px;height:52px;background:var(--panel);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:8px;font-weight:700;letter-spacing:.01em;white-space:nowrap}
+.brand svg{width:20px;height:20px}
+.seg{display:flex;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:2px}
+.seg button{padding:5px 12px;border-radius:6px;font-weight:600;color:var(--ink-2);display:flex;gap:6px;align-items:center}
+.seg button kbd{display:none}
+.seg button[aria-pressed="true"]{background:var(--panel);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.search{flex:1;max-width:380px;display:flex;align-items:center;gap:8px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:0 10px;height:32px;min-width:0}
+.search input{flex:1;min-width:0;background:none;border:0;outline:0}
+.search kbd{flex:none}
+.chips{display:flex;gap:6px}
+.chip{display:flex;align-items:center;gap:6px;height:28px;padding:0 10px;border:1px solid var(--line);border-radius:999px;font-weight:600;color:var(--ink-2);white-space:nowrap}
+.chip b{font-weight:700;color:var(--ink)}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.chip[aria-pressed="true"] b{color:inherit}
+.chip.blocked[data-n]:not([data-n="0"]){border-color:var(--blocked);color:var(--blocked)}
+.chip.blocked[data-n]:not([data-n="0"]) b{color:var(--blocked)}
+.chip.blocked[aria-pressed="true"]{background:var(--blocked);border-color:var(--blocked);color:#fff}
+.chip.blocked[aria-pressed="true"] b{color:#fff}
+.top .spacer{flex:1}
+.iconbtn{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;color:var(--ink-2)}
+.iconbtn:hover{background:var(--panel-2)}
+.owner{display:flex;align-items:center;gap:8px;font-weight:600;white-space:nowrap}
+.owner i{width:8px;height:8px;border-radius:50%;background:var(--hand);display:inline-block}
+
+/* shell */
+.shell{display:grid;grid-template-columns:232px minmax(0,1fr) 272px;gap:0;min-height:calc(100vh - 52px)}
+.nav{border-right:1px solid var(--line);padding:16px 10px;background:var(--panel)}
+.nav h2,.rail h2{margin:0 6px 8px;font-size:12px;font-weight:600;color:var(--mute);letter-spacing:.02em}
+.nav ul{list-style:none;margin:0 0 18px;padding:0}
+.nav li button{width:100%;display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;text-align:left;color:var(--ink-2)}
+.nav li button:hover{background:var(--panel-2)}
+.nav li button[aria-current="true"]{background:var(--panel-2);color:var(--ink);font-weight:600}
+.nav .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar{display:flex;width:44px;height:6px;border-radius:3px;overflow:hidden;background:var(--line-2)}
+.bar i{display:block;height:100%}
+.bar .q{background:var(--mute)} .bar .c{background:var(--live)} .bar .b{background:var(--blocked)} .bar .d{background:var(--done);opacity:.45}
+.nav .n{font-size:12px;color:var(--mute);min-width:16px;text-align:right}
+
+/* main ladder */
+.main{padding:16px 20px 80px;min-width:0}
+.main-head{display:flex;align-items:baseline;gap:14px;margin:4px 0 14px;flex-wrap:wrap}
+.main-head h1{margin:0;font-size:22px;font-weight:700;letter-spacing:-.01em}
+.main-head p{margin:0;color:var(--mute)}
+.pkg{margin:0 0 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);overflow:hidden}
+.pkg-head{display:grid;grid-template-columns:56px 1fr auto;align-items:center;gap:12px;padding:10px 14px 10px 0;cursor:pointer;user-select:none}
+.pkg-head:hover{background:var(--panel-2)}
+.pkg-head .prank{font-stretch:70%;font-weight:800;font-size:30px;line-height:1;text-align:center;color:var(--ink);letter-spacing:-.02em}
+.pkg-head .prank small{display:block;font-stretch:85%;font-weight:600;font-size:10px;color:var(--mute);letter-spacing:.06em;margin-top:2px}
+.pkg-head h2{margin:0;font-size:15px;font-weight:700;line-height:1.3}
+.pkg-head h2 a{color:var(--mute);font-weight:500;text-decoration:none;margin-left:8px;font-size:13px}
+.pkg-head h2 a:hover{text-decoration:underline}
+.pkg-meta{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:4px;font-size:12px;color:var(--ink-2)}
+.pkg-meta .repos span{display:inline-block;padding:0 6px;border:1px solid var(--line);border-radius:4px;margin-right:4px;color:var(--mute)}
+.pkg-meta .why{font-style:italic;color:var(--mute)}
+.pkg-right{display:flex;align-items:center;gap:10px}
+.progress{display:flex;width:96px;height:8px;border-radius:4px;overflow:hidden;background:var(--line-2)}
+.progress i{display:block;height:100%}
+.progress .q{background:var(--mute);opacity:.35}.progress .c{background:var(--live)}.progress .b{background:var(--blocked)}.progress .d{background:var(--done)}
+.pkg-right .count{font-size:12px;color:var(--mute);white-space:nowrap}
+.caret{width:22px;height:22px;display:grid;place-items:center;color:var(--mute);transition:transform .15s}
+.pkg[data-open="0"] .caret{transform:rotate(-90deg)}
+.pkg[data-open="0"] .cards{display:none}
+.pkg.pinned-pkg .prank{color:var(--hand)}
+
+.cards{list-style:none;margin:0;padding:0;border-top:1px solid var(--line-2)}
+.card{display:grid;grid-template-columns:56px 3px minmax(0,1fr) auto;align-items:center;gap:0 12px;padding:0 10px 0 0;min-height:52px;border-top:1px solid var(--line-2);position:relative;cursor:pointer}
+.card:first-child{border-top:0}
+.card:hover{background:var(--panel-2)}
+.card[aria-selected="true"]{background:var(--panel-2);box-shadow:inset 3px 0 0 var(--ink)}
+.card.dragging{opacity:.4}
+.card.drop-before{box-shadow:inset 0 2px 0 var(--hand)}
+.card.drop-after{box-shadow:inset 0 -2px 0 var(--hand)}
+.card.flash{animation:flash .9s ease-out}
+@keyframes flash{0%{background:var(--hand-soft)}100%{background:transparent}}
+.rank{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;font-stretch:70%;font-weight:700;font-size:20px;color:var(--ink-2);line-height:1;gap:2px}
+.rank.unranked{color:var(--mute);font-weight:500;font-size:14px}
+.rank .pin{width:18px;height:18px;display:grid;place-items:center;color:var(--mute);opacity:0;border-radius:4px}
+.card:hover .rank .pin,.card[aria-selected="true"] .rank .pin,.rank .pin[aria-pressed="true"]{opacity:1}
+.rank .pin[aria-pressed="true"]{color:var(--hand)}
+.rank .pin:hover{background:var(--hand-soft);color:var(--hand)}
+.stripe{align-self:stretch;margin:6px 0;border-radius:2px;background:var(--kind)}
+.body{padding:8px 0;min-width:0}
+.ref{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--mute);line-height:1.2}
+.ref .k{font-weight:700;color:var(--kind);letter-spacing:.02em}
+.ref .repo{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.title{display:block;font-weight:600;line-height:1.3;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card.is-finished .title{color:var(--done);font-weight:500;text-decoration:line-through;text-decoration-color:var(--line)}
+.state{display:flex;align-items:center;gap:8px;justify-content:flex-end;white-space:nowrap;font-size:12px;color:var(--ink-2)}
+.holder{display:inline-flex;align-items:center;gap:6px;padding:2px 8px 2px 4px;border-radius:999px;border:1px solid var(--line);font-weight:600;color:var(--ink)}
+.av{width:18px;height:18px;border-radius:50%;display:inline-grid;place-items:center;font-size:10px;font-weight:700;color:#fff;background:var(--c,#777);font-stretch:85%}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.dot.live{background:var(--live);box-shadow:0 0 0 0 var(--live);animation:pulse 2.2s infinite}
+.dot.blocked{background:var(--blocked)}
+.dot.idle{border:2px solid var(--mute);width:6px;height:6px}
+.dot.done{background:var(--done)}
+@keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--live) 55%,transparent)}70%{box-shadow:0 0 0 7px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.blk{color:var(--blocked);font-weight:600}
+.blk a{text-decoration:underline dotted}
+.lane{color:var(--mute)}
+.cmt{color:var(--mute);display:inline-flex;align-items:center;gap:3px}
+.cmt.new::after{content:"";width:6px;height:6px;border-radius:50%;background:var(--hand)}
+.elapsed{color:var(--mute)}
+.loose .pkg-head .prank{font-size:14px;font-weight:600;color:var(--mute)}
+
+/* rail */
+.rail{border-left:1px solid var(--line);padding:16px 12px;background:var(--panel)}
+.rail .crew{list-style:none;margin:0;padding:0}
+.rail .crew li{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;padding:8px 6px;border-radius:8px;align-items:start}
+.rail .crew li:hover{background:var(--panel-2)}
+.rail .crew .av{width:26px;height:26px;font-size:12px;grid-row:span 2;margin-top:2px}
+.rail .who{display:flex;align-items:center;gap:6px;font-weight:700}
+.rail .who .role{font-size:10px;font-weight:700;letter-spacing:.04em;padding:1px 5px;border-radius:3px;background:var(--panel-2);color:var(--ink-2);border:1px solid var(--line)}
+.rail .who .role.sup{color:var(--hand-ink);background:var(--hand-soft);border-color:transparent}
+.rail .who .menu{margin-left:auto;opacity:0;color:var(--mute)}
+.rail .crew li:hover .who .menu,.rail .crew li:focus-within .who .menu{opacity:1}
+.rail .doing{font-size:12px;color:var(--ink-2);line-height:1.35}
+.rail .doing b{font-weight:600;color:var(--ink)}
+.rail .doing.blk{color:var(--blocked)}
+.rail .doing.idle{color:var(--mute);font-style:italic}
+.rail .enlist{margin:12px 6px 0;display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px dashed var(--line);border-radius:8px;color:var(--ink-2);font-weight:600;width:calc(100% - 12px)}
+.rail .enlist:hover{border-color:var(--ink);color:var(--ink)}
+.rail .keys{margin:22px 6px 0;font-size:12px;color:var(--mute)}
+.rail .keys dl{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;margin:8px 0 0}
+.rail .keys dd{margin:0}
+
+/* drawer */
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(460px,100vw);background:var(--panel);border-left:1px solid var(--line);box-shadow:var(--shadow);z-index:20;transform:translateX(100%);transition:transform .18s ease-out;display:flex;flex-direction:column}
+.drawer[data-open="1"]{transform:none}
+.drawer .d-head{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line-2)}
+.drawer .d-head .k{font-weight:700;color:var(--kind);font-size:12px;letter-spacing:.02em}
+.drawer .d-head a{color:var(--mute);font-size:13px;text-decoration:none}
+.drawer .d-head a:hover{text-decoration:underline}
+.drawer .d-head .close{margin-left:auto}
+.d-body{overflow:auto;padding:14px 16px 24px;flex:1}
+.d-body h2{margin:0 0 6px;font-size:17px;line-height:1.3;font-weight:700}
+.story{font-style:italic;color:var(--ink-2);margin:0 0 12px}
+.facts{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0 0 14px;font-size:13px}
+.facts dt{color:var(--mute)}.facts dd{margin:0}
+.rankbox{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;margin-bottom:14px;background:var(--panel-2)}
+.rankbox .big{font-stretch:70%;font-weight:800;font-size:34px;line-height:1;min-width:44px;text-align:center}
+.rankbox .big.hand{color:var(--hand)}
+.rankbox .txt{flex:1;font-size:12px;color:var(--ink-2);line-height:1.35}
+.rankbox .txt b{color:var(--ink)}
+.rankbox .ctl{display:flex;flex-direction:column;gap:2px}
+.rankbox .ctl button{width:28px;height:22px;border:1px solid var(--line);border-radius:5px;background:var(--panel);display:grid;place-items:center;color:var(--ink-2)}
+.rankbox .ctl button:hover{color:var(--ink);border-color:var(--ink)}
+.btn{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border:1px solid var(--line);border-radius:7px;font-weight:600;background:var(--panel);color:var(--ink)}
+.btn:hover{border-color:var(--ink)}
+.btn.primary{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.btn.hand{background:var(--hand);color:#fff;border-color:var(--hand)}
+.btn.danger{color:var(--blocked)}
+.btn.danger:hover{border-color:var(--blocked)}
+.btn.sm{height:26px;padding:0 9px;font-size:12px}
+.actions{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px}
+.sel{height:30px;border:1px solid var(--line);border-radius:7px;background:var(--panel);padding:0 8px}
+.d-body h3{margin:16px 0 6px;font-size:12px;font-weight:600;color:var(--mute)}
+.links{list-style:none;margin:0;padding:0;font-size:13px}
+.links li{display:flex;gap:8px;align-items:center;padding:4px 0}
+.links .rel{color:var(--mute);min-width:76px}
+.links .rel.blk{color:var(--blocked);font-weight:600}
+.links a{text-decoration:none;font-weight:600}
+.links a:hover{text-decoration:underline}
+.tags span{display:inline-block;font-size:12px;padding:1px 7px;border:1px solid var(--line);border-radius:4px;color:var(--ink-2);margin:0 4px 4px 0}
+.tags button.add{font-size:12px;color:var(--mute)}
+.thread{list-style:none;margin:0;padding:0}
+.thread li{padding:8px 0;border-top:1px solid var(--line-2);font-size:13px}
+.thread li:first-child{border-top:0}
+.thread .by{display:flex;gap:8px;align-items:center;margin-bottom:2px}
+.thread .by b{font-weight:700}
+.thread .by.owner b{color:var(--hand-ink)}
+.thread .by time{color:var(--mute);font-size:12px}
+.thread p{margin:0;white-space:pre-wrap;line-height:1.4}
+.compose{display:flex;flex-direction:column;gap:6px;margin-top:8px;border-top:1px solid var(--line-2);padding-top:10px}
+.compose textarea{border:1px solid var(--line);border-radius:7px;padding:8px;resize:vertical;min-height:58px;background:var(--panel)}
+.compose .row{display:flex;gap:8px;align-items:center;justify-content:flex-end;font-size:12px;color:var(--mute)}
+.scrim{position:fixed;inset:0;background:rgba(20,24,31,.25);z-index:19;display:none}
+.scrim[data-open="1"]{display:block}
+@media (min-width:1000px){.scrim{display:none!important}}
+
+/* toast */
+.toasts{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:30;display:flex;flex-direction:column;gap:8px;align-items:center;width:min(560px,calc(100vw - 32px))}
+.toast{display:flex;align-items:center;gap:10px;background:var(--ink);color:var(--panel);padding:8px 10px 8px 14px;border-radius:10px;box-shadow:var(--shadow);width:100%;animation:up .18s ease-out;font-size:13px}
+.toast .msg{flex:1;min-width:0}
+.toast .msg b{font-weight:700}
+.toast input{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:inherit;border-radius:6px;padding:4px 8px;width:160px}
+.toast input::placeholder{color:rgba(255,255,255,.5)}
+.toast button{color:inherit;font-weight:700;padding:4px 8px;border-radius:6px;white-space:nowrap}
+.toast button:hover{background:rgba(255,255,255,.14)}
+.toast.err{background:var(--blocked);color:#fff}
+.toast.err .fix{font-weight:400;opacity:.9}
+@keyframes up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* dialogs */
+dialog{border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--ink);padding:0;width:min(440px,calc(100vw - 32px));box-shadow:var(--shadow)}
+dialog::backdrop{background:rgba(20,24,31,.35)}
+dialog form{padding:18px 20px}
+dialog h2{margin:0 0 4px;font-size:17px}
+dialog p.lead{margin:0 0 14px;color:var(--ink-2);font-size:13px}
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;font-size:13px}
+.field label{font-weight:600}
+.field input,.field select{height:34px;border:1px solid var(--line);border-radius:7px;padding:0 10px;background:var(--panel)}
+.field .hint{font-size:12px;color:var(--mute)}
+.field .hint.ok{color:var(--slice);font-weight:600}
+.field .hint.bad{color:var(--blocked);font-weight:600}
+.field input[aria-invalid="true"]{border-color:var(--blocked)}
+dialog .row{display:flex;justify-content:flex-end;gap:8px;margin-top:6px}
+.helpkeys{columns:2;column-gap:24px;font-size:13px}
+.helpkeys div{display:flex;justify-content:space-between;gap:10px;padding:4px 0;break-inside:avoid}
+
+/* empty */
+.empty{border:1px dashed var(--line);border-radius:10px;padding:28px 20px;text-align:center;color:var(--ink-2)}
+.empty h2{margin:0 0 6px;font-size:16px}
+.empty p{margin:0 0 12px;font-size:13px;color:var(--mute)}
+
+/* responsive */
+@media (max-width:1180px){
+  .shell{grid-template-columns:200px minmax(0,1fr)}
+  .rail{grid-column:1 / -1;border-left:0;border-top:1px solid var(--line)}
+  .rail .crew{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
+  .rail .keys{display:none}
+}
+@media (max-width:760px){
+  .top{height:auto;flex-wrap:wrap;padding:8px 12px;gap:8px}
+  .brand{order:0}.owner{order:1;margin-left:auto}.iconbtn.theme{order:2}
+  .seg{order:3;width:100%}.seg button{flex:1;justify-content:center}
+  .search{order:4;max-width:none;flex:1 1 100%}
+  .chips{order:5;width:100%;overflow:auto}
+  .shell{display:block}
+  .nav{border-right:0;border-bottom:1px solid var(--line);padding:10px 12px}
+  .nav h2{display:none}
+  .nav ul{display:flex;gap:6px;overflow:auto;margin:0;padding-bottom:4px}
+  .nav li{flex:none}
+  .nav li button{display:flex;gap:6px;padding:4px 10px;border:1px solid var(--line);border-radius:999px;white-space:nowrap}
+  .nav .bar{width:28px}
+  .nav ul+h2+ul{display:none}
+  .rail{padding:10px 12px}
+  .rail .crew{display:flex;gap:4px;overflow:auto}
+  .rail .crew li{flex:none;grid-template-columns:auto 1fr;max-width:230px}
+  .rail .enlist{display:none}
+  .main{padding:12px 12px 80px}
+  .main-head h1{font-size:18px}
+  .pkg-head{grid-template-columns:44px 1fr;padding-right:10px}
+  .pkg-right{grid-column:2;justify-content:flex-start}
+  .pkg-head .prank{font-size:24px}
+  .card{grid-template-columns:44px 3px minmax(0,1fr);padding-right:10px}
+  .state{grid-column:3;justify-content:flex-start;padding-bottom:8px;margin-top:-4px;flex-wrap:wrap;white-space:normal}
+  .body{padding-bottom:4px}
+  .title{white-space:normal}
+  .rank{font-size:17px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <a class="brand" href="#" aria-label="mcl-kanban, crew board">
+    <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2" y="3" width="4" height="4" rx="1" fill="var(--hand)"/><rect x="8" y="3" width="10" height="4" rx="1" fill="currentColor" opacity=".9"/><rect x="2" y="9" width="4" height="4" rx="1" fill="currentColor" opacity=".45"/><rect x="8" y="9" width="7" height="4" rx="1" fill="currentColor" opacity=".45"/><rect x="2" y="15" width="4" height="3" rx="1" fill="currentColor" opacity=".25"/><rect x="8" y="15" width="9" height="3" rx="1" fill="currentColor" opacity=".25"/></svg>
+    mcl-kanban
+  </a>
+  <div class="seg" role="group" aria-label="View">
+    <button id="v-pkg" aria-pressed="true" data-view="pkg">Packages <kbd>1</kbd></button>
+    <button id="v-repo" aria-pressed="false" data-view="repo">Repos <kbd>2</kbd></button>
+  </div>
+  <label class="search"><span class="sr">Find a card</span>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <input id="q" placeholder="Find a card, repo or agent" autocomplete="off"><kbd>/</kbd>
+  </label>
+  <div class="chips">
+    <button class="chip blocked" id="f-blocked" aria-pressed="false" data-n="0">Blocked <b>0</b></button>
+    <button class="chip" id="f-live" aria-pressed="false">In hand <b>0</b></button>
+    <button class="chip" id="f-pinned" aria-pressed="false">Pinned <b>0</b></button>
+  </div>
+  <span class="spacer"></span>
+  <button class="iconbtn theme" id="theme" aria-label="Switch light or dark"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor"/></svg></button>
+  <span class="owner" title="This UI listens on loopback on the box that runs the board and acts as the owner"><i aria-hidden="true"></i>Raf, owner</span>
+</header>
+
+<div class="shell">
+  <nav class="nav" aria-label="Boards">
+    <h2 id="nav-h">Work packages</h2>
+    <ul id="nav-list"></ul>
+    <h2>Repos</h2>
+    <ul id="nav-repos"></ul>
+  </nav>
+
+  <main class="main" id="main">
+    <div class="main-head"><h1 id="h1">Every package, in rank order</h1><p id="sub"></p></div>
+    <div id="ladder"></div>
+  </main>
+
+  <aside class="rail" aria-label="Crew on duty">
+    <h2>Crew on duty</h2>
+    <ul class="crew" id="crew"></ul>
+    <button class="enlist" id="enlist-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Enlist an agent</button>
+    <div class="keys">Keys <kbd>?</kbd>
+      <dl><dt><kbd>j</kbd><kbd>k</kbd></dt><dd>move</dd><dt><kbd>⏎</kbd></dt><dd>open card</dd><dt><kbd>⇧↑</kbd><kbd>⇧↓</kbd></dt><dd>re-rank (pins)</dd><dt><kbd>p</kbd></dt><dd>pin / unpin</dd><dt><kbd>b</kbd></dt><dd>only blocked</dd></dl>
+    </div>
+  </aside>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" data-open="0" role="dialog" aria-modal="false" aria-label="Card"></aside>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<dialog id="enlist">
+  <form method="dialog" id="enlist-form">
+    <h2>Enlist an agent</h2>
+    <p class="lead">The node id is what the agent's MACULA_MCP_AGENT key signs with. Paste it from the agent's first <em>info</em> reply.</p>
+    <div class="field"><label for="e-name">Name</label><input id="e-name" placeholder="Mercury" required pattern="[A-Za-z][A-Za-z0-9_-]*"><span class="hint">Starts with a letter: letters, digits, - and _</span></div>
+    <div class="field"><label for="e-node">Node id</label><input id="e-node" placeholder="64 hex characters" required spellcheck="false"><span class="hint" id="e-node-hint">Waiting for a node id</span></div>
+    <div class="field"><label for="e-role">Role</label><select id="e-role"><option value="agent">Agent</option><option value="supervisor">Agent, and appoint as supervisor</option><option value="prioritiser">Agent, and appoint as prioritiser</option></select></div>
+    <div class="row"><button class="btn" value="cancel" type="button" id="e-cancel">Cancel</button><button class="btn primary" id="e-submit" type="submit">Enlist</button></div>
+  </form>
+</dialog>
+
+<dialog id="help">
+  <form method="dialog">
+    <h2>Keys</h2>
+    <p class="lead">Nothing here needs the mouse.</p>
+    <div class="helpkeys">
+      <div><span>Packages view</span><kbd>1</kbd></div><div><span>Repos view</span><kbd>2</kbd></div>
+      <div><span>Find</span><kbd>/</kbd></div><div><span>Move selection</span><span><kbd>j</kbd> <kbd>k</kbd></span></div>
+      <div><span>Open / close card</span><span><kbd>⏎</kbd> <kbd>esc</kbd></span></div><div><span>Re-rank selected (pins)</span><span><kbd>⇧↑</kbd> <kbd>⇧↓</kbd></span></div>
+      <div><span>Pin / unpin</span><kbd>p</kbd></div><div><span>Only blocked</span><kbd>b</kbd></div>
+      <div><span>Comment on open card</span><kbd>c</kbd></div><div><span>Queue a card</span><kbd>n</kbd></div>
+      <div><span>Collapse / expand package</span><kbd>space</kbd></div><div><span>This list</span><kbd>?</kbd></div>
+    </div>
+    <div class="row"><button class="btn primary">Close</button></div>
+  </form>
+</dialog>
+
+<script>
+// ---------- sample data drawn from the live board (2026-10-06) ----------
+const COLOUR = {bug:'var(--bug)', slice:'var(--slice)', ui:'var(--ui)'};
+const AGENTS = [
+  {name:'Terra',    c:'#2E7D6B', roles:['agent','supervisor']},
+  {name:'Saturnus', c:'#6B4FBB', roles:['agent','prioritiser']},
+  {name:'Jupiter',  c:'#B8732A', roles:['agent']},
+  {name:'Mars',     c:'#B23A3A', roles:['agent']},
+  {name:'Pluto',    c:'#3A6FB2', roles:['agent']},
+  {name:'Venus',    c:'#8A6D2F', roles:['agent']},
+];
+const PACKAGES = [
+  {id:'wp69', ref:'macula-io/macula#69', rank:1, pinned:1, title:'Sealed payloads everywhere: every SDK seals and unseals correctly, and the fleet measures it', why:'Owner pin: Cronos demo claim D11 depends on this.'},
+  {id:'wp72', ref:'macula-io/macula#72', rank:2, pinned:0, title:'Attribution holds for every payload: the caller is bound by the station, never written by the sender', why:'Security register row 14; blocks #71.'},
+  {id:'wp73', ref:'macula-io/macula#73', rank:3, pinned:0, title:'The last Hecate names are gone: SDK first, then station and kernel refresh, then consumers', why:'Cheap, mostly mechanical, unblocks the docs.'},
+  {id:'wp70s', ref:'macula-io/macula-station#70', rank:4, pinned:0, title:'Peering repairs what it should: outbound deficits, drain forwarding, DHT placement diversity, bootstrap tiers', why:'Station stability first; needs #68 landed.'},
+  {id:'wp5', ref:'macula-services/mcl-kanban#5', rank:5, pinned:0, title:'The crew pulls its own work over the mesh: kanban board, agent conversations, role prompts', why:'This board. Part 1 shipped, part 2 next.'},
+];
+let CARDS = [
+  // wp69
+  {id:'c1',  ref:'macula-io/macula#69', repo:'macula-io/macula', kind:'slice', pkg:'wp69', rank:1, pinned:1, state:'claimed', holder:'Terra', since:'3h', comments:4, fresh:1, tags:['security','cnsa'], story:{role:'fleet operator', ask:'every payload sealed end to end', value:'a relay never reads a card'}, why:'Pinned by the owner: everything in the package hangs on the SDK.'},
+  {id:'c2',  ref:'macula-io/macula-fleet#7', repo:'macula-io/macula-fleet', kind:'slice', pkg:'wp69', rank:2, pinned:0, state:'claimed', holder:'Terra', since:'40m', comments:1, tags:['fleet'], why:'Measured on the real fleet right after the SDK.'},
+  {id:'c3',  ref:'macula-io/macula-mcp#25', repo:'macula-io/macula-mcp', kind:'bug', pkg:'wp69', rank:3, pinned:0, state:'queued', lane:'Venus', comments:0, tags:['sdk'], why:'Small defects, same author as the SDK fix.'},
+  {id:'c4',  ref:'macula-io/macula-rust#12', repo:'macula-io/macula-rust', kind:'slice', pkg:'wp69', rank:4, pinned:0, state:'queued', lane:'Venus', comments:2, tags:['ucan','sdk']},
+  {id:'c5',  ref:'macula-io/macula-station#66', repo:'macula-io/macula-station', kind:'slice', pkg:'wp69', rank:5, pinned:0, state:'blocked', holder:'Mars', since:'1d', blockedBy:'c2', reason:'needs sealing on for fleet providers to measure padding', comments:3, fresh:1, tags:['privacy']},
+  // wp72
+  {id:'c6',  ref:'macula-io/macula#72', repo:'macula-io/macula', kind:'slice', pkg:'wp72', rank:6, pinned:0, state:'claimed', holder:'Mars', since:'2h', comments:2, tags:['security']},
+  {id:'c7',  ref:'macula-io/macula#71', repo:'macula-io/macula', kind:'bug', pkg:'wp72', rank:7, pinned:0, state:'queued', comments:0, tags:['relay','dos']},
+  {id:'c8',  ref:'macula-io/macula-realm#40', repo:'macula-io/macula-realm', kind:'slice', pkg:'wp72', rank:8, pinned:0, state:'queued', comments:1, tags:['admission']},
+  // wp73
+  {id:'c9',  ref:'macula-io/macula#73', repo:'macula-io/macula', kind:'slice', pkg:'wp73', rank:9, pinned:0, state:'finished', holder:'Pluto', result:'hecate_* identifiers renamed in 12.12.0; consumers next', comments:5, tags:['rename']},
+  {id:'c10', ref:'macula-services/mcl-fovea#9', repo:'macula-services/mcl-fovea', kind:'slice', pkg:'wp73', rank:10, pinned:0, state:'claimed', holder:'Jupiter', lane:'Jupiter', since:'25m', comments:1, fresh:1, tags:['docs']},
+  {id:'c11', ref:'macula-services/mcl-fovea#7', repo:'macula-services/mcl-fovea', kind:'slice', pkg:'wp73', rank:11, pinned:0, state:'queued', lane:'Jupiter', comments:0, tags:['issues']},
+  {id:'c12', ref:'macula-io/macula-portal#36', repo:'macula-io/macula-portal', kind:'ui', pkg:'wp73', rank:12, pinned:0, state:'queued', comments:0, tags:['strip']},
+  // wp70s
+  {id:'c13', ref:'macula-io/macula-station#68', repo:'macula-io/macula-station', kind:'slice', pkg:'wp70s', rank:13, pinned:0, state:'claimed', holder:'Saturnus', since:'5h', comments:2, tags:['dialler']},
+  {id:'c14', ref:'macula-io/macula-station#70', repo:'macula-io/macula-station', kind:'slice', pkg:'wp70s', rank:14, pinned:0, state:'blocked', blockedBy:'c13', reason:'direct dial must land first', comments:1, tags:['peering']},
+  {id:'c15', ref:'macula-io/macula-station#67', repo:'macula-io/macula-station', kind:'bug', pkg:'wp70s', rank:15, pinned:0, state:'queued', comments:0, tags:['swim']},
+  {id:'c16', ref:'macula-io/macula-station#58', repo:'macula-io/macula-station', kind:'bug', pkg:'wp70s', rank:null, pinned:0, state:'queued', comments:0, tags:['watchdog']},
+  // wp5
+  {id:'c17', ref:'macula-services/mcl-kanban#6', repo:'macula-services/mcl-kanban', kind:'slice', pkg:'wp5', rank:16, pinned:0, state:'queued', lane:'Pluto', comments:0, tags:['sync']},
+  {id:'c18', ref:'macula-services/mcl-kanban#2', repo:'macula-services/mcl-kanban', kind:'ui', pkg:'wp5', rank:17, pinned:0, state:'claimed', holder:'Pluto', since:'1h', comments:6, fresh:1, tags:['owner-ui']},
+  // loose
+  {id:'c19', ref:'reckon-db-org/evoq#15', repo:'reckon-db-org/evoq', kind:'bug', pkg:null, rank:18, pinned:0, state:'queued', comments:0, tags:['pm','clock']},
+  {id:'c20', ref:'reckon-db-org/evoq#14', repo:'reckon-db-org/evoq', kind:'bug', pkg:null, rank:19, pinned:0, state:'queued', comments:1, tags:['delivery']},
+  {id:'c21', ref:'macula-services/mcl-om#19', repo:'macula-services/mcl-om', kind:'slice', pkg:null, rank:null, pinned:0, state:'queued', comments:0, tags:['guard']},
+  {id:'c22', ref:'macula-services/mcl-chess#2', repo:'macula-services/mcl-chess', kind:'slice', pkg:null, rank:null, pinned:0, state:'queued', comments:0, tags:[]},
+  {id:'c23', ref:'reckon-db-org/reckon-e2e#3', repo:'reckon-db-org/reckon-e2e', kind:'slice', pkg:null, rank:null, pinned:0, state:'queued', comments:0, tags:['ci']},
+];
+const TITLES = {
+  c1:'Sealed payloads everywhere: every SDK seals and unseals correctly, and the fleet measures it',
+  c2:'Turn payload sealing on for fleet providers and measure it end to end',
+  c3:'Small client SDK defects fixed across the SDKs',
+  c4:'UCAN: present capability tokens on call and gate serving',
+  c5:'Relays cannot tell who talks to whom from timing or frame size',
+  c6:'Attribution holds for every payload: the caller is bound by the station, never written by the sender',
+  c7:"A hostile caller cannot exhaust a station's relay: bounded streams, an overload answer instead of silence, leaks closed",
+  c8:'Admission proofs bind every field, and a revoked member stops working within minutes rather than 30 days',
+  c9:'The last Hecate names are gone: SDK first, then station and kernel refresh, then consumers',
+  c10:'Remove Hecate and Martha references (hecate-corpus is now mcl-corpus)',
+  c11:'Move live plan files to GitHub issues; delete stale, obsolete and implemented ones',
+  c12:'Finish the realm strip: migration squash and env cleanup',
+  c13:'Finish direct dial and delete the gossip RPC path',
+  c14:'Peering repairs what it should: outbound deficits, drain forwarding, DHT placement diversity, bootstrap tiers',
+  c15:'A wedged station restarts itself, and SWIM acts on its own load',
+  c16:'A wedged station that still drains its socket is never restarted',
+  c17:'The board fills itself: a stable identity per agent in macula-mcp, then the roster and cards synced from the crew and GitHub',
+  c18:'Owner UI, second pass: the ladder, the package view, the crew rail',
+  c19:'evoq survives a bad PM and a clock step: PM router isolation and locality, monotonic durations and TTLs',
+  c20:'evoq delivers every event exactly where it should after a restart: checkpoints, paging past 1000, backfill',
+  c21:'Every mcl-om service gets a framework inbound guard with configurable, bounded inputs',
+  c22:'Agents play refereed, timed games on the mesh',
+  c23:'The reckon CI runs real suites, and the codex matches the code',
+};
+CARDS.forEach(c => c.title = TITLES[c.id]);
+const COMMENTS = {
+  c5:[{by:'Mars',kind:'agent',at:'yesterday 16:40',text:'Padding experiment ready on the lab box, but without sealing on the providers the frame sizes are the plaintext sizes. Blocked on macula-fleet#7.'},
+      {by:'Terra',kind:'agent',at:'yesterday 17:05',text:'Picked up #7 this morning; canary on frankfurt first, then the rest.'},
+      {by:'Saturnus',kind:'agent',at:'today 08:12',text:'Kept rank 5. Owner: if #7 slips past Tuesday I will move #66 behind #72.'}],
+  c1:[{by:'Terra',kind:'agent',at:'today 07:50',text:'Erlang, Go and Rust seal vectors match. Python next.'},
+      {by:'Raf',kind:'owner',at:'today 08:30',text:'Keep Python last; the demo uses Go and Erlang.'}],
+};
+
+// ---------- state ----------
+const S = {view:'pkg', focus:'all', filter:null, q:'', selected:null, open:null, collapsed:new Set()};
+const byId = id => CARDS.find(c => c.id === id);
+const agent = n => AGENTS.find(a => a.name === n);
+const num = ref => '#' + ref.split('#')[1];
+const short = repo => repo.split('/')[1];
+const ghurl = ref => 'https://github.com/' + ref.replace('#','/issues/');
+const openCards = () => CARDS.filter(c => c.state !== 'withdrawn');
+const counts = list => ({q:list.filter(c=>c.state==='queued').length, c:list.filter(c=>c.state==='claimed').length, b:list.filter(c=>c.state==='blocked').length, d:list.filter(c=>c.state==='finished').length});
+const esc = s => String(s).replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+
+function visible(){
+  let list = openCards();
+  if (S.view==='pkg' && S.focus!=='all') list = list.filter(c => (c.pkg||'loose') === S.focus);
+  if (S.view==='repo' && S.focus!=='all') list = list.filter(c => c.repo === S.focus);
+  if (S.filter==='blocked') list = list.filter(c => c.state==='blocked');
+  if (S.filter==='live') list = list.filter(c => c.state==='claimed');
+  if (S.filter==='pinned') list = list.filter(c => c.pinned);
+  if (S.q) { const q = S.q.toLowerCase(); list = list.filter(c => (c.title+' '+c.ref+' '+(c.holder||'')+' '+(c.lane||'')+' '+c.tags.join(' ')).toLowerCase().includes(q)); }
+  return list;
+}
+const ordered = list => list.slice().sort((a,b) => (a.rank==null) - (b.rank==null) || (a.rank??0) - (b.rank??0));
+
+// ---------- render ----------
+function render(){
+  renderNav(); renderLadder(); renderCrew(); renderChips();
+  document.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view===S.view)));
+}
+function barHtml(cn, cls){ const t = cn.q+cn.c+cn.b+cn.d || 1; return `<span class="${cls}" aria-hidden="true"><i class="d" style="width:${cn.d/t*100}%"></i><i class="c" style="width:${cn.c/t*100}%"></i><i class="b" style="width:${cn.b/t*100}%"></i><i class="q" style="width:${cn.q/t*100}%"></i></span>`; }
+
+function renderNav(){
+  const all = openCards();
+  const navH = document.getElementById('nav-h'); navH.textContent = 'Work packages';
+  const pk = PACKAGES.slice().sort((a,b)=>a.rank-b.rank);
+  const li = (key, name, cn, cur) => `<li><button data-focus="${key}" aria-current="${cur}"><span class="name">${esc(name)}</span><span style="display:flex;gap:6px;align-items:center">${barHtml(cn,'bar')}<span class="n">${cn.q+cn.c+cn.b}</span></span></button></li>`;
+  document.getElementById('nav-list').innerHTML =
+    li('all','All packages',counts(all), S.view==='pkg'&&S.focus==='all') +
+    pk.map(p => li(p.id, p.rank+'  '+short(p.ref.split('#')[0])+' '+num(p.ref), counts(all.filter(c=>c.pkg===p.id)), S.view==='pkg'&&S.focus===p.id)).join('') +
+    li('loose','Not in a package',counts(all.filter(c=>!c.pkg)), S.view==='pkg'&&S.focus==='loose');
+  const repos = [...new Set(all.map(c=>c.repo))].sort();
+  document.getElementById('nav-repos').innerHTML =
+    li('all','All repos',counts(all), S.view==='repo'&&S.focus==='all') +
+    repos.map(r => li(r, r.replace('macula-io/','').replace('macula-services/','').replace('reckon-db-org/','reckon/'), counts(all.filter(c=>c.repo===r)), S.view==='repo'&&S.focus===r)).join('');
+  document.querySelectorAll('#nav-list button').forEach(b => b.onclick = () => { S.view='pkg'; S.focus=b.dataset.focus; render(); });
+  document.querySelectorAll('#nav-repos button').forEach(b => b.onclick = () => { S.view='repo'; S.focus=b.dataset.focus; render(); });
+}
+
+function cardHtml(c){
+  const kindVar = COLOUR[c.kind];
+  const rankCell = c.rank==null
+    ? `<span class="rank unranked" title="Unranked: waits at the bottom until the prioritiser ranks it">–<button class="pin" data-pin="${c.id}" aria-pressed="false" aria-label="Pin ${esc(c.ref)}">${pinSvg()}</button></span>`
+    : `<span class="rank">${c.rank}<button class="pin" data-pin="${c.id}" aria-pressed="${c.pinned?'true':'false'}" aria-label="${c.pinned?'Unpin':'Pin'} ${esc(c.ref)}">${pinSvg()}</button></span>`;
+  let state = '';
+  if (c.state==='claimed') state = `<span class="holder"><span class="av" style="--c:${agent(c.holder).c}">${c.holder[0]}</span>${c.holder}<span class="dot live" aria-label="working"></span></span><span class="elapsed">${c.since}</span>`;
+  else if (c.state==='blocked') { const b = c.blockedBy && byId(c.blockedBy); state = `${c.holder?`<span class="holder"><span class="av" style="--c:${agent(c.holder).c}">${c.holder[0]}</span>${c.holder}<span class="dot blocked" aria-label="blocked"></span></span>`:`<span class="dot blocked" aria-label="blocked"></span>`}<span class="blk">blocked${b?` by <a href="#" data-open="${b.id}">${esc(num(b.ref))} ${esc(short(b.repo))}</a>`:''}</span>`; }
+  else if (c.state==='finished') state = `<span class="dot done" aria-hidden="true"></span><span class="elapsed">done by ${c.holder}</span>`;
+  else if (c.lane) state = `<span class="lane">for <b>${c.lane}</b></span>`;
+  else state = `<span class="lane">open</span>`;
+  const cmt = c.comments ? `<span class="cmt${c.fresh?' new':''}" title="${c.comments} comments${c.fresh?', new since you looked':''}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg>${c.comments}</span>` : '';
+  return `<li class="card is-${c.state}" role="option" aria-selected="${S.selected===c.id}" data-id="${c.id}" draggable="${c.state!=='finished'}" tabindex="-1" style="--kind:${kindVar}">
+    ${rankCell}<span class="stripe" aria-hidden="true"></span>
+    <span class="body"><span class="ref"><span class="k">${c.kind}</span><span class="repo">${esc(short(c.repo))} ${esc(num(c.ref))}</span>${S.view==='repo'&&c.pkg?`<span class="repo" style="color:var(--ink-2)">in ${esc(num(PACKAGES.find(p=>p.id===c.pkg).ref))}</span>`:''}</span><span class="title">${esc(c.title)}</span></span>
+    <span class="state">${state}${cmt}</span></li>`;
+}
+function pinSvg(){ return `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M14 3l7 7-3 1-3 3 1 5-3 1-4-4-5 5-1-1 5-5-4-4 1-3 5 1 3-3z"/></svg>`; }
+
+function groupHtml(key, head, cards, extra=''){
+  const open = !S.collapsed.has(key);
+  return `<section class="pkg ${extra}" data-key="${key}" data-open="${open?1:0}">${head}<ul class="cards" role="listbox" aria-label="Cards">${ordered(cards).map(cardHtml).join('')}</ul></section>`;
+}
+function pkgHead(p, cards){
+  const cn = counts(cards); const repos = [...new Set(cards.map(c=>short(c.repo)))];
+  const done = cards.length ? Math.round(cn.d/cards.length*100) : 0;
+  return `<div class="pkg-head" role="button" tabindex="0" aria-expanded="${!S.collapsed.has(p.id)}" aria-label="Package ${esc(p.ref)}, rank ${p.rank}">
+    <span class="prank">${p.rank}<small>${p.pinned?'PINNED':'PKG'}</small></span>
+    <div><h2>${esc(p.title)}<a href="${ghurl(p.ref)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(p.ref)} ↗</a></h2>
+      <div class="pkg-meta"><span class="repos">${repos.map(r=>`<span>${esc(r)}</span>`).join('')}</span><span class="why">${esc(p.why)}</span></div></div>
+    <div class="pkg-right">${barHtml(cn,'progress')}<span class="count">${cn.d}/${cards.length} done${cn.b?` · <b style="color:var(--blocked)">${cn.b} blocked</b>`:''}</span><span class="caret">${caret()}</span></div></div>`;
+}
+function caret(){ return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>`; }
+function repoHead(repo, cards){
+  const cn = counts(cards);
+  return `<div class="pkg-head" role="button" tabindex="0" aria-expanded="${!S.collapsed.has(repo)}">
+    <span class="prank" style="font-size:14px;font-weight:600;color:var(--mute)">${cn.q+cn.c+cn.b}<small>OPEN</small></span>
+    <div><h2>${esc(repo)}<a href="https://github.com/${esc(repo)}/issues" target="_blank" rel="noopener" onclick="event.stopPropagation()">issues ↗</a></h2></div>
+    <div class="pkg-right">${barHtml(cn,'progress')}<span class="count">${cn.c} in hand${cn.b?` · <b style="color:var(--blocked)">${cn.b} blocked</b>`:''}</span><span class="caret">${caret()}</span></div></div>`;
+}
+
+function renderLadder(){
+  const list = visible(); const h1 = document.getElementById('h1'); const sub = document.getElementById('sub'); let html = '';
+  if (S.view==='pkg') {
+    const pk = PACKAGES.slice().sort((a,b)=>a.rank-b.rank).filter(p => S.focus==='all' || S.focus===p.id);
+    h1.textContent = S.focus==='all' ? 'Every package, in rank order' : (S.focus==='loose' ? 'Cards not in a package' : PACKAGES.find(p=>p.id===S.focus).title);
+    sub.textContent = S.focus==='all' ? 'The prioritiser ranks packages first, then the cards inside. Your drag pins.' : '';
+    if (S.focus!=='loose') html += pk.map(p => { const cs = list.filter(c=>c.pkg===p.id); return cs.length||!S.filter&&!S.q ? groupHtml(p.id, pkgHead(p, openCards().filter(c=>c.pkg===p.id)), cs, p.pinned?'pinned-pkg':'') : ''; }).join('');
+    const loose = list.filter(c=>!c.pkg);
+    if ((S.focus==='all' || S.focus==='loose') && loose.length) html += groupHtml('loose', `<div class="pkg-head" role="button" tabindex="0" aria-expanded="${!S.collapsed.has('loose')}"><span class="prank">${loose.length}<small>LOOSE</small></span><div><h2>Not in a package</h2><div class="pkg-meta"><span class="why">Ranked after every package. Link a card to a parent issue to file it.</span></div></div><div class="pkg-right"><span class="caret">${caret()}</span></div></div>`, loose, 'loose');
+  } else {
+    const repos = [...new Set(list.map(c=>c.repo))].sort().filter(r => S.focus==='all' || S.focus===r);
+    h1.textContent = S.focus==='all' ? 'Every repo' : S.focus;
+    sub.textContent = S.focus==='all' ? 'One board per repo. The same cards, cut the other way.' : '';
+    html += repos.map(r => groupHtml(r, repoHead(r, openCards().filter(c=>c.repo===r)), list.filter(c=>c.repo===r))).join('');
+  }
+  if (!html) html = emptyHtml();
+  document.getElementById('ladder').innerHTML = html;
+  wireLadder();
+}
+function emptyHtml(){
+  if (S.filter==='blocked') return `<div class="empty"><h2>Nothing is blocked</h2><p>Every card in hand is moving. Clear the filter to see the whole ladder.</p><button class="btn" onclick="S.filter=null;render()">Show everything <kbd>b</kbd></button></div>`;
+  if (S.q) return `<div class="empty"><h2>No card matches “${esc(S.q)}”</h2><p>Try the issue number, a repo name or an agent.</p><button class="btn" onclick="S.q='';document.getElementById('q').value='';render()">Clear the search</button></div>`;
+  if (S.view==='pkg') return `<div class="empty"><h2>No work packages yet</h2><p>Label a parent issue <b>work-package</b> and the sync (mcl-kanban#6) brings it here with its child cards. Until then, the Repos view has every card.</p><button class="btn" onclick="S.view='repo';S.focus='all';render()">Switch to Repos <kbd>2</kbd></button></div>`;
+  return `<div class="empty"><h2>No boards yet</h2><p>Open the first one and agents can queue its issues as cards.</p><button class="btn primary">Open a board</button></div>`;
+}
+
+function renderCrew(){
+  const ul = document.getElementById('crew');
+  ul.innerHTML = AGENTS.map(a => {
+    const held = CARDS.filter(c => c.holder===a.name && (c.state==='claimed'||c.state==='blocked'));
+    const roles = a.roles.filter(r=>r!=='agent').map(r=>`<span class="role ${r==='supervisor'?'sup':''}">${r}</span>`).join('');
+    let doing;
+    if (!held.length) doing = `<span class="doing idle">idle · next in lane: ${(CARDS.find(c=>c.lane===a.name&&c.state==='queued')||{}).ref?.split('/')[1]||'nothing reserved'}</span>`;
+    else doing = held.map(c => `<span class="doing ${c.state==='blocked'?'blk':''}"><span class="dot ${c.state==='blocked'?'blocked':'live'}"></span> <b data-open="${c.id}" tabindex="0" role="link">${esc(short(c.repo))} ${esc(num(c.ref))}</b> ${c.state==='blocked'?'blocked':c.since}</span>`).join('');
+    return `<li><span class="av" style="--c:${a.c}">${a.name[0]}</span><span class="who">${a.name}${roles}<button class="menu" aria-label="Actions for ${a.name}" data-agent="${a.name}">⋯</button></span>${doing}</li>`;
+  }).join('');
+  ul.querySelectorAll('[data-open]').forEach(el => el.onclick = () => openCard(el.dataset.open));
+  ul.querySelectorAll('.menu').forEach(b => b.onclick = () => toast(`<span class="msg"><b>${b.dataset.agent}</b>: appoint supervisor · appoint prioritiser · reserve a card · discharge</span><button onclick="this.parentNode.remove()">Close</button>`));
+}
+function renderChips(){
+  const all = openCards();
+  const set = (id, n, key) => { const el = document.getElementById(id); el.querySelector('b').textContent = n; el.dataset.n = n; el.setAttribute('aria-pressed', String(S.filter===key)); };
+  set('f-blocked', all.filter(c=>c.state==='blocked').length, 'blocked');
+  set('f-live', all.filter(c=>c.state==='claimed').length, 'live');
+  set('f-pinned', all.filter(c=>c.pinned).length, 'pinned');
+}
+
+// ---------- ladder wiring: select, open, pin, collapse, drag ----------
+function wireLadder(){
+  const L = document.getElementById('ladder');
+  L.querySelectorAll('.card').forEach(li => {
+    li.addEventListener('click', e => { if (e.target.closest('[data-pin]')||e.target.closest('[data-open]')) return; select(li.dataset.id); openCard(li.dataset.id); });
+    li.addEventListener('dragstart', e => { drag.id = li.dataset.id; li.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; });
+    li.addEventListener('dragend', () => { li.classList.remove('dragging'); L.querySelectorAll('.drop-before,.drop-after').forEach(x=>x.classList.remove('drop-before','drop-after')); });
+    li.addEventListener('dragover', e => { if (!drag.id || drag.id===li.dataset.id) return; e.preventDefault(); const r = li.getBoundingClientRect(); const before = e.clientY < r.top + r.height/2; li.classList.toggle('drop-before', before); li.classList.toggle('drop-after', !before); });
+    li.addEventListener('dragleave', () => li.classList.remove('drop-before','drop-after'));
+    li.addEventListener('drop', e => { e.preventDefault(); const before = li.classList.contains('drop-before'); moveTo(drag.id, li.dataset.id, before); drag.id = null; });
+  });
+  L.querySelectorAll('[data-pin]').forEach(b => b.onclick = e => { e.stopPropagation(); togglePin(b.dataset.pin); });
+  L.querySelectorAll('[data-open]').forEach(a => a.onclick = e => { e.preventDefault(); e.stopPropagation(); openCard(a.dataset.open); });
+  L.querySelectorAll('.pkg-head').forEach(h => { const key = h.parentNode.dataset.key; const t = () => { S.collapsed.has(key) ? S.collapsed.delete(key) : S.collapsed.add(key); renderLadder(); }; h.onclick = t; h.onkeydown = e => { if (e.key==='Enter'||e.key===' ') { e.preventDefault(); t(); } }; });
+}
+const drag = {id:null};
+function select(id, scroll=true){ S.selected = id; document.querySelectorAll('.card').forEach(li => li.setAttribute('aria-selected', String(li.dataset.id===id))); if (scroll) document.querySelector(`.card[data-id="${id}"]`)?.scrollIntoView({block:'nearest'}); }
+function listIds(){ return [...document.querySelectorAll('.card')].map(li => li.dataset.id); }
+
+// Rank: one integer scale. Moving a card gives it the target's rank and shifts the rest. The owner's move pins.
+function moveTo(id, targetId, before){
+  const c = byId(id), t = byId(targetId); if (!c || !t || t.rank==null) { toast(`<span class="msg">${esc(num(c.ref))} cannot go below an unranked card. Rank the target first.</span><button onclick="this.parentNode.remove()">OK</button>`,'err'); return; }
+  const from = c.rank, was = {rank:c.rank, pinned:c.pinned};
+  let to = t.rank + (before?0:1); if (from!=null && from < to) to -= 1;
+  CARDS.filter(x => x.rank!=null && x.id!==id).forEach(x => { if (from!=null && x.rank>from) x.rank -= 1; if (x.rank>=to) x.rank += 1; });
+  c.rank = to; c.pinned = 1; c.pkgMoved = c.pkg !== t.pkg;
+  if (c.pkgMoved) c.pkg = t.pkg;
+  render(); select(id); document.querySelector(`.card[data-id="${id}"]`)?.classList.add('flash');
+  toastRank(c, was);
+}
+function nudge(id, dir){
+  const ids = listIds(); const i = ids.indexOf(id); const j = i + dir; if (j<0 || j>=ids.length) return;
+  moveTo(id, ids[j], dir<0);
+}
+function togglePin(id){
+  const c = byId(id);
+  if (c.rank==null) { toast(`<span class="msg">${esc(num(c.ref))} is unranked. Drag it into the ladder to rank and pin it in one move.</span><button onclick="this.parentNode.remove()">OK</button>`,'err'); return; }
+  c.pinned = c.pinned ? 0 : 1; render(); select(id);
+  toast(`<span class="msg">${esc(short(c.repo))} ${esc(num(c.ref))} ${c.pinned?'<b>pinned</b> at rank '+c.rank+'. The prioritiser cannot move it.':'<b>unpinned</b>. The prioritiser may rank it again.'}</span><button onclick="togglePin('${id}');this.parentNode.remove()">Undo</button>`);
+}
+function toastRank(c, was){
+  toast(`<span class="msg"><b>${esc(short(c.repo))} ${esc(num(c.ref))}</b> → rank ${c.rank}, pinned.${c.pkgMoved?' Moved into another package.':''}</span><input placeholder="Why? (optional)" aria-label="Rationale" onkeydown="if(event.key==='Enter'){byId('${c.id}').why=this.value;this.parentNode.remove()}"><button onclick="undoRank('${c.id}',${was.rank},${was.pinned});this.parentNode.remove()">Undo</button>`);
+}
+function undoRank(id, rank, pinned){ const c = byId(id); const cur = c.rank; CARDS.filter(x=>x.rank!=null&&x.id!==id).forEach(x=>{ if (x.rank>cur) x.rank-=1; if (rank!=null && x.rank>=rank) x.rank+=1; }); c.rank = rank; c.pinned = pinned; render(); select(id); }
+
+// ---------- drawer ----------
+function openCard(id){
+  const c = byId(id); if (!c) return; S.open = id; c.fresh = 0;
+  const D = document.getElementById('drawer'); const links = [];
+  if (c.blockedBy) { const b = byId(c.blockedBy); links.push(`<li><span class="rel blk">blocked by</span><a href="#" data-open="${b.id}">${esc(short(b.repo))} ${esc(num(b.ref))}</a><span style="color:var(--mute)">${esc(b.title.slice(0,48))}…</span></li>`); }
+  CARDS.filter(x=>x.blockedBy===c.id).forEach(b => links.push(`<li><span class="rel">blocks</span><a href="#" data-open="${b.id}">${esc(short(b.repo))} ${esc(num(b.ref))}</a></li>`));
+  const p = c.pkg && PACKAGES.find(x=>x.id===c.pkg);
+  const thread = (COMMENTS[c.id]||[]).map(m => `<li><div class="by ${m.kind}"><b>${m.by}</b><time>${m.at}</time></div><p>${esc(m.text)}</p></li>`).join('') || `<li><p style="color:var(--mute)">No comments yet. Agents post handoffs and blockers here; it never mirrors to GitHub.</p></li>`;
+  D.style.setProperty('--kind', COLOUR[c.kind]);
+  D.innerHTML = `
+    <div class="d-head"><span class="k">${c.kind}</span><a href="${ghurl(c.ref)}" target="_blank" rel="noopener">${esc(c.ref)} ↗</a><button class="iconbtn close" id="d-close" aria-label="Close (esc)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+    <div class="d-body">
+      <h2>${esc(c.title)}</h2>
+      ${c.story?`<p class="story">As a ${esc(c.story.role)} I want ${esc(c.story.ask)} so that ${esc(c.story.value)}.</p>`:''}
+      <div class="rankbox"><span class="big ${c.pinned?'hand':''}">${c.rank??'–'}</span>
+        <span class="txt">${c.rank==null?'<b>Unranked.</b> Waits at the bottom until the prioritiser ranks it.':(c.pinned?'<b>Pinned by you.</b> Saturnus cannot move it until you unpin.':'<b>Ranked by Saturnus.</b> ')}${c.why&&!c.pinned?esc(c.why):''}${p?`<br>In package <b>${esc(num(p.ref))}</b>, rank ${p.rank}.`:''}</span>
+        <span class="ctl"><button aria-label="Move up" onclick="nudge('${c.id}',-1);openCard('${c.id}')">▲</button><button aria-label="Move down" onclick="nudge('${c.id}',1);openCard('${c.id}')">▼</button></span></div>
+      <div class="actions">
+        <button class="btn ${c.pinned?'':'hand'}" onclick="togglePin('${c.id}');openCard('${c.id}')">${c.pinned?'Unpin':'Pin at '+(c.rank??'…')} <kbd>p</kbd></button>
+        ${c.state==='blocked'?`<button class="btn" onclick="byId('${c.id}').state='claimed';byId('${c.id}').blockedBy=null;render();openCard('${c.id}');toast('<span class=msg>'+'${esc(num(c.ref))} unblocked.'+'</span>')">Unblock</button>`:''}
+        ${c.state==='claimed'||c.state==='blocked'?`<button class="btn" onclick="toast('<span class=msg>Release asks for a reason, then the card goes back to the queue.</span><button onclick=this.parentNode.remove()>OK</button>')">Release from ${c.holder}</button>`:''}
+        ${c.state==='queued'?`<label class="btn" style="padding-right:4px">Reserve for <select class="sel" style="height:24px;border:0;background:transparent" onchange="byId('${c.id}').lane=this.value||null;render();openCard('${c.id}')"><option value="">nobody</option>${AGENTS.map(a=>`<option ${c.lane===a.name?'selected':''}>${a.name}</option>`).join('')}</select></label>`:''}
+        ${c.state!=='finished'?`<button class="btn danger" onclick="toast('<span class=msg>Withdraw asks you to confirm and takes a reason.</span><button onclick=this.parentNode.remove()>OK</button>')">Withdraw</button>`:''}
+      </div>
+      <dl class="facts">
+        <dt>State</dt><dd>${c.state}${c.state==='claimed'?` by <b>${c.holder}</b>, ${c.since}`:''}${c.state==='blocked'?`: <span style="color:var(--blocked)">${esc(c.reason||'')}</span>`:''}${c.state==='finished'?`: ${esc(c.result||'')}`:''}</dd>
+        <dt>Lane</dt><dd>${c.lane?`reserved for <b>${c.lane}</b>`:'open to any agent'}</dd>
+        <dt>Repo</dt><dd>${esc(c.repo)}</dd>
+      </dl>
+      ${links.length?`<h3>Links</h3><ul class="links">${links.join('')}</ul>`:''}
+      <h3>Tags</h3><div class="tags">${c.tags.map(t=>`<span>${esc(t)}</span>`).join('')}<button class="add">+ tag</button></div>
+      <h3>Comments · ${c.comments}</h3><ul class="thread">${thread}</ul>
+      <form class="compose" onsubmit="event.preventDefault();toast('<span class=msg>Comment posted as <b>owner</b>. Saturnus and ${c.holder||'the holder'} will see it on their next read.</span>');this.reset()">
+        <textarea id="compose" placeholder="Comment as owner" aria-label="Comment"></textarea>
+        <div class="row"><span>Recorded as the owner <kbd>c</kbd> to focus</span><button class="btn primary sm" type="submit">Comment</button></div>
+      </form>
+    </div>`;
+  D.dataset.open = '1'; document.getElementById('scrim').dataset.open='1';
+  D.querySelector('#d-close').onclick = closeCard;
+  D.querySelectorAll('[data-open]').forEach(a => a.onclick = e => { e.preventDefault(); openCard(a.dataset.open); select(a.dataset.open); });
+  render(); select(id);
+}
+function closeCard(){ S.open = null; document.getElementById('drawer').dataset.open='0'; document.getElementById('scrim').dataset.open='0'; }
+document.getElementById('scrim').onclick = closeCard;
+
+// ---------- toasts ----------
+function toast(inner, cls=''){ const T = document.getElementById('toasts'); const el = document.createElement('div'); el.className = 'toast '+cls; el.innerHTML = inner; T.appendChild(el); if (!el.querySelector('input')) setTimeout(() => el.remove(), 7000); else el.querySelector('input').focus(); }
+
+// ---------- top bar ----------
+document.querySelectorAll('.seg button').forEach(b => b.onclick = () => { S.view = b.dataset.view; S.focus='all'; render(); });
+['blocked','live','pinned'].forEach(k => document.getElementById('f-'+k).onclick = () => { S.filter = S.filter===k ? null : k; render(); });
+document.getElementById('q').addEventListener('input', e => { S.q = e.target.value.trim(); render(); });
+document.getElementById('theme').onclick = () => { const r = document.documentElement; const dark = r.dataset.theme ? r.dataset.theme==='dark' : matchMedia('(prefers-color-scheme: dark)').matches; r.dataset.theme = dark ? 'light' : 'dark'; try { localStorage.setItem('mkb-theme', r.dataset.theme); } catch(_){} };
+try { const t = localStorage.getItem('mkb-theme'); if (t) document.documentElement.dataset.theme = t; } catch(_){}
+
+// ---------- enlist dialog ----------
+const enlist = document.getElementById('enlist');
+document.getElementById('enlist-btn').onclick = () => { enlist.showModal(); document.getElementById('e-name').focus(); };
+document.getElementById('e-cancel').onclick = () => enlist.close();
+const node = document.getElementById('e-node'), nodeHint = document.getElementById('e-node-hint');
+node.addEventListener('input', () => { const v = node.value.trim(); const ok = /^[0-9a-f]{64}$/i.test(v); const dup = AGENTS.some(a=>a.node===v); node.setAttribute('aria-invalid', String(v.length>0 && !ok)); nodeHint.className = 'hint ' + (v? (ok?'ok':'bad'):''); nodeHint.textContent = !v ? 'Waiting for a node id' : ok ? 'Looks like a node id: '+v.slice(0,12)+'…' : `${v.length} of 64 hex characters${/[^0-9a-f]/i.test(v)?', and only 0-9 a-f':''}`; document.getElementById('e-submit').disabled = !ok; });
+document.getElementById('enlist-form').addEventListener('submit', e => { const name = document.getElementById('e-name').value.trim(); const role = document.getElementById('e-role').value; if (AGENTS.some(a=>a.name.toLowerCase()===name.toLowerCase())) { e.preventDefault(); toast(`<span class="msg"><b>name_taken</b> <span class="fix">another agent is called ${esc(name)}. Pick another name.</span></span><button onclick="this.parentNode.remove()">OK</button>`,'err'); return; } AGENTS.push({name, c:'#5B6470', roles: role==='agent'?['agent']:['agent',role]}); render(); toast(`<span class="msg"><b>${esc(name)}</b> enlisted${role!=='agent'?' and appointed '+role:''}. Ask it to call <b>claim_next_card</b>.</span>`); });
+
+// ---------- keyboard ----------
+document.addEventListener('keydown', e => {
+  const typing = ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName);
+  if (e.key==='Escape') { if (typing) { document.activeElement.blur(); return; } if (document.getElementById('toasts').lastElementChild) { document.getElementById('toasts').lastElementChild.remove(); return; } closeCard(); return; }
+  if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+  const ids = listIds(); const i = ids.indexOf(S.selected);
+  if (e.key==='/') { e.preventDefault(); document.getElementById('q').focus(); }
+  else if (e.key==='1') { S.view='pkg'; S.focus='all'; render(); }
+  else if (e.key==='2') { S.view='repo'; S.focus='all'; render(); }
+  else if (e.key==='j' || (e.key==='ArrowDown' && !e.shiftKey)) { e.preventDefault(); select(ids[Math.min(i+1, ids.length-1)] ?? ids[0]); if (S.open) openCard(S.selected); }
+  else if (e.key==='k' || (e.key==='ArrowUp' && !e.shiftKey)) { e.preventDefault(); select(ids[Math.max(i-1, 0)] ?? ids[0]); if (S.open) openCard(S.selected); }
+  else if (e.key==='Enter' && S.selected) { openCard(S.selected); }
+  else if (e.key==='ArrowUp' && e.shiftKey && S.selected) { e.preventDefault(); nudge(S.selected, -1); }
+  else if (e.key==='ArrowDown' && e.shiftKey && S.selected) { e.preventDefault(); nudge(S.selected, 1); }
+  else if (e.key==='p' && S.selected) { togglePin(S.selected); if (S.open) openCard(S.selected); }
+  else if (e.key==='b') { S.filter = S.filter==='blocked' ? null : 'blocked'; render(); }
+  else if (e.key==='c' && S.open) { e.preventDefault(); document.getElementById('compose')?.focus(); }
+  else if (e.key==='n') { toast(`<span class="msg">Queue a card: opens a dialog with an issue picker (repo, then issue number), kind and story.</span><button onclick="this.parentNode.remove()">OK</button>`); }
+  else if (e.key===' ' && S.selected) { e.preventDefault(); const key = document.querySelector(`.card[data-id="${S.selected}"]`)?.closest('.pkg')?.dataset.key; if (key) { S.collapsed.has(key) ? S.collapsed.delete(key) : S.collapsed.add(key); renderLadder(); select(S.selected); } }
+  else if (e.key==='?') { document.getElementById('help').showModal(); }
+});
+
+render();
+select('c5', false);
+</script>
+</body>
+</html>

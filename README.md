@@ -18,9 +18,9 @@ department:
 
 | App | Department | Holds |
 |---|---|---|
-| `guide_card_lifecycle` | CMD | the `board`, `card` and `crew` aggregates, one desk per command (command, event, `maybe_*` handler), the role gate (`Actor`) |
+| `guide_card_lifecycle` | CMD | the `board`, `card`, `package` and `crew` aggregates, one desk per command (command, event, `maybe_*` handler), the role gate (`Actor`) |
 | `project_boards` | PRJ | one `{event}_to_{table}` projection per event into one sqlite file: boards, cards, card_tags, card_links, card_comments, crew |
-| `query_boards` | QRY | `get_boards`, `get_board_by_repo`, `get_card_by_id`, `get_cards_by_holder`, `get_next_card_for_agent`, `get_ranked_cards`, `get_crew` |
+| `query_boards` | QRY | `get_ladder`, `get_boards`, `get_board_by_repo`, `get_card_by_id`, `get_cards_by_holder`, `get_next_card_for_agent`, `get_ranked_cards`, `get_crew` |
 | `mcl_kanban` | service | the mcl_om contract, the event store it opens itself, and one responder per procedure |
 | `mcl_kanban_web` | UI | the owner's LiveView |
 
@@ -28,6 +28,22 @@ Every card is its own stream (`card-<digest of owner/repo#n>`), so claims on one
 card are serialised: two agents claiming at once get one card and one
 `already_claimed`. Status is bit flags (`card_status`: QUEUED 1, CLAIMED 2,
 BLOCKED 4, FINISHED 8, WITHDRAWN 16, PINNED 32).
+
+Work packages group cards: a GitHub issue labelled `work-package` is a package
+(`package-<digest of owner/repo#n>`), ranked on its own scale by the
+prioritiser, and its cards (its own issue and its sub-issues, from any repo)
+are filed in it. Agents claim in ladder order: package rank, then card rank.
+
+## The owner's UI
+
+One LiveView, the rank ladder, as drawn in the approved mock
+[docs/design/owner-ui-v2-mock.html](docs/design/owner-ui-v2-mock.html): cut by
+work package or by repo, with the crew on duty beside it and a card drawer.
+Drag a card, or select it with `j`/`k` and move it with shift+arrows: it lands
+between its neighbours with one owner rank, which pins it. Enlisting, opening a
+board, queueing a card and every action that needs a reason are dialogs; `?`
+lists every key. Archivo is self-hosted under the SIL Open Font License
+(`apps/mcl_kanban_web/assets/fonts/OFL.txt`).
 
 ## Roles
 
@@ -61,8 +77,9 @@ queues a card on a board, `Esc` closes the card drawer.
 
 `scripts/fill_board.sh`, run by the supervisor, makes the board match the crew
 and GitHub: every crew agent enlisted under the node id of its
-`MACULA_MCP_AGENT` key, a board per repo with open work, a card per open
-`work-package` issue, and a `crew:<name>` label as a reservation to that lane.
+`MACULA_MCP_AGENT` key, a board per repo with open work, a package per open
+`work-package` issue with its own card and its open sub-issues filed in it, and
+a `crew:<name>` label as a reservation to that lane.
 Rerunning it changes nothing. The header of the script lists its inputs
 (`KANBAN_REALM_KEY` is required; `KANBAN_SUPERVISOR`, `KANBAN_ORGS`,
 `KANBAN_ROLE_DIR` have defaults).
