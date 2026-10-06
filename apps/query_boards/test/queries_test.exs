@@ -524,4 +524,20 @@ defmodule QueryBoards.QueriesTest do
     # About ten polls in 150 ms: one query each, never the five a full card costs.
     assert queries <= 20, "#{queries} queries"
   end
+
+  test "the next card is never a package's own card (#15)" do
+    repo = "example-org/pkgcard" <> uniq()
+    b = board(repo)
+    package = card(repo, b, 1)
+    member = card(repo, b, 2)
+    ref = "#{repo}#1"
+    file(package, ref, 1)
+    file(member, ref, 1)
+
+    node = hex32("pkg-agent" <> uniq()) <> hex32("pad")
+    ids = GetNextCardForAgent.get_next_card_for_agent(node, 500) |> Enum.map(& &1.card_id)
+
+    assert member in ids
+    refute package in ids
+  end
 end

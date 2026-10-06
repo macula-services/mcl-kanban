@@ -131,6 +131,18 @@ defmodule GuideCardLifecycle.CardLifecycleTest do
       assert is_integer(state.claimed_at)
     end
 
+    test "a package's own card is never claimed: packages group cards, members hold cards (#15)" do
+      package_card = %{queued() | work_package: @ref}
+      cmd = cmd(ClaimCardV1, %{card_id: card_id(), by: actor("bob")})
+      assert {:error, :package_card} = MaybeClaimCard.handle(package_card, cmd)
+    end
+
+    test "a card filed into another package is claimed as usual" do
+      filed = %{queued() | work_package: @other}
+      cmd = cmd(ClaimCardV1, %{card_id: card_id(), by: actor("bob")})
+      assert {:ok, [_claimed]} = MaybeClaimCard.handle(filed, cmd)
+    end
+
     test "a claimed card is refused to the next claimant" do
       cmd = cmd(ClaimCardV1, %{card_id: card_id(), by: actor("cyd")})
       assert {:error, :already_claimed} = MaybeClaimCard.handle(claimed_by("bob"), cmd)
