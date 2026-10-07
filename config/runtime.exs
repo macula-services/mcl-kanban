@@ -15,8 +15,6 @@ data_dir =
 
 System.put_env("MCL_DATA_DIR", data_dir)
 
-health_port = String.to_integer(System.get_env("MCL_HEALTH_PORT", "8492"))
-
 # THE REALM NAME IS THE ONE INPUT; THE TAG IS DERIVED FROM IT HERE, so the two
 # can never disagree.
 realm_name = System.get_env("MCL_REALM_NAME", "io.macula")
@@ -28,7 +26,9 @@ config :mcl_om,
     String.to_charlist(
       System.get_env("MCL_IDENTITY_KEY_PATH", Path.join([data_dir, "identity", "identity.key"]))
     ),
-  health_port: health_port,
+  # /health on a Unix socket, not a port (mcl_om 0.39): the image's
+  # HEALTHCHECK reaches it with curl --unix-socket.
+  health_socket: "/run/mcl/health.sock",
   capability_topic: "_mesh.cap.",
   # The wire namespace: every procedure is mcl-kanban/<name>.
   org: "mcl-kanban",

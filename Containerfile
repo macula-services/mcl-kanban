@@ -72,8 +72,9 @@ RUN useradd --create-home --shell /bin/bash app
 # ownership from the path it is mounted over.
 #   /var/lib/mcl-kanban  the event store and the sqlite read model
 #   /etc/mcl/secrets     the node identity key
-RUN mkdir -p /var/lib/mcl-kanban /etc/mcl/secrets && \
-    chown -R app:app /var/lib/mcl-kanban /etc/mcl/secrets
+#   /run/mcl             the /health Unix socket (mcl_om's health_socket)
+RUN mkdir -p /var/lib/mcl-kanban /etc/mcl/secrets /run/mcl && \
+    chown -R app:app /var/lib/mcl-kanban /etc/mcl/secrets /run/mcl
 
 COPY --from=builder --chown=app:app /app/_build/prod/rel/mcl_kanban ./
 
@@ -81,7 +82,6 @@ USER app
 
 ENV MCL_DATA_DIR=/var/lib/mcl-kanban
 ENV MCL_IDENTITY_KEY_PATH=/etc/mcl/secrets/identity.key
-ENV MCL_HEALTH_PORT=8492
 ENV MCL_HTTP_PORT=4010
 # The UI acts as the owner, so it listens on loopback. Run the container on
 # the host's network (podman --network=host, docker network_mode: host) and
@@ -89,10 +89,11 @@ ENV MCL_HTTP_PORT=4010
 # NOT the same: every container on that network would reach the UI.
 ENV MCL_HTTP_IP=127.0.0.1
 VOLUME ["/var/lib/mcl-kanban", "/etc/mcl/secrets"]
-EXPOSE 8492 4010
+# /health is a Unix socket, not a port; 4010 is the owner UI on loopback.
+EXPOSE 4010
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-    CMD curl -fsS "http://127.0.0.1:${MCL_HEALTH_PORT}/health" || exit 1
+    CMD curl -fsS --unix-socket /run/mcl/health.sock http://localhost/health || exit 1
 
 # Migrations first, then the release (rel/overlays/bin/start): a new version
 # brings an older read model up to date before anything reads it.

@@ -26,7 +26,7 @@ defmodule MclKanban.MixProject do
 
   defp deps do
     [
-      {:mcl_om, "~> 0.38"},
+      {:mcl_om, "~> 0.39"},
       {:macula, "~> 14.2"},
       # This service's own event store: mcl_om opens none (mcl-om#10).
       {:reckon_db, "~> 5.11"},
