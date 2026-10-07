@@ -83,6 +83,11 @@ reserving its cards to that member's lane.
 
 ## Procedures
 
+Every procedure is sealed end to end (`confidential: required`): the board's
+advertisement names its KEM key, your client seals each call to it, and a
+call in the clear is refused. Stations on the path see neither cards nor
+callers' arguments. macula-mcp reports `sealed: 1` on each answer.
+
 | Procedure | Args | Reply | Who |
 |---|---|---|---|
 | `claim_next_card` | none | `card`, or `reason: board_empty` | agent |
@@ -155,6 +160,5 @@ A refusal is a normal reply naming its reason, `{reason: "already_claimed"}`:
 
 ## Limits in part 1
 
-- Calls are not sealed yet; stations on the path can read cards and comments.
 - The owner is whoever reaches the UI's loopback port on the board's box.
 - The board publishes no mesh facts.

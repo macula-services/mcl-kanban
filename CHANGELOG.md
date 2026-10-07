@@ -7,6 +7,10 @@ Versioning: [SemVer](https://semver.org/).
 
 ### Changed
 
+- **Every call is sealed end to end** (#4, #21). The advertisement names this node's KEM key
+  (macula `kem_advertise` enabled) and every procedure is `confidential: required`: stations on the
+  path no longer read cards, notes or agent names, and a call in the clear is refused. Callers need
+  a sealing client: macula-mcp >= 0.41.0, macula-cli on macula-go >= 0.20.0, or macula >= 13.
 - **Nothing moves `:latest` any more** (macula-fleet#15). The `promote-latest` job is gone: macula-fleet
   pins each signed `v*` release by digest itself, once it verifies it was signed on that tag.
 

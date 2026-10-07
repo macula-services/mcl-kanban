@@ -47,8 +47,11 @@ config :project_boards, ProjectBoards.Repo,
   default_transaction_mode: :immediate,
   pool_size: 5
 
-# THE PQ CRYPTO PROFILE, without which this node does not peer.
-config :macula, crypto_profile: :pq_hybrid
+# THE PQ CRYPTO PROFILE, without which this node does not peer. kem_advertise
+# names this node's KEM key in every advertisement, so callers seal to it;
+# every procedure is confidential: :required (MclKanban.Service), which
+# mcl_om refuses to boot without it.
+config :macula, crypto_profile: :pq_hybrid, kem_advertise: :enabled
 
 # MANDATORY: MclKanban.EventStore starts the per-store evoq subscription,
 # which crashes on {not_configured, event_store_adapter} without this block.

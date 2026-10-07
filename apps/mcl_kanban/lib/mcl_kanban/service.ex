@@ -8,9 +8,11 @@ defmodule MclKanban.Service do
   # role gate is the board's own; a caller the crew does not know gets
   # reason not_enlisted from every procedure.
   #
-  # FIRST ITERATION: no procedure sets confidential: :required (Raf's
-  # decision on #2, 2026-10-06). Calls travel as macula's default allows;
-  # sealing comes in a later iteration.
+  # SEALED (#4, #21): every procedure is confidential: :required. The
+  # advertisement names this node's KEM key (macula's kem_advertise is
+  # enabled in config/runtime.exs), each call is sealed end to end, and a
+  # call in the clear is refused before a responder sees it. Reads too: a
+  # reply carries card titles, notes and agent names.
   #
   # The store is this service's own: event_store/0 describes it and
   # MclKanban.Application opens it before mcl_om:boot/1. NOT store_id/0 and
@@ -160,7 +162,13 @@ defmodule MclKanban.Service do
   @impl true
   def capabilities do
     for {name, responder} <- @procedures,
-        do: %{name: name, version: 1, handler: {responder, []}, auth: :open}
+        do: %{
+          name: name,
+          version: 1,
+          handler: {responder, []},
+          auth: :open,
+          confidential: :required
+        }
   end
 
   # The namespace every procedure hangs under. The procedures are calls,

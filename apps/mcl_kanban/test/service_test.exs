@@ -40,10 +40,17 @@ defmodule MclKanban.ServiceTest do
     end
   end
 
-  test "first iteration: no procedure demands a sealed call (Raf, #2)" do
+  test "every procedure demands a sealed call (#4, #21)" do
     for cap <- Service.capabilities() do
-      refute Map.get(cap, :confidential) == :required, cap.name
+      assert cap.confidential == :required, cap.name
     end
+  end
+
+  test "macula names the KEM key, so mcl_om accepts the required procedures" do
+    assert Application.fetch_env!(:macula, :kem_advertise) == :enabled
+
+    assert :ok ==
+             :mcl_om_capabilities.confidentiality_verdict(Service.capabilities(), :enabled)
   end
 
   test "the store the service opens is the one evoq dispatches to" do
