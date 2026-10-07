@@ -5,6 +5,10 @@ Versioning: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-10-07
+
+Every board call is sealed end to end (#4, #21).
+
 ### Changed
 
 - **Every call is sealed end to end** (#4, #21). The advertisement names this node's KEM key
