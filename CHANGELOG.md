@@ -5,6 +5,10 @@ Versioning: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **On macula 14.2 and mcl_om 0.38 (#23).** `~> 14.2` (at least 14.2.1, macula-io/macula#85) and `~> 0.38`, the current SDK base, so an SDK fix reaches this service with the rest. The sealing posture is unchanged.
+
 ## [0.2.5] - 2026-10-07
 
 Every board call is sealed end to end (#4, #21).
