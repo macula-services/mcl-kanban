@@ -5,6 +5,11 @@ Versioning: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Nothing moves `:latest` any more** (macula-fleet#15). The `promote-latest` job is gone: macula-fleet
+  pins each signed `v*` release by digest itself, once it verifies it was signed on that tag.
+
 ## [0.2.4] - 2026-10-06
 
 No two members end up on the same issue through a package card (#15).

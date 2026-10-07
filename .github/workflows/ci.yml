@@ -6,11 +6,11 @@ name: ci
 # the tests only.
 #
 #   push to main : ghcr.io/macula-services/mcl-kanban:main and :<sha>
-#   push of v*   : ghcr.io/macula-services/mcl-kanban:<X.Y.Z>, then :latest once attest signed it
+#   push of v*   : ghcr.io/macula-services/mcl-kanban:<X.Y.Z>, signed by attest
 #
-# ONLY A RELEASE MOVES :latest (promote-latest, after attest), the dev fleet's deploy channel: each box's reconciler
-# pulls it, verifies the digest it resolved to and runs that digest, so a green v* tag
-# is the deploy. A push to main deploys nothing.
+# NOTHING MOVES :latest. The dev fleet runs no tag: macula-fleet's pin-releases workflow finds
+# a signed v* release, verifies it was signed on that tag and pins its digest (macula-fleet#14,
+# #15), so a green v* tag is the deploy. A push to main deploys nothing.
 #
 # PATH FILTERS. A docs-only change must not rebuild or re-push an image. Keep
 # this list to things that cannot change what the image contains.
@@ -212,34 +212,3 @@ jobs:
     with:
       image: ghcr.io/macula-services/mcl-kanban
       digest: ${{ needs.image.outputs.digest }}
-
-  # :latest is the dev fleet's deploy channel, so it moves LAST: only on a v* tag, and only once
-  # attest has signed and attested this digest. A box that pulls :latest in the window between
-  # push and signature would otherwise refuse the release (and remember that for an hour).
-  promote-latest:
-    needs: [image, attest]
-    if: startsWith(github.ref, 'refs/tags/v') && needs.image.outputs.digest != ''
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - name: Log in to the registry
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Point :latest at the signed digest
-        env:
-          IMAGE: ghcr.io/macula-services/mcl-kanban
-          DIGEST: ${{ needs.image.outputs.digest }}
-        # --prefer-index=false: a CARBON COPY of the signed manifest. Without it imagetools wraps a
-        # single manifest in a new index, a digest attest never signed, and :latest would point at it.
-        run: |
-          docker buildx imagetools create --prefer-index=false --tag "$IMAGE:latest" "$IMAGE@$DIGEST"
-          got="$(docker buildx imagetools inspect "$IMAGE:latest" --format '{{.Manifest.Digest}}')"
-          if [ "$got" != "$DIGEST" ]; then
-            echo "::error:::latest resolves to $got, not the signed $DIGEST"
-            exit 1
-          fi

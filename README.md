@@ -75,7 +75,8 @@ either one failing reports `degraded`, naming it (`read_model`, `event_store`).
 | `MCL_COOKIE` | | Erlang distribution cookie for this box; required |
 
 Fleet placement lives in macula-io/macula-fleet. The image is
-`ghcr.io/macula-services/mcl-kanban`; `:latest` moves only on a signed `v*` tag.
+`ghcr.io/macula-services/mcl-kanban`; nothing moves `:latest`: macula-fleet pins each
+signed `v*` release by digest (macula-fleet#14, #15).
 
 Raf reaches the UI through his own tunnel, for example
 `ssh -L 4010:127.0.0.1:4010 <box>`, then `http://localhost:4010`. Keys: `n`
