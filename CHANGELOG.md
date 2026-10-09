@@ -5,6 +5,14 @@ Versioning: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-10
+
+### Changed
+
+- **Rebuilt on macula ~> 14 (newest release):** request admission frees the
+  slot when the reply is sent, and caller attribution covers every payload
+  shape (macula#89, macula#60).
+
 ## [0.3.0] - 2026-10-07
 
 ### Changed
