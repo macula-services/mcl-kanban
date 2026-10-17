@@ -4,7 +4,7 @@ defmodule QueryBoards.MixProject do
   def project do
     [
       app: :query_boards,
-      version: "0.3.1",
+      version: "0.4.0",
       build_path: "../../_build",
       config_path: "../../config/config.exs",
       deps_path: "../../deps",
@@ -28,8 +28,8 @@ defmodule QueryBoards.MixProject do
       # The read model file and its schema belong to project_boards.
       {:project_boards, in_umbrella: true},
       {:guide_card_lifecycle, in_umbrella: true},
-      {:mcl_om, "~> 0.39"},
-      {:macula, "~> 14.2"}
+      {:mcl_om, "~> 1.0"},
+      {:macula, "~> 15.6"}
     ]
   end
 

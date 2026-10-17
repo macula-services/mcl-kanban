@@ -5,6 +5,12 @@ Versioning: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-17
+
+### Changed
+
+- **Wire 1.0: on macula 15.6 / mcl_om 1.0.** A 15 node neither reads nor handshakes with a 14 node, so this build speaks wire 1.0 only and is held off every live box until the flag day (macula-fleet#27). The board calls `:mcl_om.boot/1` and nothing of macula directly, so the move is the pins plus mcl_om 1.0's advertising change.
+
 ## [0.3.1] - 2026-10-10
 
 ### Changed

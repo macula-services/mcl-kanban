@@ -4,7 +4,7 @@ defmodule MclKanban.MixProject do
   def project do
     [
       app: :mcl_kanban,
-      version: "0.3.1",
+      version: "0.4.0",
       build_path: "../../_build",
       config_path: "../../config/config.exs",
       deps_path: "../../deps",
@@ -26,8 +26,10 @@ defmodule MclKanban.MixProject do
 
   defp deps do
     [
-      {:mcl_om, "~> 0.39"},
-      {:macula, "~> 14.2"},
+      # 1.0 is the macula-15 line (wire 1.0), the major moving with the wire so
+      # no `~> 0.x` service floats onto macula 15 by itself (mcl-om#27).
+      {:mcl_om, "~> 1.0"},
+      {:macula, "~> 15.6"},
       # This service's own event store: mcl_om opens none (mcl-om#10).
       {:reckon_db, "~> 5.11"},
       {:evoq, "~> 1.26"},

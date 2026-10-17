@@ -4,7 +4,7 @@ defmodule GuideCardLifecycle.MixProject do
   def project do
     [
       app: :guide_card_lifecycle,
-      version: "0.3.1",
+      version: "0.4.0",
       build_path: "../../_build",
       config_path: "../../config/config.exs",
       deps_path: "../../deps",
@@ -30,8 +30,8 @@ defmodule GuideCardLifecycle.MixProject do
       {:reckon_gater, "~> 3.11"},
       # The responders implement macula_response and read the wire with
       # mcl_om_wire.
-      {:mcl_om, "~> 0.39"},
-      {:macula, "~> 14.2"}
+      {:mcl_om, "~> 1.0"},
+      {:macula, "~> 15.6"}
     ]
   end
 end
