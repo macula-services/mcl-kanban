@@ -139,15 +139,16 @@
 <text class="t-rel" x="292" y="696">the tables they read</text>
 <path class="edge" d="M512 610H520V690H804V710" marker-end="url(#a)"/>
 <text class="t-rel" x="584" y="686">BoardsChanged over PubSub</text>
-<path class="edge" d="M512 770H536" marker-end="url(#a)"/>
+<path class="edge" d="M536 770H512" marker-end="url(#a)"/>
 <text class="t-rel" x="524" y="762" text-anchor="middle">reads</text>
 <path class="edge" d="M512 930H536" marker-end="url(#a)"/>
 <text class="t-rel" x="524" y="922" text-anchor="middle">dials</text>
-<rect class="b-ext" x="64" y="1040" width="920" height="104" rx="10"/>
+<rect class="b-ext" x="64" y="1040" width="920" height="120" rx="10"/>
 <text class="t-code" x="80" y="1068">Host environment</text>
-<text class="t-type" x="80" y="1086">[read at boot; nothing here is baked into the image]</text>
-<text class="t-desc" x="80" y="1110">MCL_DATA_DIR holds the store and kanban.sqlite3; MCL_IDENTITY_KEY_PATH is the node key; MCL_REALM_NAME and MCL_REALM_KEY join the realm.</text>
-<text class="t-desc" x="80" y="1126">MCL_HTTP_IP and MCL_HTTP_PORT are the owner UI; SECRET_KEY_BASE signs the socket; MCL_COOKIE is required by rel/env.sh.eex.</text>
+<text class="t-type" x="80" y="1086">[read at boot; four are image ENV defaults]</text>
+<text class="t-desc" x="80" y="1110">MCL_DATA_DIR, MCL_IDENTITY_KEY_PATH, MCL_HTTP_IP and MCL_HTTP_PORT are baked into the image as ENV; a boot may override them.</text>
+<text class="t-desc" x="80" y="1126">MCL_REALM_NAME, MCL_REALM_KEY, SECRET_KEY_BASE and MCL_COOKIE are read at boot.</text>
+<text class="t-desc" x="80" y="1142">MCL_HTTP_ORIGINS adds socket origins and widens check_origin beyond the local defaults.</text>
 <text class="t-desc" x="64" y="1180">config/runtime.exs derives the realm tag from MCL_REALM_NAME and enables kem_advertise, so callers seal to this node's KEM key.</text>
 <text class="t-desc" x="64" y="1198">The store id, :mcl_kanban_store, is named in runtime.exs and in Service.event_store/0; a test compares the two.</text>
 <text class="t-desc" x="64" y="1216">bin/start runs bin/migrate (ProjectBoards.Release.migrate) before bin/server, so a new release opens an older read model and keeps its rows.</text>
