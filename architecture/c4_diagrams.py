@@ -140,7 +140,7 @@ def context():
           ["A Claude session holding a", "Macula key; claims its next", "card in rank order and works it"],
           person=True)
     d.box("b-sys", 365, 186, 270, 152, "mcl-kanban", "[mcl_om service and web UI]",
-          ["Serves 39 procedures under", "mcl-kanban/*, every call sealed,", "and the owner's LiveView on",
+          ["Serves 39 own procedures under", "mcl-kanban/*, each a sealed call,", "and the owner's LiveView on",
            "127.0.0.1:4010. /health is a Unix", "socket, /run/mcl/health.sock"])
     d.box("b-ext", 40, 430, 270, 136, "GitHub", "[External system]",
           ["Open issues, the work-package", "label, sub-issues and", "crew:<name> lanes: read by",
