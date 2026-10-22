@@ -156,9 +156,9 @@ def context():
     d.text("t-rel", 288, 160, "enlists, opens, files")
     d.edge("M500 134V186"); d.text("t-rel", 508, 164, "works the ladder")
     d.edge("M825 150V168H620V186")
-    d.text("t-rel", 632, 160, "calls claim_next_card,"); d.text("t-rel", 632, 176, "or another procedure")
+    d.text("t-rel", 632, 160, "calls claim_next_card,"); d.text("t-rel", 632, 176, "or another call")
     d.edge("M460 338V430"); d.text("t-rel", 468, 384, "identity, scope")
-    d.edge("M620 338V370H825V430"); d.text("t-rel", 632, 364, "advertises each procedure")
+    d.edge("M620 338V370H825V430"); d.text("t-rel", 632, 364, "advertises its own procedures")
     d.text("t-desc", 40, 596, "The service calls nothing outside the mesh: GitHub is read by scripts/fill_board.sh on the supervisor's")
     d.text("t-desc", 40, 614, "machine, which then calls the board as an ordinary enlisted agent. Nothing deploys it directly either:")
     d.text("t-desc", 40, 632, "macula-fleet pins each signed v* release by digest, and no push moves a tag, so the box runs what was signed.")
@@ -173,8 +173,8 @@ def components():
           ["start/2 opens this service's store, then calls", "mcl_om:boot(MclKanban.Service) to wire the mesh.",
            "The departments are started before it."], code=True)
     d.box("b-sys", 536, 70, 456, 120, "MclKanban.Service", "[:mcl_om_service behaviour]",
-          ["info, start, stop, health, capabilities and", "identity_spec. @procedures holds the 39 names",
-           "and their responders; scope is mcl-kanban."], code=True)
+          ["info, start, stop, health, capabilities and", "identity_spec. capabilities/0 is the list of",
+           "its own procedures; scope is mcl-kanban."], code=True)
     d.box("b-cmp", 56, 230, 456, 120, "MclKanban.EventStore", "[Elixir module]",
           ["Opens :mcl_kanban_store under MCL_DATA_DIR via", "reckon_db_sup, waits until reckon_db lists it,",
            "then starts evoq's per-store subscription."], code=True)
@@ -203,8 +203,8 @@ def components():
           ["boot/1: loads the identity key, joins the", "realm, opens the QUIC pool, advertises the",
            "capabilities, serves /health on a socket."], code=True)
     d.box("b-mac", 536, 870, 456, 120, "macula SDK", "[library, ~> 16.0, wire 1.0]",
-          ["QUIC transport, RPC dispatch to a named", "responder, and the sealed call path: every",
-           "procedure is confidential: :required (PQ)."], code=True)
+          ["QUIC transport, RPC dispatch to a named", "responder, and the sealed call path: a call",
+           "is confidential: :required (PQ)."], code=True)
     d.edge("M56 130H16V930H56"); d.text("t-rel", 30, 530, "calls mcl_om:boot/1", anchor="middle", rotate=-90)
     d.edge("M512 130H536"); d.text("t-rel", 524, 122, "boots", anchor="middle")
     d.edge("M284 190V230"); d.text("t-rel", 292, 216, "opens, subscribes")

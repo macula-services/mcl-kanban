@@ -21,7 +21,7 @@ department:
 | `guide_card_lifecycle` | CMD | the `board`, `card`, `package` and `crew` aggregates, one desk per command (command, event, `maybe_*` handler), the role gate (`Actor`) |
 | `project_boards` | PRJ | one `{event}_to_{table}` projection per event into one sqlite file (`ProjectBoards.Repo`, schema in `priv/repo/migrations`): boards, cards, card_tags, card_links, card_comments, crew, packages |
 | `query_boards` | QRY | `get_ladder`, `get_boards`, `get_board_by_repo`, `get_card_by_id`, `get_cards_by_holder`, `get_goal`, `get_next_card_for_agent`, `get_ranked_cards`, `get_crew` |
-| `mcl_kanban` | service | the mcl_om contract, the event store it opens itself, and one responder per procedure |
+| `mcl_kanban` | service | the mcl_om contract, the event store it opens itself, and a responder per procedure; mcl-om adds `mcl-kanban/info` and `mcl-kanban/get_limits` to every service, both open |
 | `mcl_kanban_web` | UI | the owner's LiveView |
 
 Every card is its own stream (`card-<digest of owner/repo#n>`), so claims on one
@@ -47,7 +47,7 @@ lists every key. Archivo is self-hosted under the SIL Open Font License
 
 ## Roles
 
-Every procedure acts as its caller, the node id that signed the call. Roles come
+A call acts as its caller, the node id that signed the call. Roles come
 only from the crew: enlisted agents, one supervisor, at most one prioritiser.
 The **owner** is not a mesh role: it is the web UI, which listens on loopback on
 the box that runs the board.

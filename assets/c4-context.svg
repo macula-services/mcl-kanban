@@ -102,11 +102,11 @@
 <text class="t-rel" x="508" y="164">works the ladder</text>
 <path class="edge" d="M825 150V168H620V186" marker-end="url(#a)"/>
 <text class="t-rel" x="632" y="160">calls claim_next_card,</text>
-<text class="t-rel" x="632" y="176">or another procedure</text>
+<text class="t-rel" x="632" y="176">or another call</text>
 <path class="edge" d="M460 338V430" marker-end="url(#a)"/>
 <text class="t-rel" x="468" y="384">identity, scope</text>
 <path class="edge" d="M620 338V370H825V430" marker-end="url(#a)"/>
-<text class="t-rel" x="632" y="364">advertises each procedure</text>
+<text class="t-rel" x="632" y="364">advertises its own procedures</text>
 <text class="t-desc" x="40" y="596">The service calls nothing outside the mesh: GitHub is read by scripts/fill_board.sh on the supervisor's</text>
 <text class="t-desc" x="40" y="614">machine, which then calls the board as an ordinary enlisted agent. Nothing deploys it directly either:</text>
 <text class="t-desc" x="40" y="632">macula-fleet pins each signed v* release by digest, and no push moves a tag, so the box runs what was signed.</text>

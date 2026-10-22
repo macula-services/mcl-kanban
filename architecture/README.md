@@ -34,7 +34,7 @@ signed `v*` release by digest, and no push moves a tag.
 | Component | Technology | Responsibility |
 | --- | --- | --- |
 | `MclKanban.Application` | OTP application | `start/2` opens this service's store, then calls `mcl_om:boot(MclKanban.Service)`. The departments start before it, so their projections are registered when the subscription delivers |
-| `MclKanban.Service` | the `:mcl_om_service` behaviour | `info/0`, `start/1`, `stop/1`, `health/0`, `capabilities/0`, `identity_spec/0`. `@procedures` holds the 39 names and their responders; `identity_spec/0` asks for scope `mcl-kanban`, 30 days, no actions and no resources |
+| `MclKanban.Service` | the `:mcl_om_service` behaviour | `info/0`, `start/1`, `stop/1`, `health/0`, `capabilities/0`, `identity_spec/0`. The `mcl-kanban/*` names are its own procedures and `capabilities/0` is the list of them; `mcl-om` adds `mcl-kanban/info` and `mcl-kanban/get_limits` to every service, both open. `identity_spec/0` asks for scope `mcl-kanban`, 30 days, no actions and no resources |
 | `MclKanban.EventStore` | Elixir module | Opens `:mcl_kanban_store` under `MCL_DATA_DIR` through `reckon_db_sup`, waits until `reckon_db` lists it, then starts `evoq`'s per-store subscription. The id is named here, in `Service.event_store/0` and in `config/runtime.exs`, and a test compares them |
 | `ClaimNextCardResponder` | `macula_response`, one of 39 | The card commands share `MclKanban.CardProcedure`: `Actor.of_caller/1`, build, dispatch, reply. `claim_next_card` claims down the rank ladder, skipping a card another agent took in between |
 | `MclKanban.Wire` | Elixir module | Arguments in through `mcl_om_wire.field/3`; replies out as CBOR text with no booleans and no nulls, so a refusal is `%{reason: "already_claimed"}` and an agent reads it as plain text |
@@ -44,7 +44,7 @@ signed `v*` release by digest, and no push moves a tag.
 | `MclKanban.Supervisor` | supervisor, `one_for_one` | `start_link/0`, called by `Service.start/1`. No children: each department supervises its own processes and macula spawns a process per call |
 | `MclKanbanWeb.Endpoint` | Phoenix 1.8, Bandit | Listens on `127.0.0.1:4010` and serves one LiveView, `LadderLive`; `OwnerActions` acts as `Actor.owner()` through the same desks the mesh uses |
 | `mcl_om` | library, `~> 1.4` | `boot/1`: loads the identity key, joins the realm, opens the QUIC pool through the stations, advertises the declared capabilities, serves `/health` on a Unix socket |
-| macula SDK | library, `~> 16.0`, wire 1.0 | QUIC transport, RPC dispatch to a responder that answers by name, and the sealed call path: every procedure is `confidential: :required`, so a call in the clear is refused before a responder sees it |
+| macula SDK | library, `~> 16.0`, wire 1.0 | QUIC transport, RPC dispatch to a responder that answers by name, and the sealed call path: a call is `confidential: :required`, so one in the clear is refused before a responder sees it |
 | Host environment | read at boot; the image sets four defaults | `MCL_DATA_DIR`, `MCL_IDENTITY_KEY_PATH`, `MCL_HTTP_IP`, `MCL_HTTP_PORT` (baked into the image as `ENV`), `MCL_REALM_NAME`, `MCL_REALM_KEY`, `MCL_HTTP_ORIGINS` (extra socket origins; widens `check_origin` beyond the local defaults), `SECRET_KEY_BASE`, `MCL_COOKIE` |
 
 `config/runtime.exs` derives the realm tag from `MCL_REALM_NAME` and enables
@@ -72,4 +72,4 @@ The check that keeps them here is the `c4-model` job in `.github/workflows/c4-mo
 is red until both files exist and are shown, and it stays red if either one goes
 missing.
 
-**Where the station list comes from.** It is not in `config/sys.config.src`: `mcl_om` reads `MACULA_STATION_SEEDS` and `MACULA_STATION_NODE_IDS` from the environment at boot, paired index for index, so this repository pins no station and the list may be any length.
+**Where the station list comes from.** `mcl_om` reads `MACULA_STATION_SEEDS` and `MACULA_STATION_NODE_IDS` from the environment at boot, paired index for index; `config/runtime.exs` names neither, so this repository pins no station and the list may be any length.
