@@ -1,0 +1,166 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 1270" role="img" aria-label="mcl-kanban components">
+<title>mcl-kanban components</title>
+<style>
+.t-name { font-family: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, Helvetica, Arial, sans-serif; font-size: 15px; font-weight: 700; }
+.t-desc { font-family: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, Helvetica, Arial, sans-serif; font-size: 12.5px; }
+.t-rel { font-family: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, Helvetica, Arial, sans-serif; font-size: 11.5px; paint-order: stroke; stroke-width: 4px; stroke-linejoin: round; }
+.t-code { font-family: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 13px; font-weight: 600; }
+.t-type { font-family: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 11.5px; }
+.t-bound { font-family: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; }
+.t-leg { font-family: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, Helvetica, Arial, sans-serif; font-size: 12px; }
+.edge { fill: none; stroke-width: 1.25; }
+.edge-later { fill: none; stroke-width: 1.25; stroke-dasharray: 5 4; }
+.bg { fill: #FFFFFF; }
+.b-sys { fill: #F5E9CC; stroke: #A56F0A; stroke-width: 2; }
+.b-per { fill: #E3EBF2; stroke: #3B5B7A; stroke-width: 1.25; }
+.b-mac { fill: #E6E4EE; stroke: #5E5A78; stroke-width: 1.25; }
+.b-ext { fill: #ECEFED; stroke: #8A9791; stroke-width: 1.25; }
+.b-cmp { fill: #FFFFFF; stroke: #8A9791; stroke-width: 1.25; }
+.b-later { fill: none; stroke: #8A9791; stroke-width: 1.25; stroke-dasharray: 5 4; }
+.bound { fill: none; stroke: #B3BDB8; stroke-width: 1; }
+.head { fill: #3B5B7A; }
+.t-name, .t-code { fill: #16201D; }
+.t-type, .t-bound, .t-leg { fill: #66736E; }
+.t-desc { fill: #34413C; }
+.t-rel { fill: #66736E; stroke: #FFFFFF; }
+.edge, .edge-later { stroke: #8A9791; }
+.arrowhead { fill: #8A9791; }
+@media (prefers-color-scheme: dark) {
+.bg { fill: #171F1C; }
+.b-sys { fill: #3A2E13; stroke: #E3AA3C; }
+.b-per { fill: #1D2A36; stroke: #8EB4D8; }
+.b-mac { fill: #26243A; stroke: #A9A4C8; }
+.b-ext { fill: #1C2421; stroke: #7D8B85; }
+.b-cmp { fill: #171F1C; stroke: #7D8B85; }
+.b-later { stroke: #7D8B85; }
+.bound { stroke: #4A5752; }
+.head { fill: #8EB4D8; }
+.t-name, .t-code { fill: #E6ECE9; }
+.t-type, .t-bound, .t-leg { fill: #93A09A; }
+.t-desc { fill: #C3CDC8; }
+.t-rel { fill: #93A09A; stroke: #171F1C; }
+.edge, .edge-later { stroke: #7D8B85; }
+.arrowhead { fill: #7D8B85; }
+}
+</style>
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead" d="M0 0L10 5L0 10z"/></marker></defs>
+<rect class="bg" x="0" y="0" width="1040" height="1270"/>
+<rect class="bound" x="40" y="40" width="968" height="970" rx="12"/>
+<text class="t-bound" x="56" y="62">mcl-kanban [Container]</text>
+<rect class="b-cmp" x="56" y="70" width="456" height="120" rx="10"/>
+<text class="t-code" x="72" y="98">MclKanban.Application</text>
+<text class="t-type" x="72" y="116">[OTP application]</text>
+<text class="t-desc" x="72" y="140">start/2 opens this service's store, then calls</text>
+<text class="t-desc" x="72" y="156">mcl_om:boot(MclKanban.Service) to wire the mesh.</text>
+<text class="t-desc" x="72" y="172">The departments are started before it.</text>
+<rect class="b-sys" x="536" y="70" width="456" height="120" rx="10"/>
+<text class="t-code" x="552" y="98">MclKanban.Service</text>
+<text class="t-type" x="552" y="116">[:mcl_om_service behaviour]</text>
+<text class="t-desc" x="552" y="140">info, start, stop, health, capabilities and</text>
+<text class="t-desc" x="552" y="156">identity_spec. @procedures holds the 39 names</text>
+<text class="t-desc" x="552" y="172">and their responders; scope is mcl-kanban.</text>
+<rect class="b-cmp" x="56" y="230" width="456" height="120" rx="10"/>
+<text class="t-code" x="72" y="258">MclKanban.EventStore</text>
+<text class="t-type" x="72" y="276">[Elixir module]</text>
+<text class="t-desc" x="72" y="300">Opens :mcl_kanban_store under MCL_DATA_DIR via</text>
+<text class="t-desc" x="72" y="316">reckon_db_sup, waits until reckon_db lists it,</text>
+<text class="t-desc" x="72" y="332">then starts evoq's per-store subscription.</text>
+<rect class="b-cmp" x="536" y="230" width="456" height="120" rx="10"/>
+<text class="t-code" x="552" y="258">ClaimNextCardResponder</text>
+<text class="t-type" x="552" y="276">[macula_response, 1 of 39]</text>
+<text class="t-desc" x="552" y="300">Card commands share MclKanban.CardProcedure:</text>
+<text class="t-desc" x="552" y="316">Actor.of_caller/1, build, dispatch, reply.</text>
+<text class="t-desc" x="552" y="332">This one claims down the rank ladder.</text>
+<rect class="b-cmp" x="56" y="390" width="456" height="120" rx="10"/>
+<text class="t-code" x="72" y="418">GuideCardLifecycle</text>
+<text class="t-type" x="72" y="436">[CMD app, umbrella]</text>
+<text class="t-desc" x="72" y="460">board, card, package and crew aggregates;</text>
+<text class="t-desc" x="72" y="476">one desk per command (command, event,</text>
+<text class="t-desc" x="72" y="492">maybe_* handler); Actor is the role gate.</text>
+<rect class="b-cmp" x="536" y="390" width="456" height="120" rx="10"/>
+<text class="t-code" x="552" y="418">MclKanban.Wire</text>
+<text class="t-type" x="552" y="436">[Elixir module]</text>
+<text class="t-desc" x="552" y="460">Arguments in through mcl_om_wire.field/3.</text>
+<text class="t-desc" x="552" y="476">Replies out as CBOR text, no booleans and no</text>
+<text class="t-desc" x="552" y="492">nulls; a refusal is %{reason: "..."}.</text>
+<rect class="b-cmp" x="56" y="550" width="456" height="120" rx="10"/>
+<text class="t-code" x="72" y="578">ProjectBoards</text>
+<text class="t-type" x="72" y="596">[PRJ app, ecto_sqlite3]</text>
+<text class="t-desc" x="72" y="620">36 {event}_to_{table} projections into one</text>
+<text class="t-desc" x="72" y="636">sqlite file, kanban.sqlite3, schema in</text>
+<text class="t-desc" x="72" y="652">priv/repo/migrations; PubSub on write.</text>
+<rect class="b-cmp" x="536" y="550" width="456" height="120" rx="10"/>
+<text class="t-code" x="552" y="578">MclKanban.Supervisor</text>
+<text class="t-type" x="552" y="596">[supervisor, one_for_one]</text>
+<text class="t-desc" x="552" y="620">start_link/0, called by Service.start/1.</text>
+<text class="t-desc" x="552" y="636">No children: each department supervises its</text>
+<text class="t-desc" x="552" y="652">own processes and macula spawns responders.</text>
+<rect class="b-cmp" x="56" y="710" width="456" height="120" rx="10"/>
+<text class="t-code" x="72" y="738">QueryBoards</text>
+<text class="t-type" x="72" y="756">[QRY app, umbrella]</text>
+<text class="t-desc" x="72" y="780">9 read desks, one directory each:</text>
+<text class="t-desc" x="72" y="796">get_ladder, get_boards, get_card_by_id,</text>
+<text class="t-desc" x="72" y="812">get_next_card_for_agent and five more.</text>
+<rect class="b-cmp" x="536" y="710" width="456" height="120" rx="10"/>
+<text class="t-code" x="552" y="738">MclKanbanWeb.Endpoint</text>
+<text class="t-type" x="552" y="756">[Phoenix 1.8, Bandit]</text>
+<text class="t-desc" x="552" y="780">Listens on 127.0.0.1:4010 and serves one</text>
+<text class="t-desc" x="552" y="796">LiveView, LadderLive. OwnerActions acts as</text>
+<text class="t-desc" x="552" y="812">Actor.owner() through the same desks.</text>
+<rect class="b-mac" x="56" y="870" width="456" height="120" rx="10"/>
+<text class="t-code" x="72" y="898">mcl_om</text>
+<text class="t-type" x="72" y="916">[library, ~&gt; 1.4]</text>
+<text class="t-desc" x="72" y="940">boot/1: loads the identity key, joins the</text>
+<text class="t-desc" x="72" y="956">realm, opens the QUIC pool, advertises the</text>
+<text class="t-desc" x="72" y="972">capabilities, serves /health on a socket.</text>
+<rect class="b-mac" x="536" y="870" width="456" height="120" rx="10"/>
+<text class="t-code" x="552" y="898">macula SDK</text>
+<text class="t-type" x="552" y="916">[library, ~&gt; 16.0, wire 1.0]</text>
+<text class="t-desc" x="552" y="940">QUIC transport, RPC dispatch to a named</text>
+<text class="t-desc" x="552" y="956">responder, and the sealed call path: every</text>
+<text class="t-desc" x="552" y="972">procedure is confidential: :required (PQ).</text>
+<path class="edge" d="M56 130H16V930H56" marker-end="url(#a)"/>
+<text class="t-rel" x="30" y="530" text-anchor="middle" transform="rotate(-90 30 530)">calls mcl_om:boot/1</text>
+<path class="edge" d="M512 130H536" marker-end="url(#a)"/>
+<text class="t-rel" x="524" y="122" text-anchor="middle">boots</text>
+<path class="edge" d="M284 190V230" marker-end="url(#a)"/>
+<text class="t-rel" x="292" y="216">opens, subscribes</text>
+<path class="edge" d="M804 190V230" marker-end="url(#a)"/>
+<text class="t-rel" x="812" y="216">capabilities/0 names all 39</text>
+<path class="edge" d="M992 160H1008V530H804V550" marker-end="url(#a)"/>
+<text class="t-rel" x="824" y="526">start/1 starts it</text>
+<path class="edge" d="M624 350V370H284V390" marker-end="url(#a)"/>
+<text class="t-rel" x="304" y="366">Actor, command, desk</text>
+<path class="edge" d="M884 350V390" marker-end="url(#a)"/>
+<text class="t-rel" x="892" y="374">shapes replies</text>
+<path class="edge" d="M284 510V550" marker-end="url(#a)"/>
+<text class="t-rel" x="292" y="536">emits events</text>
+<path class="edge" d="M284 670V710" marker-end="url(#a)"/>
+<text class="t-rel" x="292" y="696">the tables they read</text>
+<path class="edge" d="M512 610H520V690H804V710" marker-end="url(#a)"/>
+<text class="t-rel" x="584" y="686">BoardsChanged over PubSub</text>
+<path class="edge" d="M512 770H536" marker-end="url(#a)"/>
+<text class="t-rel" x="524" y="762" text-anchor="middle">reads</text>
+<path class="edge" d="M512 930H536" marker-end="url(#a)"/>
+<text class="t-rel" x="524" y="922" text-anchor="middle">dials</text>
+<rect class="b-ext" x="64" y="1040" width="920" height="104" rx="10"/>
+<text class="t-code" x="80" y="1068">Host environment</text>
+<text class="t-type" x="80" y="1086">[read at boot; nothing here is baked into the image]</text>
+<text class="t-desc" x="80" y="1110">MCL_DATA_DIR holds the store and kanban.sqlite3; MCL_IDENTITY_KEY_PATH is the node key; MCL_REALM_NAME and MCL_REALM_KEY join the realm.</text>
+<text class="t-desc" x="80" y="1126">MCL_HTTP_IP and MCL_HTTP_PORT are the owner UI; SECRET_KEY_BASE signs the socket; MCL_COOKIE is required by rel/env.sh.eex.</text>
+<text class="t-desc" x="64" y="1180">config/runtime.exs derives the realm tag from MCL_REALM_NAME and enables kem_advertise, so callers seal to this node's KEM key.</text>
+<text class="t-desc" x="64" y="1198">The store id, :mcl_kanban_store, is named in runtime.exs and in Service.event_store/0; a test compares the two.</text>
+<text class="t-desc" x="64" y="1216">bin/start runs bin/migrate (ProjectBoards.Release.migrate) before bin/server, so a new release opens an older read model and keeps its rows.</text>
+<rect class="b-sys" x="24" y="1240" width="22" height="14" rx="3"/>
+<text class="t-leg" x="54" y="1252">In scope</text>
+<rect class="b-per" x="110.8" y="1240" width="22" height="14" rx="3"/>
+<text class="t-leg" x="140.8" y="1252">Person</text>
+<rect class="b-mac" x="184.39999999999998" y="1240" width="22" height="14" rx="3"/>
+<text class="t-leg" x="214.39999999999998" y="1252">Macula infrastructure</text>
+<rect class="b-ext" x="357.0" y="1240" width="22" height="14" rx="3"/>
+<text class="t-leg" x="387.0" y="1252">External system</text>
+<rect class="b-cmp" x="490.0" y="1240" width="22" height="14" rx="3"/>
+<text class="t-leg" x="520.0" y="1252">Container or component</text>
+<rect class="bound" x="669.2" y="1240" width="22" height="14" rx="3"/>
+<text class="t-leg" x="699.2" y="1252">Boundary</text>
+</svg>
