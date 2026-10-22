@@ -28,8 +28,8 @@ defmodule QueryBoards.MixProject do
       # The read model file and its schema belong to project_boards.
       {:project_boards, in_umbrella: true},
       {:guide_card_lifecycle, in_umbrella: true},
-      {:mcl_om, "~> 1.0"},
-      {:macula, "~> 15.6"}
+      {:mcl_om, "~> 1.4"},
+      {:macula, "~> 16.0"}
     ]
   end
 

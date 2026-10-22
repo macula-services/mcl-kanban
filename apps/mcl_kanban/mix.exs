@@ -26,10 +26,12 @@ defmodule MclKanban.MixProject do
 
   defp deps do
     [
-      # 1.0 is the macula-15 line (wire 1.0), the major moving with the wire so
-      # no `~> 0.x` service floats onto macula 15 by itself (mcl-om#27).
-      {:mcl_om, "~> 1.0"},
-      {:macula, "~> 15.6"},
+      # 1.4 is the macula-16 line on wire 1.0 (macula-codebase-checks#4), the major
+      # moving with the wire so no `~> 0.x` service floats onto a new wire by
+      # itself (mcl-om#27). `~> 1.0` would also admit 1.3.0, which requires
+      # macula `~> 15.6` (macula-codebase-checks#14).
+      {:mcl_om, "~> 1.4"},
+      {:macula, "~> 16.0"},
       # This service's own event store: mcl_om opens none (mcl-om#10).
       {:reckon_db, "~> 5.11"},
       {:evoq, "~> 1.26"},

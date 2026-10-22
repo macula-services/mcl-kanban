@@ -30,8 +30,8 @@ defmodule GuideCardLifecycle.MixProject do
       {:reckon_gater, "~> 3.11"},
       # The responders implement macula_response and read the wire with
       # mcl_om_wire.
-      {:mcl_om, "~> 1.0"},
-      {:macula, "~> 15.6"}
+      {:mcl_om, "~> 1.4"},
+      {:macula, "~> 16.0"}
     ]
   end
 end
