@@ -45,7 +45,7 @@ signed `v*` release by digest, and no push moves a tag.
 | `MclKanbanWeb.Endpoint` | Phoenix 1.8, Bandit | Listens on `127.0.0.1:4010` and serves one LiveView, `LadderLive`; `OwnerActions` acts as `Actor.owner()` through the same desks the mesh uses |
 | `mcl_om` | library, `~> 1.4` | `boot/1`: loads the identity key, joins the realm, opens the QUIC pool through the stations, advertises the declared capabilities, serves `/health` on a Unix socket |
 | macula SDK | library, `~> 16.0`, wire 1.0 | QUIC transport, RPC dispatch to a responder that answers by name, and the sealed call path: every procedure is `confidential: :required`, so a call in the clear is refused before a responder sees it |
-| Host environment | read at boot | `MCL_DATA_DIR`, `MCL_IDENTITY_KEY_PATH`, `MCL_REALM_NAME`, `MCL_REALM_KEY`, `MCL_HTTP_IP`, `MCL_HTTP_PORT`, `SECRET_KEY_BASE`, `MCL_COOKIE` |
+| Host environment | read at boot; the image sets four defaults | `MCL_DATA_DIR`, `MCL_IDENTITY_KEY_PATH`, `MCL_HTTP_IP`, `MCL_HTTP_PORT` (baked into the image as `ENV`), `MCL_REALM_NAME`, `MCL_REALM_KEY`, `MCL_HTTP_ORIGINS` (extra socket origins; widens `check_origin` beyond the local defaults), `SECRET_KEY_BASE`, `MCL_COOKIE` |
 
 `config/runtime.exs` derives the realm tag from `MCL_REALM_NAME` and enables
 `kem_advertise`, so a caller seals to this node's KEM key. `bin/start` runs
@@ -59,9 +59,9 @@ opens an older read model and keeps its rows. `rel/env.sh.eex` refuses to boot w
 `architecture/c4_diagrams.py` (`python3 architecture/c4_diagrams.py`), from the code
 and never from this page: the callbacks and the `@procedures` list in
 `apps/mcl_kanban/lib/mcl_kanban/service.ex`, the boot order in `application.ex`, the
-departments and their `mix.exs` deps, the port and volumes in the `Containerfile`, and
-the variables `config/runtime.exs` reads. When one of those changes, the diagram
-changes in the same commit.
+departments and their `mix.exs` deps, the port, volumes and `ENV` defaults in the
+`Containerfile`, and the variables `config/runtime.exs` reads. When one of those
+changes, the diagram changes in the same commit.
 
 Two rules for the files themselves, so they render everywhere they are read (GitHub,
 an IDE, `rsvg-convert`): self-contained SVG, and literal colours in plain classes

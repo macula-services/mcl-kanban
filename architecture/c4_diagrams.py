@@ -7,9 +7,9 @@ Run:  python3 architecture/c4_diagrams.py
 
 Drawn from the code, never from a template: the callbacks and the @procedures list
 in apps/mcl_kanban/lib/mcl_kanban/service.ex, the app that opens the store in
-application.ex, the departments and their mix.exs deps, the port and volumes in the
-Containerfile, and the environment config/runtime.exs reads. When one of those
-changes, the diagram changes in the same commit.
+application.ex, the departments and their mix.exs deps, the port, volumes and ENV
+defaults in the Containerfile, and the environment config/runtime.exs reads. When one
+of those changes, the diagram changes in the same commit.
 
 Colours are plain classes with a prefers-color-scheme: dark block, no CSS custom
 properties (rsvg-convert renders those black), so the SVGs render the same on
@@ -215,11 +215,12 @@ def components():
     d.edge("M284 510V550"); d.text("t-rel", 292, 536, "emits events")
     d.edge("M284 670V710"); d.text("t-rel", 292, 696, "the tables they read")
     d.edge("M512 610H520V690H804V710"); d.text("t-rel", 584, 686, "BoardsChanged over PubSub")
-    d.edge("M512 770H536"); d.text("t-rel", 524, 762, "reads", anchor="middle")
+    d.edge("M536 770H512"); d.text("t-rel", 524, 762, "reads", anchor="middle")
     d.edge("M512 930H536"); d.text("t-rel", 524, 922, "dials", anchor="middle")
-    d.box("b-ext", 64, 1040, 920, 104, "Host environment", "[read at boot; nothing here is baked into the image]",
-          ["MCL_DATA_DIR holds the store and kanban.sqlite3; MCL_IDENTITY_KEY_PATH is the node key; MCL_REALM_NAME and MCL_REALM_KEY join the realm.",
-           "MCL_HTTP_IP and MCL_HTTP_PORT are the owner UI; SECRET_KEY_BASE signs the socket; MCL_COOKIE is required by rel/env.sh.eex."],
+    d.box("b-ext", 64, 1040, 920, 120, "Host environment", "[read at boot; four are image ENV defaults]",
+          ["MCL_DATA_DIR, MCL_IDENTITY_KEY_PATH, MCL_HTTP_IP and MCL_HTTP_PORT are baked into the image as ENV; a boot may override them.",
+           "MCL_REALM_NAME, MCL_REALM_KEY, SECRET_KEY_BASE and MCL_COOKIE are read at boot.",
+           "MCL_HTTP_ORIGINS adds socket origins and widens check_origin beyond the local defaults."],
           code=True)
     d.text("t-desc", 64, 1180, "config/runtime.exs derives the realm tag from MCL_REALM_NAME and enables kem_advertise, so callers seal to this node's KEM key.")
     d.text("t-desc", 64, 1198, "The store id, :mcl_kanban_store, is named in runtime.exs and in Service.event_store/0; a test compares the two.")
