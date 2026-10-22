@@ -4,7 +4,7 @@
 without reading it.*
 
 **Status: live on the mesh, one box, one board per repo.** The service opens its own
-reckon-db store and the sqlite read model, advertises 39 sealed procedures and serves
+reckon-db store and the sqlite read model, advertises 39 sealed procedures of its own and serves
 the owner's one LiveView on loopback. It calls nothing outside the mesh, and it
 publishes no topics.
 
@@ -14,7 +14,7 @@ publishes no topics.
 
 | Element | Kind | Role |
 | --- | --- | --- |
-| mcl-kanban | In scope | Serves 39 procedures under `mcl-kanban/*`, every call confidential, and the owner's LiveView on `127.0.0.1:4010`. `/health` is a Unix socket, `/run/mcl/health.sock` |
+| mcl-kanban | In scope | Serves 39 procedures of its own under `mcl-kanban/*`, each a confidential call, and the owner's LiveView on `127.0.0.1:4010`. `/health` is a Unix socket, `/run/mcl/health.sock` |
 | Supervisor | Person | Runs `scripts/fill_board.sh`, which reads GitHub issues, labels and sub-issues with `gh` and then calls the board as an ordinary agent |
 | Owner | Person | Raf, through his own SSH tunnel to `127.0.0.1:4010`, working the rank ladder |
 | Crew agent | Person | A Claude session holding a Macula key: calls `claim_next_card`, works the card, calls the next procedure |
