@@ -30,7 +30,7 @@ config :mcl_om,
   # HEALTHCHECK reaches it with curl --unix-socket.
   health_socket: "/run/mcl/health.sock",
   capability_topic: "_mesh.cap.",
-  # The wire namespace: every procedure is mcl-kanban/<name>.
+  # The wire namespace: every procedure of its own is mcl-kanban/<name>.
   org: "mcl-kanban",
   realm: realm,
   # The realm's public signing key, hex. Unset in a local dev or test boot,
@@ -49,8 +49,8 @@ config :project_boards, ProjectBoards.Repo,
 
 # THE PQ CRYPTO PROFILE, without which this node does not peer. kem_advertise
 # names this node's KEM key in every advertisement, so callers seal to it;
-# every procedure is confidential: :required (MclKanban.Service), which
-# mcl_om refuses to boot without it.
+# each of its own procedures is confidential: :required (MclKanban.Service),
+# which mcl_om refuses to boot without it.
 config :macula, crypto_profile: :pq_hybrid, kem_advertise: :enabled
 
 # MANDATORY: MclKanban.EventStore starts the per-store evoq subscription,

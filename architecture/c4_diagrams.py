@@ -173,12 +173,12 @@ def components():
           ["start/2 opens this service's store, then calls", "mcl_om:boot(MclKanban.Service) to wire the mesh.",
            "The departments are started before it."], code=True)
     d.box("b-sys", 536, 70, 456, 120, "MclKanban.Service", "[:mcl_om_service behaviour]",
-          ["info, start, stop, health, capabilities and", "identity_spec. capabilities/0 is the list of",
-           "its own procedures; scope is mcl-kanban."], code=True)
+          ["info and get_limits (both open); start, stop,", "health, capabilities, identity_spec. capabilities/0",
+           "is the list of its own procedures; 30-day scope."], code=True)
     d.box("b-cmp", 56, 230, 456, 120, "MclKanban.EventStore", "[Elixir module]",
           ["Opens :mcl_kanban_store under MCL_DATA_DIR via", "reckon_db_sup, waits until reckon_db lists it,",
            "then starts evoq's per-store subscription."], code=True)
-    d.box("b-cmp", 536, 230, 456, 120, "ClaimNextCardResponder", "[macula_response, 1 of 39]",
+    d.box("b-cmp", 536, 230, 456, 120, "ClaimNextCardResponder", "[macula_response, one of its 39]",
           ["Card commands share MclKanban.CardProcedure:", "Actor.of_caller/1, build, dispatch, reply.",
            "This one claims down the rank ladder."], code=True)
     d.box("b-cmp", 56, 390, 456, 120, "GuideCardLifecycle", "[CMD app, umbrella]",
@@ -197,14 +197,14 @@ def components():
           ["9 read desks, one directory each:", "get_ladder, get_boards, get_card_by_id,",
            "get_next_card_for_agent and five more."], code=True)
     d.box("b-cmp", 536, 710, 456, 120, "MclKanbanWeb.Endpoint", "[Phoenix 1.8, Bandit]",
-          ["Listens on 127.0.0.1:4010 and serves one", "LiveView, LadderLive. OwnerActions acts as",
+          ["Listens on 127.0.0.1:4010 and serves the", "LiveView, LadderLive. OwnerActions acts as",
            "Actor.owner() through the same desks."], code=True)
     d.box("b-mac", 56, 870, 456, 120, "mcl_om", "[library, ~> 1.4]",
           ["boot/1: loads the identity key, joins the", "realm, opens the QUIC pool, advertises the",
            "capabilities, serves /health on a socket."], code=True)
     d.box("b-mac", 536, 870, 456, 120, "macula SDK", "[library, ~> 16.0, wire 1.0]",
-          ["QUIC transport, RPC dispatch to a named", "responder, and the sealed call path: a call",
-           "is confidential: :required (PQ)."], code=True)
+          ["QUIC transport, RPC dispatch to a named", "responder, and the sealed call path: its own",
+           "calls are confidential: :required (PQ)."], code=True)
     d.edge("M56 130H16V930H56"); d.text("t-rel", 30, 530, "calls mcl_om:boot/1", anchor="middle", rotate=-90)
     d.edge("M512 130H536"); d.text("t-rel", 524, 122, "boots", anchor="middle")
     d.edge("M284 190V230"); d.text("t-rel", 292, 216, "opens, subscribes")

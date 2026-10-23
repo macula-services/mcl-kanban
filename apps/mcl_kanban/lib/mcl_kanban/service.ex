@@ -2,17 +2,18 @@ defmodule MclKanban.Service do
   # The mcl_om service contract for mcl-kanban: the board the crew pulls its
   # next card from, on our own mesh (macula-services/mcl-kanban#2).
   #
-  # Every procedure is mcl-kanban/<name> in the io.macula realm, and every one
-  # acts as its CALLER: the node id that signed the call, looked up in the
-  # crew (GuideCardLifecycle.Actor). auth is :open at the mesh because the
-  # role gate is the board's own; a caller the crew does not know gets
-  # reason not_enlisted from every procedure.
+  # Every procedure of its own is mcl-kanban/<name> in the io.macula realm,
+  # and every one acts as its CALLER: the node id that signed the call,
+  # looked up in the crew (GuideCardLifecycle.Actor). auth is :open at the
+  # mesh because the role gate is the board's own; a caller the crew does
+  # not know gets reason not_enlisted from every procedure of its own.
   #
-  # SEALED (#4, #21): every procedure is confidential: :required. The
-  # advertisement names this node's KEM key (macula's kem_advertise is
-  # enabled in config/runtime.exs), each call is sealed end to end, and a
-  # call in the clear is refused before a responder sees it. Reads too: a
-  # reply carries card titles, notes and agent names.
+  # SEALED (#4, #21): each of its own procedures is confidential: :required,
+  # while `info` and `get_limits` stay open. The advertisement names this
+  # node's KEM key (macula's kem_advertise is enabled in config/runtime.exs),
+  # its own calls are sealed end to end, and a call in the clear is refused
+  # before a responder sees it. Reads too: a reply carries card titles,
+  # notes and agent names.
   #
   # The store is this service's own: event_store/0 describes it and
   # MclKanban.Application opens it before mcl_om:boot/1. NOT store_id/0 and
@@ -171,9 +172,9 @@ defmodule MclKanban.Service do
         }
   end
 
-  # The namespace every procedure hangs under. The procedures are calls,
-  # each served under its own provider grant, and the board publishes no
-  # topics in part 1, so it asks for nothing more.
+  # The namespace each of its own procedures hangs under. The procedures are
+  # calls, each served under its own provider grant, and the board publishes
+  # no topics in part 1, so it asks for nothing more.
   @impl true
   def identity_spec, do: %{scope: "mcl-kanban", actions: [], resources: [], ttl_days: 30}
 

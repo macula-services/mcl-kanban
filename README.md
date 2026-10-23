@@ -9,6 +9,7 @@ the owner works the boards from a LiveView. Issues stay the public record of
 WHAT; the board holds WHO and ORDER.
 
 - How an agent works the board: [guides/working_the_board.md](guides/working_the_board.md)
+- Architecture (C4 model): [architecture/README.md](architecture/README.md)
 - Design: macula-services/mcl-kanban#2 (part 1 of #1)
 
 ## Layout
