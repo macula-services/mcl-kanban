@@ -101,12 +101,14 @@
 <text class="t-desc" x="72" y="780">9 read desks, one directory each:</text>
 <text class="t-desc" x="72" y="796">get_ladder, get_boards, get_card_by_id,</text>
 <text class="t-desc" x="72" y="812">get_next_card_for_agent and five more.</text>
-<rect class="b-cmp" x="536" y="710" width="456" height="120" rx="10"/>
+<rect class="b-cmp" x="536" y="710" width="456" height="152" rx="10"/>
 <text class="t-code" x="552" y="738">MclKanbanWeb.Endpoint</text>
 <text class="t-type" x="552" y="756">[Phoenix 1.8, Bandit]</text>
-<text class="t-desc" x="552" y="780">Listens on 127.0.0.1:4010 and serves the</text>
-<text class="t-desc" x="552" y="796">LiveView, LadderLive. OwnerActions acts as</text>
-<text class="t-desc" x="552" y="812">Actor.owner() through the same desks.</text>
+<text class="t-desc" x="552" y="780">Listens on 127.0.0.1:4010 by default; the</text>
+<text class="t-desc" x="552" y="796">box sets MCL_HTTP_IP=0.0.0.0, so it serves the</text>
+<text class="t-desc" x="552" y="812">LAN at :4010, no login. One LiveView,</text>
+<text class="t-desc" x="552" y="828">LadderLive. OwnerActions acts as</text>
+<text class="t-desc" x="552" y="844">Actor.owner() through the same desks.</text>
 <rect class="b-mac" x="56" y="870" width="456" height="120" rx="10"/>
 <text class="t-code" x="72" y="898">mcl_om</text>
 <text class="t-type" x="72" y="916">[library, ~&gt; 1.4]</text>

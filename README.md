@@ -50,8 +50,9 @@ lists every key. Archivo is self-hosted under the SIL Open Font License
 
 A call acts as its caller, the node id that signed the call. Roles come
 only from the crew: enlisted agents, one supervisor, at most one prioritiser.
-The **owner** is not a mesh role: it is the web UI, which listens on loopback on
-the box that runs the board.
+The **owner** is not a mesh role: it is the web UI on `:4010` -- loopback by
+default, and the box that runs the board sets `MCL_HTTP_IP=0.0.0.0`, so it is
+served on the LAN with no login.
 
 ## Running it
 
@@ -78,8 +79,9 @@ Fleet placement lives in macula-io/macula-fleet. The image is
 `ghcr.io/macula-services/mcl-kanban`; nothing moves `:latest`: macula-fleet pins each
 signed `v*` release by digest (macula-fleet#14, #15).
 
-Raf reaches the UI through his own tunnel, for example
-`ssh -L 4010:127.0.0.1:4010 <box>`, then `http://localhost:4010`. Keys: `n`
+The board's UI is at `http://<box>:4010`, on the LAN, with no login; where the box
+is not reachable, `ssh -L 4010:127.0.0.1:4010 <box>` and `http://localhost:4010`
+reach the same UI. Keys: `n`
 queues a card on a board, `Esc` closes the card drawer.
 
 ## Filling the board

@@ -5,7 +5,8 @@ without reading it.*
 
 **Status: live on the mesh, one box, one board per repo.** The service opens its own
 reckon-db store and the sqlite read model, advertises 39 sealed procedures of its own and serves
-the owner's one LiveView on loopback. It calls nothing outside the mesh, and it
+the owner's one LiveView on `:4010` -- loopback by default, and on the LAN where the
+box sets `MCL_HTTP_IP=0.0.0.0`. It calls nothing outside the mesh, and it
 publishes no topics.
 
 ## Level 1: system context
@@ -14,9 +15,9 @@ publishes no topics.
 
 | Element | Kind | Role |
 | --- | --- | --- |
-| mcl-kanban | In scope | Serves 39 procedures of its own under `mcl-kanban/*`, each a confidential call, and the owner's LiveView on `127.0.0.1:4010`. `/health` is a Unix socket, `/run/mcl/health.sock` |
+| mcl-kanban | In scope | Serves 39 procedures of its own under `mcl-kanban/*`, each a confidential call, and the owner's LiveView on `:4010`: the image defaults to `127.0.0.1`, and the box that runs it serves the LAN (`macula-fleet` `edge/scripts/docker-compose.mcl-kanban.yml`:54-56). `/health` is a Unix socket, `/run/mcl/health.sock` |
 | Supervisor | Person | Runs `scripts/fill_board.sh`, which reads GitHub issues, labels and sub-issues with `gh` and then calls the board as an ordinary agent |
-| Owner | Person | Raf, through his own SSH tunnel to `127.0.0.1:4010`, working the rank ladder |
+| Owner | Person | Raf, at the board's UI on `:4010` on the box's LAN address, no login |
 | Crew agent | Person | A Claude session holding a Macula key: calls `claim_next_card`, works the card, calls the next procedure |
 | GitHub | External system | Open issues, the `work-package` label, sub-issues and `crew:<name>` lanes. Read by `fill_board.sh`, never by the service |
 | macula-realm | Macula infrastructure | Grants the node scope `mcl-kanban` for 30 days, against the identity key and the realm tag derived from `MCL_REALM_NAME` |
@@ -25,7 +26,8 @@ publishes no topics.
 The service calls nothing outside the mesh. GitHub is read on the supervisor's
 machine, by `scripts/fill_board.sh`, which then calls the board as an ordinary
 enlisted agent. Nothing deploys the service directly either: `macula-fleet` pins each
-signed `v*` release by digest, and no push moves a tag.
+signed `v*` release by digest (`edge/gitops/release-targets`:99-100), and a push to
+`main` publishes `:main` and `:<sha>` while nothing moves `:latest`.
 
 ## Level 2: containers and components
 
@@ -42,7 +44,7 @@ signed `v*` release by digest, and no push moves a tag.
 | `ProjectBoards` | PRJ app, `ecto_sqlite3` | 36 `{event}_to_{table}` projections into one sqlite file, `kanban.sqlite3`, schema in `priv/repo/migrations`. Each write is announced on `MclKanbanWeb.PubSub` as `BoardsChanged` |
 | `QueryBoards` | QRY app, umbrella | 9 read desks, one directory each: `get_ladder`, `get_boards`, `get_board_by_repo`, `get_card_by_id`, `get_cards_by_holder`, `get_crew`, `get_goal`, `get_next_card_for_agent`, `get_ranked_cards` |
 | `MclKanban.Supervisor` | supervisor, `one_for_one` | `start_link/0`, called by `Service.start/1`. No children: each department supervises its own processes and macula spawns a process per call |
-| `MclKanbanWeb.Endpoint` | Phoenix 1.8, Bandit | Listens on `127.0.0.1:4010` and serves one LiveView, `LadderLive`; `OwnerActions` acts as `Actor.owner()` through the same desks the mesh uses |
+| `MclKanbanWeb.Endpoint` | Phoenix 1.8, Bandit | Listens on `127.0.0.1:4010` by default; the box sets `MCL_HTTP_IP=0.0.0.0`, so it also serves the LAN at `:4010`, with no login. Serves one LiveView, `LadderLive`; `OwnerActions` acts as `Actor.owner()` through the same desks the mesh uses |
 | `mcl_om` | library, `~> 1.4` | `boot/1`: loads the identity key, joins the realm, opens the QUIC pool through the stations, advertises the declared capabilities, serves `/health` on a Unix socket |
 | macula SDK | library, `~> 16.0`, wire 1.0 | QUIC transport, RPC dispatch to a responder that answers by name, and the sealed call path: its own calls are `confidential: :required`, so one in the clear is refused before a responder sees it |
 | Host environment | read at boot; the image sets four defaults | `MCL_DATA_DIR`, `MCL_IDENTITY_KEY_PATH`, `MCL_HTTP_IP`, `MCL_HTTP_PORT` (baked into the image as `ENV`), `MCL_REALM_NAME`, `MCL_REALM_KEY`, `MCL_HTTP_ORIGINS` (extra socket origins; widens `check_origin` beyond the local defaults), `SECRET_KEY_BASE`, `MCL_COOKIE` |

@@ -56,8 +56,8 @@
 <circle class="head" cx="391" cy="54" r="9"/>
 <text class="t-name" x="409" y="58">Owner</text>
 <text class="t-type" x="409" y="76">[Person]</text>
-<text class="t-desc" x="381" y="100">Raf, through his own SSH</text>
-<text class="t-desc" x="381" y="116">tunnel to 127.0.0.1:4010</text>
+<text class="t-desc" x="381" y="100">Raf, at the board's UI on</text>
+<text class="t-desc" x="381" y="116">the LAN at :4010, no login</text>
 <rect class="b-per" x="690" y="30" width="270" height="120" rx="10"/>
 <circle class="head" cx="716" cy="54" r="9"/>
 <text class="t-name" x="734" y="58">Crew agent</text>
@@ -65,14 +65,15 @@
 <text class="t-desc" x="706" y="100">A Claude session holding a</text>
 <text class="t-desc" x="706" y="116">Macula key; claims its next</text>
 <text class="t-desc" x="706" y="132">card in rank order and works it</text>
-<rect class="b-sys" x="365" y="186" width="270" height="152" rx="10"/>
+<rect class="b-sys" x="365" y="186" width="270" height="168" rx="10"/>
 <text class="t-name" x="381" y="214">mcl-kanban</text>
 <text class="t-type" x="381" y="232">[mcl_om service and web UI]</text>
 <text class="t-desc" x="381" y="256">Serves 39 own procedures under</text>
 <text class="t-desc" x="381" y="272">mcl-kanban/*, each a sealed call,</text>
-<text class="t-desc" x="381" y="288">and the owner's LiveView on</text>
-<text class="t-desc" x="381" y="304">127.0.0.1:4010. /health is a Unix</text>
-<text class="t-desc" x="381" y="320">socket, /run/mcl/health.sock</text>
+<text class="t-desc" x="381" y="288">and the owner's LiveView on :4010</text>
+<text class="t-desc" x="381" y="304">(image default 127.0.0.1; the box</text>
+<text class="t-desc" x="381" y="320">serves the LAN). /health is a Unix</text>
+<text class="t-desc" x="381" y="336">socket, /run/mcl/health.sock</text>
 <rect class="b-ext" x="40" y="430" width="270" height="136" rx="10"/>
 <text class="t-name" x="56" y="458">GitHub</text>
 <text class="t-type" x="56" y="476">[External system]</text>
@@ -101,15 +102,15 @@
 <path class="edge" d="M500 134V186" marker-end="url(#a)"/>
 <text class="t-rel" x="508" y="164">works the ladder</text>
 <path class="edge" d="M825 150V168H620V186" marker-end="url(#a)"/>
-<text class="t-rel" x="632" y="160">calls claim_next_card,</text>
-<text class="t-rel" x="632" y="176">or another call</text>
-<path class="edge" d="M460 338V430" marker-end="url(#a)"/>
-<text class="t-rel" x="468" y="384">identity, scope</text>
-<path class="edge" d="M620 338V370H825V430" marker-end="url(#a)"/>
-<text class="t-rel" x="632" y="364">advertises its own procedures</text>
+<text class="t-rel" x="832" y="158">calls claim_next_card,</text>
+<text class="t-rel" x="832" y="174">or another call</text>
+<path class="edge" d="M460 354V430" marker-end="url(#a)"/>
+<text class="t-rel" x="468" y="392">identity, scope</text>
+<path class="edge" d="M620 354V386H825V430" marker-end="url(#a)"/>
+<text class="t-rel" x="632" y="380">advertises its own procedures</text>
 <text class="t-desc" x="40" y="596">The service calls nothing outside the mesh: GitHub is read by scripts/fill_board.sh on the supervisor's</text>
 <text class="t-desc" x="40" y="614">machine, which then calls the board as an ordinary enlisted agent. Nothing deploys it directly either:</text>
-<text class="t-desc" x="40" y="632">macula-fleet pins each signed v* release by digest, and no push moves a tag, so the box runs what was signed.</text>
+<text class="t-desc" x="40" y="632">macula-fleet pins each signed v* release by digest; a push to main publishes :main and :&lt;sha&gt;, and the fleet instead runs the pinned digest.</text>
 <rect class="b-sys" x="24" y="650" width="22" height="14" rx="3"/>
 <text class="t-leg" x="54" y="662">In scope</text>
 <rect class="b-per" x="110.8" y="650" width="22" height="14" rx="3"/>

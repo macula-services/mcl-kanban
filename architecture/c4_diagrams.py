@@ -135,13 +135,13 @@ def context():
           ["Runs scripts/fill_board.sh:", "enlists the crew and mirrors", "GitHub work into packages"],
           person=True)
     d.box("b-per", 365, 30, 270, 104, "Owner", "[Person]",
-          ["Raf, through his own SSH", "tunnel to 127.0.0.1:4010"], person=True)
+          ["Raf, at the board's UI on", "the LAN at :4010, no login"], person=True)
     d.box("b-per", 690, 30, 270, 120, "Crew agent", "[Person]",
           ["A Claude session holding a", "Macula key; claims its next", "card in rank order and works it"],
           person=True)
-    d.box("b-sys", 365, 186, 270, 152, "mcl-kanban", "[mcl_om service and web UI]",
-          ["Serves 39 own procedures under", "mcl-kanban/*, each a sealed call,", "and the owner's LiveView on",
-           "127.0.0.1:4010. /health is a Unix", "socket, /run/mcl/health.sock"])
+    d.box("b-sys", 365, 186, 270, 168, "mcl-kanban", "[mcl_om service and web UI]",
+          ["Serves 39 own procedures under", "mcl-kanban/*, each a sealed call,", "and the owner's LiveView on :4010",
+           "(image default 127.0.0.1; the box", "serves the LAN). /health is a Unix", "socket, /run/mcl/health.sock"])
     d.box("b-ext", 40, 430, 270, 136, "GitHub", "[External system]",
           ["Open issues, the work-package", "label, sub-issues and", "crew:<name> lanes: read by",
            "fill_board.sh, not by the service"])
@@ -156,12 +156,12 @@ def context():
     d.text("t-rel", 288, 160, "enlists, opens, files")
     d.edge("M500 134V186"); d.text("t-rel", 508, 164, "works the ladder")
     d.edge("M825 150V168H620V186")
-    d.text("t-rel", 632, 160, "calls claim_next_card,"); d.text("t-rel", 632, 176, "or another call")
-    d.edge("M460 338V430"); d.text("t-rel", 468, 384, "identity, scope")
-    d.edge("M620 338V370H825V430"); d.text("t-rel", 632, 364, "advertises its own procedures")
+    d.text("t-rel", 832, 158, "calls claim_next_card,"); d.text("t-rel", 832, 174, "or another call")
+    d.edge("M460 354V430"); d.text("t-rel", 468, 392, "identity, scope")
+    d.edge("M620 354V386H825V430"); d.text("t-rel", 632, 380, "advertises its own procedures")
     d.text("t-desc", 40, 596, "The service calls nothing outside the mesh: GitHub is read by scripts/fill_board.sh on the supervisor's")
     d.text("t-desc", 40, 614, "machine, which then calls the board as an ordinary enlisted agent. Nothing deploys it directly either:")
-    d.text("t-desc", 40, 632, "macula-fleet pins each signed v* release by digest, and no push moves a tag, so the box runs what was signed.")
+    d.text("t-desc", 40, 632, "macula-fleet pins each signed v* release by digest; a push to main publishes :main and :<sha>, and the fleet instead runs the pinned digest.")
     d.legend(650, boundary=False)
     d.write()
 
@@ -196,8 +196,9 @@ def components():
     d.box("b-cmp", 56, 710, 456, 120, "QueryBoards", "[QRY app, umbrella]",
           ["9 read desks, one directory each:", "get_ladder, get_boards, get_card_by_id,",
            "get_next_card_for_agent and five more."], code=True)
-    d.box("b-cmp", 536, 710, 456, 120, "MclKanbanWeb.Endpoint", "[Phoenix 1.8, Bandit]",
-          ["Listens on 127.0.0.1:4010 and serves the", "LiveView, LadderLive. OwnerActions acts as",
+    d.box("b-cmp", 536, 710, 456, 152, "MclKanbanWeb.Endpoint", "[Phoenix 1.8, Bandit]",
+          ["Listens on 127.0.0.1:4010 by default; the", "box sets MCL_HTTP_IP=0.0.0.0, so it serves the",
+           "LAN at :4010, no login. One LiveView,", "LadderLive. OwnerActions acts as",
            "Actor.owner() through the same desks."], code=True)
     d.box("b-mac", 56, 870, 456, 120, "mcl_om", "[library, ~> 1.4]",
           ["boot/1: loads the identity key, joins the", "realm, opens the QUIC pool, advertises the",
