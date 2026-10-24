@@ -156,7 +156,7 @@ def context():
     d.text("t-rel", 288, 160, "enlists, opens, files")
     d.edge("M500 134V186"); d.text("t-rel", 508, 164, "works the ladder")
     d.edge("M825 150V168H620V186")
-    d.text("t-rel", 832, 158, "calls claim_next_card,"); d.text("t-rel", 832, 174, "or another call")
+    d.text("t-rel", 832, 184, "calls claim_next_card,"); d.text("t-rel", 832, 200, "or another call")
     d.edge("M460 354V430"); d.text("t-rel", 468, 392, "identity, scope")
     d.edge("M620 354V386H825V430"); d.text("t-rel", 632, 380, "advertises its own procedures")
     d.text("t-desc", 40, 596, "The service calls nothing outside the mesh: GitHub is read by scripts/fill_board.sh on the supervisor's")
