@@ -3,6 +3,23 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- **Signed approvals on a card (#30).** `record_approval` takes a
+  `crew-approval/v1` (a `macula_signed_object` carrying its key, as base64
+  text) and records it as `approval_recorded_v1` with the object verbatim, only
+  when its signature verifies, its signer derives `operator_node_id` and is the
+  appointed operator of the card's home crew right now, it names this card and
+  its repo, and its nonce is new on the card. `kind` is a `range` (`ref`,
+  `base`, `tip`, optional `tag`) or a planning gate (`gate:vision`,
+  `gate:boundary`, `gate:design`, with the plan `issue`); `verdict` is 1 or 0.
+  The signed fields name the card, so a yes cannot be replayed onto another
+  card. `get_approvals(card_id)` returns them, each with its object to
+  re-verify; README "Signed approvals" documents the object and the check.
+  Refs #30.
+
 ## [0.6.0] - 2026-10-26
 
 ### Added

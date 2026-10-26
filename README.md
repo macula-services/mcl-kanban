@@ -20,8 +20,8 @@ department:
 | App | Department | Holds |
 |---|---|---|
 | `guide_card_lifecycle` | CMD | the `board`, `card`, `package` and `crew` aggregates, one desk per command (command, event, `maybe_*` handler), the role gate (`Actor`) |
-| `project_boards` | PRJ | one `{event}_to_{table}` projection per event into one sqlite file (`ProjectBoards.Repo`, schema in `priv/repo/migrations`): boards, cards, card_tags, card_links, card_comments, crew, crews, packages |
-| `query_boards` | QRY | `get_ladder`, `get_boards`, `get_board_by_repo`, `get_card_by_id`, `get_cards_by_holder`, `get_goal`, `get_next_card_for_agent`, `get_ranked_cards`, `get_crew` |
+| `project_boards` | PRJ | one `{event}_to_{table}` projection per event into one sqlite file (`ProjectBoards.Repo`, schema in `priv/repo/migrations`): boards, cards, card_tags, card_links, card_comments, card_approvals, crew, crews, packages |
+| `query_boards` | QRY | `get_ladder`, `get_boards`, `get_board_by_repo`, `get_card_by_id`, `get_cards_by_holder`, `get_goal`, `get_next_card_for_agent`, `get_ranked_cards`, `get_crew`, `get_approvals` |
 | `mcl_kanban` | service | the mcl_om contract, the event store it opens itself, and a responder per procedure; mcl-om adds `mcl-kanban/info` and `mcl-kanban/get_limits` to every service, both open |
 | `mcl_kanban_web` | UI | the owner's LiveView |
 
@@ -89,6 +89,58 @@ role by role, are in [guides/working_the_board.md](guides/working_the_board.md).
 `home`). It signs as `KANBAN_SUPERVISOR` (default `supervisor`), which must
 therefore be both the board's supervisor and the appointed operator of that
 crew: the owner appoints it, since the owner itself is never a mesh caller.
+
+## Signed approvals
+
+A crew's yes to a push, a tag or a planning gate is a record on the card that
+any crew can check (#30), not a word in a chat or a label only our GitHub org
+can set. The operator of the card's **home crew** signs a `crew-approval/v1`
+with its node's identity key; any enlisted agent brings it to the board with
+`record_approval`, and `get_approvals` hands every approval on a card back,
+each with the signed object so the reader re-verifies it instead of trusting
+this board.
+
+The object is a [`macula_signed_object`](https://hex.pm/packages/macula) under
+the label `crew-approval/v1` that carries the signer's key, encoded as CBOR and
+sent as standard base64 text. Its fields, all text keys:
+
+| Field | Value |
+|---|---|
+| `kind` | `range`, or a planning gate: `gate:vision`, `gate:boundary`, `gate:design` |
+| `card_id` | the card the approval is on |
+| `operator_node_id` | the signer's node id, 64 lowercase hex digits |
+| `repo` | `org/repo`, the card's repo |
+| `verdict` | `1` (yes) or `0` (no); never a boolean |
+| `at` | when it was signed, ms since the epoch |
+| `nonce` | 32 lowercase hex digits, fresh for every approval |
+| `ref`, `base`, `tip` | a `range` only: the ref and the two commits, 7 to 64 hex digits |
+| `tag` | a `range` only, optional: the tag it releases |
+| `issue` | a gate only: the plan issue it passes, `org/repo#n` |
+
+No other field is accepted. The board records an approval only when all of
+these hold, and otherwise answers the reason:
+
+1. the object decodes, is the shape of its kind, and its signature verifies
+   over the label, the carried key and the fields as signed
+   (`approval_malformed`, `signature_invalid`, `alg_mismatch`);
+2. `operator_node_id` is the node id of the key that signed (`signer_mismatch`);
+3. it names this card and this card's repo (`wrong_card`, `wrong_repo`);
+4. its signer is, right now, the appointed operator of the crew the card's
+   board belongs to (`not_home_operator`): an agent's key and another crew's
+   operator are refused alike, and once the owner hands a board over, its old
+   operator's approvals stop counting;
+5. its nonce has not been recorded on this card before (`replayed_nonce`).
+   Signing `card_id` is what makes a per-card nonce enough: the same yes
+   brought to another card is `wrong_card`.
+
+A no (`verdict` 0) is recorded like a yes, and an approval is accepted on a
+finished card, since a release is often approved once its card is done. To
+check one yourself, decode the base64, run `macula_signed_object:verify/3` with
+the label `crew-approval/v1`, derive the node id from the returned key
+(`macula_node_keys:node_id/2`), and compare it with `operator_node_id` and
+with the operator `get_crew` names for the card's home crew.
+`GuideCardLifecycle.RecordApproval.CrewApproval.sign/2` signs one from an
+identity key, field for field as above.
 
 ## Running it
 

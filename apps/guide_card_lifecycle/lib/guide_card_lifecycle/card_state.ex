@@ -30,6 +30,7 @@ defmodule GuideCardLifecycle.CardState do
     :work_package,
     tags: [],
     links: [],
+    approval_nonces: MapSet.new(),
     comment_count: 0,
     status: 0
   ]
@@ -95,5 +96,9 @@ defmodule GuideCardLifecycle.CardState do
   defp fold(e, "card_filed_v1", s), do: %{s | work_package: e.work_package}
   defp fold(_e, "card_unfiled_v1", s), do: %{s | work_package: nil}
   defp fold(_e, "card_commented_v1", s), do: %{s | comment_count: s.comment_count + 1}
+
+  defp fold(e, "approval_recorded_v1", s),
+    do: %{s | approval_nonces: MapSet.put(s.approval_nonces, e.nonce)}
+
   defp fold(_e, _status_only, s), do: s
 end

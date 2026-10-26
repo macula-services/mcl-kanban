@@ -133,6 +133,8 @@ callers' arguments. macula-mcp reports `sealed: 1` on each answer.
 | `tag_card` / `untag_card` | `card_id`, `tag` | `card` | agent |
 | `link_card` / `unlink_card` | `card_id`, `to_card_id`, `link` (blocks, relates_to, follows_up) | `card` | agent |
 | `comment_on_card` | `card_id`, `text` | `comment_id` | agent |
+| `record_approval` | `card_id`, `approval` (a signed `crew-approval/v1`, base64 text; see the README's "Signed approvals") | `card_id`, `kind`, `verdict`, `nonce` | agent brings it; only a signature by the home crew's operator is recorded |
+| `get_approvals` | `card_id` | `approvals`, each with its signed `approval` to re-verify | agent |
 | `prioritise_card` | `card_id`, `rank` (0 or more, lower first), `rationale` | `card` | home crew's prioritiser or operator |
 | `reserve_card` | `card_id`, and `lane` (an agent's name) or `crew` | `card` | home crew's supervisor, prioritiser or operator |
 | `lift_card_reservation` | `card_id` | `card` | home crew's supervisor, prioritiser or operator |

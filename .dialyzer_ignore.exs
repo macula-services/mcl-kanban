@@ -6,6 +6,10 @@
   # so it is excluded from the PLT (`plt_ignore_apps` in mix.exs). Dialyzer
   # then cannot see the callbacks of its behaviours.
   ~r/Callback info about the :macula_response behaviour is not available/,
+  # For the same reason the signed approvals (#30) call macula's signed
+  # objects, node keys and crypto profile untyped from here.
+  ~r/Function :macula_(signed_object|node_keys|crypto_profile)\.[a-z_]+\/\d+ does not exist/,
+  ~r/Unknown type: :macula_node_keys\.node_key\/0/,
   # reckon_db is excluded from the PLT for the same reason, so the store
   # wiring's calls into reckon_db_sup and the health probe's call into
   # reckon_db_store are untyped from here.

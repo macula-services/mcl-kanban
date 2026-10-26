@@ -11,6 +11,7 @@ defmodule MclKanban.BoardOverMeshTest do
   alias GuideCardLifecycle.AppointSupervisor.{AppointSupervisorV1, MaybeAppointSupervisor}
   alias GuideCardLifecycle.EnlistAgent.{EnlistAgentV1, MaybeEnlistAgent}
   alias GuideCardLifecycle.HandOverBoard.{HandOverBoardV1, MaybeHandOverBoard}
+  alias GuideCardLifecycle.RecordApproval.CrewApproval
 
   alias MclKanban.AdoptGoal.AdoptGoalResponder
   alias MclKanban.ArchiveBoard.ArchiveBoardResponder
@@ -24,6 +25,7 @@ defmodule MclKanban.BoardOverMeshTest do
   alias MclKanban.EnlistAgent.EnlistAgentResponder
   alias MclKanban.FileCard.FileCardResponder
   alias MclKanban.FinishCard.FinishCardResponder
+  alias MclKanban.GetApprovals.GetApprovalsResponder
   alias MclKanban.GetBoards.GetBoardsResponder
   alias MclKanban.GetCardById.GetCardByIdResponder
   alias MclKanban.GetCrew.GetCrewResponder
@@ -34,6 +36,7 @@ defmodule MclKanban.BoardOverMeshTest do
   alias MclKanban.OpenPackage.OpenPackageResponder
   alias MclKanban.PrioritisePackage.PrioritisePackageResponder
   alias MclKanban.QueueCard.QueueCardResponder
+  alias MclKanban.RecordApproval.RecordApprovalResponder
   alias MclKanban.ReserveCard.ReserveCardResponder
   alias MclKanban.ResumeBoard.ResumeBoardResponder
   alias MclKanban.ResumeCard.ResumeCardResponder
@@ -549,5 +552,102 @@ defmodule MclKanban.BoardOverMeshTest do
 
     assert %{card: %{card_id: ^id}, goal: "So the goal ships"} =
              call(ClaimNextCardResponder, bob, %{})
+  end
+
+  # #30: a crew founded with an operator whose node id derives from a real
+  # identity key, so its signed approval verifies over the mesh.
+  defp crew_with_signing_operator(crew) do
+    {:ok, profile} = :macula_crypto_profile.configured()
+    {:ok, key} = :macula_node_keys.generate(:identity, profile)
+    {:ok, id} = :macula_node_keys.node_id(key)
+    node = Base.encode16(id, case: :lower)
+    name = "op" <> uniq()
+
+    {:ok, found} = EnlistAgentV1.new(%{name: name, node_id: node, crew: crew, by: Actor.owner()})
+    {:ok, _, _} = MaybeEnlistAgent.dispatch(found)
+    {:ok, operator} = AppointOperatorV1.new(%{crew: crew, name: name, by: Actor.owner()})
+    {:ok, _, _} = MaybeAppointOperator.dispatch(operator)
+    %{key: key, node: node, id: id}
+  end
+
+  defp signed_range(op, card_id, repo) do
+    %{
+      kind: "range",
+      card_id: card_id,
+      operator_node_id: op.node,
+      repo: repo,
+      ref: "main",
+      base: "5d2a04fc9453637693e8c8aeb4a434fcb4947af1",
+      tip: "1d44f85d3eb7bdd81a3c0bc30b1d810b93eb4910",
+      verdict: 1,
+      at: System.system_time(:millisecond),
+      nonce: :crypto.strong_rand_bytes(16) |> Base.encode16(case: :lower)
+    }
+    |> CrewApproval.sign(op.key)
+    |> Base.encode64()
+  end
+
+  defp raw_call(responder, caller_id, args) do
+    {:ok, state} = responder.init([])
+
+    payload =
+      args
+      |> Map.new(fn {k, v} -> {{:text, to_string(k)}, text(v)} end)
+      |> Map.put(:caller, caller_id)
+
+    {:reply, reply, _} = responder.handle_request(payload, state)
+    plain(reply)
+  end
+
+  test "the home crew operator's signed yes is recorded over the mesh, and any crew re-verifies it (#30)",
+       %{sup: sup} do
+    signers = "signers" <> uniq()
+    others = "others" <> uniq()
+    op = crew_with_signing_operator(signers)
+    other_op = crew_with_signing_operator(others)
+
+    board = "example-org/signed" <> uniq()
+    assert %{board: %{home_crew: ^signers}} = raw_call(OpenBoardResponder, op.id, %{repo: board})
+    card = queue(sup, board, 30)
+    yes = signed_range(op, card, board)
+
+    # Anyone enlisted brings it; the reply follows the read.
+    assert %{card_id: ^card, kind: "range", verdict: 1} =
+             call(RecordApprovalResponder, sup, %{card_id: card, approval: yes})
+
+    assert %{approvals: [%{approval: ^yes, operator_node_id: node, verdict: 1}]} =
+             raw_call(GetApprovalsResponder, other_op.id, %{card_id: card})
+
+    assert node == op.node
+    assert {:ok, %{"card_id" => ^card}} = yes |> Base.decode64!() |> CrewApproval.read()
+
+    assert %{reason: "replayed_nonce"} =
+             call(RecordApprovalResponder, sup, %{card_id: card, approval: yes})
+
+    assert %{reason: "not_home_operator"} =
+             call(RecordApprovalResponder, sup, %{
+               card_id: card,
+               approval: signed_range(other_op, card, board)
+             })
+
+    # The operator is read live: once the owner hands the board to the other
+    # crew, the first operator's yes no longer counts, and the other's does.
+    {:ok, hand} = HandOverBoardV1.new(%{repo: board, crew: others, by: Actor.owner()})
+    {:ok, _, _} = MaybeHandOverBoard.dispatch(hand)
+
+    assert %{reason: "not_home_operator"} =
+             call(RecordApprovalResponder, sup, %{
+               card_id: card,
+               approval: signed_range(op, card, board)
+             })
+
+    assert %{verdict: 1} =
+             call(RecordApprovalResponder, sup, %{
+               card_id: card,
+               approval: signed_range(other_op, card, board)
+             })
+
+    assert %{reason: "approval_malformed"} =
+             call(RecordApprovalResponder, sup, %{card_id: card, approval: "not base64!"})
   end
 end

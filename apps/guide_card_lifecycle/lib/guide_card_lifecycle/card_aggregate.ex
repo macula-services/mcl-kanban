@@ -4,7 +4,7 @@ defmodule GuideCardLifecycle.CardAggregate do
   #
   # Blanket rules before any desk: a card that was never queued is
   # unknown_card; a finished or withdrawn card refuses everything except
-  # tags, links and comments.
+  # tags, links, comments and approvals.
   #
   # A card follows its board's home crew (#29), and the owner may hand a
   # board over, so dispatch/3 reads the board's crew live and puts it on the
@@ -31,6 +31,7 @@ defmodule GuideCardLifecycle.CardAggregate do
   alias GuideCardLifecycle.LinkCard.MaybeLinkCard
   alias GuideCardLifecycle.PrioritiseCard.MaybePrioritiseCard
   alias GuideCardLifecycle.QueueCard.MaybeQueueCard
+  alias GuideCardLifecycle.RecordApproval.MaybeRecordApproval
   alias GuideCardLifecycle.ReclassifyCard.MaybeReclassifyCard
   alias GuideCardLifecycle.ReleaseCard.MaybeReleaseCard
   alias GuideCardLifecycle.ReserveCard.MaybeReserveCard
@@ -64,10 +65,18 @@ defmodule GuideCardLifecycle.CardAggregate do
     file_card: MaybeFileCard,
     unfile_card: MaybeUnfileCard,
     defer_card: MaybeDeferCard,
-    resume_card: MaybeResumeCard
+    resume_card: MaybeResumeCard,
+    record_approval: MaybeRecordApproval
   }
 
-  @after_close [:tag_card, :untag_card, :link_card, :unlink_card, :comment_on_card]
+  @after_close [
+    :tag_card,
+    :untag_card,
+    :link_card,
+    :unlink_card,
+    :comment_on_card,
+    :record_approval
+  ]
 
   @doc "The card as the live aggregate holds it now."
   @spec current(String.t()) :: CardState.t()

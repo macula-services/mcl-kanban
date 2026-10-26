@@ -22,6 +22,7 @@ defmodule ProjectBoards.Application do
     ProjectBoards.CardClaimedV1ToCards,
     ProjectBoards.CardDeferredV1ToCards,
     ProjectBoards.CardCommentedV1ToCardComments,
+    ProjectBoards.ApprovalRecordedV1ToCardApprovals,
     ProjectBoards.CardFiledV1ToCards,
     ProjectBoards.CardFinishedV1ToCards,
     ProjectBoards.CardLinkedV1ToCardLinks,
