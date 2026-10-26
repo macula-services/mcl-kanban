@@ -68,7 +68,7 @@ appointing one is the owner's alone.
 - `enlist_agent` takes `name`, `node_id` and `crew`; `discharge_agent` and
   `appoint_operator` (`crew`, `name`) are the rest of the roster.
 - `get_crew` answers `%{crews: [%{crew, operator, agents}]}`, each agent with
-  its `roles`, the cards it `held`s and its `next` card. Enlisted callers only,
+  its `roles`, the cards it holds and its `next` card. Enlisted callers only,
   like every read.
 - Agents enlisted before crews existed are in the crew named `home`: their
   events are left as they were, and the read model reads them as `home`.
@@ -76,7 +76,10 @@ appointing one is the owner's alone.
   founds it**: enlist the first agent into the new crew, then appoint it
   operator -- the enlist dialog does both in one step.
 
-`scripts/fill_board.sh` enlists under the home crew unless a crew is given.
+`scripts/fill_board.sh` enlists every agent into `KANBAN_CREW` (default
+`home`). It signs as `KANBAN_SUPERVISOR` (default `supervisor`), which must
+therefore be both the board's supervisor and the appointed operator of that
+crew: the owner appoints it, since the owner itself is never a mesh caller.
 
 ## Running it
 
@@ -110,14 +113,14 @@ queues a card on a board, `Esc` closes the card drawer.
 
 ## Filling the board
 
-`scripts/fill_board.sh`, run by the supervisor, makes the board match the crew
-and GitHub: every crew agent enlisted under the node id of its
+`scripts/fill_board.sh` makes the board match the crew and GitHub: every crew
+agent enlisted into `KANBAN_CREW` under the node id of its
 `MACULA_MCP_AGENT` key, a board per repo with open work, a package per open
 `work-package` issue with its own card and its open sub-issues filed in it, and
 a `crew:<name>` label as a reservation to that lane.
 Rerunning it changes nothing. The header of the script lists its inputs
-(`KANBAN_REALM_KEY` is required; `KANBAN_SUPERVISOR`, `KANBAN_ORGS`,
-`KANBAN_ROLE_DIR` have defaults).
+(`KANBAN_REALM_KEY` is required; `KANBAN_SUPERVISOR`, `KANBAN_CREW`,
+`KANBAN_ORGS`, `KANBAN_ROLE_DIR` have defaults).
 
 ## Development
 

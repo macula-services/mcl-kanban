@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # This exists so the board fills itself: every crew agent enlisted under its
 # stable node id, every open work package a package with its own card and its
-# open sub-issues filed in it, every crew:<name> label that agent's lane. Run
-# by the supervisor; idempotent, so a rerun changes nothing.
+# open sub-issues filed in it, every crew:<name> label that agent's lane.
+# Idempotent, so a rerun changes nothing.
 #
 # Usage: fill_board.sh [Name ...]
 #
@@ -12,10 +12,16 @@
 # macula-mcp uses when launched with MACULA_MCP_AGENT=<name>. An agent without
 # a key file yet is skipped (it has not run under its name); a rerun picks it up.
 #
-# Calls go out as the supervisor, signed with
+# The crew it enlists them into is $KANBAN_CREW (default home).
+#
+# Calls go out as one identity, signed with
 # ~/.config/macula-mcp/keys/agent-$KANBAN_SUPERVISOR.key (default supervisor),
-# through macula-cli. The supervisor must be enlisted and appointed by the
-# owner first (the owner's UI).
+# through macula-cli. Enlisting belongs to a crew's own operator (#28), so that
+# identity must be the operator of $KANBAN_CREW; it must also be the board's
+# supervisor, which opens boards and packages and files and reserves cards. The
+# owner is never a mesh caller -- it acts only through its web UI -- so the
+# owner appoints this identity: enlist it in the UI, then appoint it operator of
+# the crew the script fills.
 #
 # The realm key: KANBAN_REALM_KEY names a file holding io.macula's public
 # realm key in hex, the same value the service runs with (MCL_REALM_KEY).
@@ -41,6 +47,7 @@ set -euo pipefail
 
 keys="$HOME/.config/macula-mcp/keys"
 supervisor=${KANBAN_SUPERVISOR:-supervisor}
+crew_name=${KANBAN_CREW:-home}
 orgs=${KANBAN_ORGS:-macula-io macula-services macula-internal reckon-db-org}
 role_dir=${KANBAN_ROLE_DIR:-$HOME/.claude/sessions}
 realm_key=${KANBAN_REALM_KEY:-}
@@ -94,11 +101,13 @@ for name in "${crew[@]}"; do
   key="$keys/agent-${name,,}.key"
   [ -f "$key" ] || { echo "skip $name: no key yet ($key)"; continue; }
   node_id=$(macula-cli identity -json -identity "$key" | jq -r '.data.node_id')
-  r=$(reason "$(call enlist_agent "$(jq -nc --arg n "$name" --arg i "$node_id" '{name: $n, node_id: $i}')")")
+  r=$(reason "$(call enlist_agent "$(jq -nc --arg n "$name" --arg i "$node_id" --arg c "$crew_name" '{name: $n, node_id: $i, crew: $c}')")")
   case "$r" in
-    "") echo "enlisted $name ${node_id:0:12}" ;;
+    "") echo "enlisted $name ${node_id:0:12} into $crew_name" ;;
     already_enlisted) echo "on the crew $name ${node_id:0:12}" ;;
     name_taken) fail "$name is enlisted under another node id; discharge it, then rerun to enlist ${node_id:0:12}" ;;
+    not_permitted) fail "enlist $name: not_permitted; appoint $supervisor operator of $crew_name in the owner's UI (#28: enlisting is the crew's own operator's)" ;;
+    invalid_crew) fail "enlist $name: invalid_crew; KANBAN_CREW='$crew_name' is not a crew name (a letter, then letters, digits, - and _)" ;;
     *) fail "enlist $name: $r" ;;
   esac
 done
