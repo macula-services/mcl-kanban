@@ -24,7 +24,8 @@ defmodule QueryBoards.QueriesTest do
     on_exit(fn ->
       :ok =
         ProjectBoards.ReadModel.write(
-          for t <- ~w(cards card_tags card_links card_comments boards crew packages crew_goal
+          for t <-
+                ~w(cards card_tags card_links card_comments boards crew crews packages crew_goal
                       crew_goal_packages),
               do: {"DELETE FROM " <> t, []}
         )
@@ -253,7 +254,51 @@ defmodule QueryBoards.QueriesTest do
 
     name = "q" <> uniq()
     deliver(%{event_type: "agent_enlisted_v1", node_id: node, name: name, at: 1}, 0)
-    assert Enum.any?(GetCrew.get_crew(), &(&1.name == name and &1.roles == ["agent"]))
+
+    assert [%{crew: "home", operator: nil, agents: agents}] =
+             Enum.filter(GetCrew.get_crew(), &(&1.crew == "home"))
+
+    assert Enum.any?(agents, &(&1.name == name and &1.roles == ["agent"]))
+  end
+
+  test "get_crew groups its agents by crew and names the operator of each (#28)" do
+    first = "first" <> uniq()
+    second = "second" <> uniq()
+    one = hex32("one" <> first)
+    two = hex32("two" <> second)
+
+    deliver(
+      %{event_type: "agent_enlisted_v1", node_id: one, name: "one" <> uniq(), crew: first, at: 1},
+      0
+    )
+
+    deliver(
+      %{
+        event_type: "agent_enlisted_v1",
+        node_id: two,
+        name: "two" <> uniq(),
+        crew: second,
+        at: 2
+      },
+      0
+    )
+
+    deliver(
+      %{event_type: "operator_appointed_v1", crew: first, node_id: one, name: "whoever", at: 3},
+      0
+    )
+
+    crews = GetCrew.get_crew()
+
+    assert %{crew: ^first, agents: [agent], operator: %{node_id: ^one}} =
+             Enum.find(crews, &(&1.crew == first))
+
+    assert agent.node_id == one
+    assert "operator" in agent.roles
+
+    # A crew with agents and no operator names none, rather than a node id.
+    assert %{crew: ^second, agents: [_], operator: nil} =
+             Enum.find(crews, &(&1.crew == second))
   end
 
   defp package(ref, rank, version \\ 1, pinned \\ 0) do
@@ -474,7 +519,11 @@ defmodule QueryBoards.QueriesTest do
       1
     )
 
-    agent = Enum.find(GetCrew.get_crew(), &(&1.node_id == node))
+    agent =
+      GetCrew.get_crew()
+      |> Enum.flat_map(& &1.agents)
+      |> Enum.find(&(&1.node_id == node))
+
     assert Enum.sort(Enum.map(agent.held, & &1.card_id)) == Enum.sort([held, stuck])
     assert agent.next.card_id == next
   end

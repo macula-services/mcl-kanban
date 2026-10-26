@@ -168,6 +168,9 @@ kbd{font-family:inherit;font-size:11px;font-weight:600;color:var(--ink-2);backgr
 .rail .keys{margin:22px 6px 0;font-size:12px;color:var(--mute)}
 .rail .keys dl{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;margin:8px 0 0}
 .rail .keys dd{margin:0}
+.rail .crewgroup{margin:0 0 10px}
+.rail .crewgroup h3{display:flex;align-items:center;gap:6px;margin:6px 6px 2px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+.rail .crewgroup h3 .whoop{font-size:10px;font-weight:600;letter-spacing:.02em;text-transform:none;padding:1px 5px;border-radius:3px;background:var(--panel-2);border:1px solid var(--line);color:var(--ink-2)}
 
 /* drawer */
 .drawer{position:fixed;top:0;right:0;bottom:0;width:min(460px,100vw);background:var(--panel);border-left:1px solid var(--line);box-shadow:var(--shadow);z-index:20;transform:translateX(100%);transition:transform .18s ease-out;display:flex;flex-direction:column}

@@ -31,7 +31,8 @@ defmodule GuideCardLifecycle.AppointOperator.MaybeAppointOperator do
         {:error, :already_appointed}
 
       true ->
-        {:ok, [OperatorAppointedV1.new(cmd.by, cmd.crew, node_id, CrewState.name_of(crew, node_id))]}
+        {:ok,
+         [OperatorAppointedV1.new(cmd.by, cmd.crew, node_id, CrewState.name_of(crew, node_id))]}
     end
   end
 

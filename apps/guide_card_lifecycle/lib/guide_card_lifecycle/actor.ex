@@ -72,7 +72,8 @@ defmodule GuideCardLifecycle.Actor do
         appointed(crew.prioritiser == hex, :prioritiser) ++
         appointed(CrewState.operator_of(crew, agent.crew) == hex, :operator)
 
-    {:ok, %__MODULE__{kind: :agent, name: agent.name, node_id: hex, crew: agent.crew, roles: roles}}
+    {:ok,
+     %__MODULE__{kind: :agent, name: agent.name, node_id: hex, crew: agent.crew, roles: roles}}
   end
 
   defp appointed(true, role), do: [role]

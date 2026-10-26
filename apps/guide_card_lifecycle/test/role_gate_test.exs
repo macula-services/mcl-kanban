@@ -95,6 +95,37 @@ defmodule GuideCardLifecycle.RoleGateTest do
     refute Actor.allowed?(Actor.owner(), [:agent])
   end
 
+  test "an operator's role comes from its crew, and bound to that crew it runs (#28)" do
+    assert {:ok, %Actor{roles: roles, crew: "home"} = bob} =
+             Actor.from_crew(crews(), node_id("bob"))
+
+    assert Enum.sort(roles) == [:agent, :operator]
+    assert Actor.commands_crew?(bob, "home")
+    refute Actor.commands_crew?(bob, "night")
+
+    assert {:ok, %Actor{roles: [:agent, :operator]}} = Actor.from_crew(crews(), node_id("eve"))
+  end
+
+  test "the owner commands every crew; no agent role alone does (#28)" do
+    assert Actor.commands_crew?(Actor.owner(), "home")
+    assert Actor.commands_crew?(Actor.owner(), "a crew that does not exist yet")
+
+    refute Actor.commands_crew?(actor("ada"), "home")
+    refute Actor.commands_crew?(actor("pia"), "home")
+    refute Actor.commands_crew?(actor("bob"), "home")
+  end
+
+  test "an operator that holds a second role keeps it alongside operator" do
+    crew =
+      CrewState.apply_event(crews(), %{
+        event_type: "prioritiser_appointed_v1",
+        node_id: hex("bob")
+      })
+
+    {:ok, %Actor{roles: roles}} = Actor.from_crew(crew, node_id("bob"))
+    assert Enum.sort(roles) == [:agent, :operator, :prioritiser]
+  end
+
   test "an actor's record names who acted and how" do
     assert %{by: "bob", by_kind: "agent", by_node_id: node} = Actor.record(actor("bob"))
     assert node == hex("bob")

@@ -1,5 +1,7 @@
 defmodule MclKanban.DischargeAgent.DischargeAgentResponder do
-  # mcl-kanban/discharge_agent: name. The supervisor discharges an agent (never the supervisor). Replies the agent.
+  # mcl-kanban/discharge_agent: name. A crew's own operator — or the owner —
+  # discharges an agent of that crew (#28), never the supervisor. Replies the
+  # agent.
   @moduledoc false
 
   @behaviour :macula_response

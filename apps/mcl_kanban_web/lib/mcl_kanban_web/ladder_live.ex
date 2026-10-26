@@ -266,7 +266,7 @@ defmodule MclKanbanWeb.LadderLive do
   def handle_event("validate_enlist", params, socket),
     do:
       {:noreply,
-       assign(socket, values: params, enlist: enlist_hints(params, socket.assigns.crew))}
+       assign(socket, values: params, enlist: enlist_hints(params, agents(socket.assigns.crew)))}
 
   def handle_event("enlist", params, socket) do
     socket
@@ -284,6 +284,12 @@ defmodule MclKanbanWeb.LadderLive do
     do:
       outcome(socket, OwnerActions.appoint_prioritiser(name), fn ->
         "<b>#{esc(name)}</b> is the prioritiser"
+      end)
+
+  def handle_event("appoint", %{"name" => name, "role" => "operator", "crew" => crew}, socket),
+    do:
+      outcome(socket, OwnerActions.appoint_operator(crew, name), fn ->
+        "<b>#{esc(name)}</b> runs the <b>#{esc(crew)}</b> crew: it enlists and discharges there."
       end)
 
   def handle_event("discharge", %{"name" => name}, socket),
@@ -530,12 +536,25 @@ defmodule MclKanbanWeb.LadderLive do
     end
   end
 
-  defp enlisted(%{"name" => name, "role" => role}) when role in ["supervisor", "prioritiser"],
+  defp enlisted(%{"name" => name, "role" => role, "crew" => crew})
+       when role in ["supervisor", "prioritiser"],
+       do:
+         "<b>#{esc(name)}</b> enlisted in <b>#{esc(crew)}</b> and appointed #{role}. Ask it to call <b>claim_next_card</b>."
+
+  defp enlisted(%{"name" => name, "role" => "operator", "crew" => crew}),
     do:
-      "<b>#{esc(name)}</b> enlisted and appointed #{role}. Ask it to call <b>claim_next_card</b>."
+      "<b>#{esc(name)}</b> enlisted in <b>#{esc(crew)}</b> and runs it: it enlists and discharges there."
+
+  defp enlisted(%{"name" => name, "crew" => crew}),
+    do:
+      "<b>#{esc(name)}</b> enlisted in <b>#{esc(crew)}</b>. Ask it to call <b>claim_next_card</b>."
 
   defp enlisted(%{"name" => name}),
     do: "<b>#{esc(name)}</b> enlisted. Ask it to call <b>claim_next_card</b>."
+
+  # The crews as get_crew returns them (#28), and their agents as one list:
+  # the hints and the lane pickers read agents, the rail reads the crews.
+  defp agents(crews), do: Enum.flat_map(crews, & &1.agents)
 
   defp dialog("reason", p), do: {:reason, p["action"]}
   defp dialog("reserve_for", p), do: {:reserve_for, p["name"]}

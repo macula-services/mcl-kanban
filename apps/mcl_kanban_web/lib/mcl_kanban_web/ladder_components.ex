@@ -102,6 +102,8 @@ defmodule MclKanbanWeb.LadderComponents do
   # ---------- the page ----------
 
   def ladder_page(assigns) do
+    assigns = assign(assigns, agents: Enum.flat_map(assigns.crew, & &1.agents))
+
     ~H"""
     <div id="keys" phx-hook="Keys" data-view={@nav["view"]}>
       <.top_bar nav={@nav} cards={@cards} />
@@ -129,13 +131,13 @@ defmodule MclKanbanWeb.LadderComponents do
             <.empty :if={@groups == [] or Enum.all?(@groups, &(&1.cards == [] and &1.kind != :package))} nav={@nav} boards={@boards} />
           </div>
         </main>
-        <.crew_rail crew={@crew} now={@now} />
+        <.crew_rail crews={@crew} now={@now} />
       </div>
-      <.drawer card={@card} by_id={@by_id} crew={@crew} packages={@packages} />
+      <.drawer card={@card} by_id={@by_id} agents={@agents} packages={@packages} />
       <div class="toasts" id="toasts" aria-live="polite">
         <.toast :for={t <- @toasts} toast={t} />
       </div>
-      <.dialogs dialog={@dialog} enlist={@enlist} values={@values} boards={@boards} card={@card} cards={@cards} crew={@crew} packages={@packages} goal={@goal} />
+      <.dialogs dialog={@dialog} enlist={@enlist} values={@values} boards={@boards} card={@card} cards={@cards} agents={@agents} crews={@crew} packages={@packages} goal={@goal} />
     </div>
     """
   end
@@ -530,41 +532,49 @@ defmodule MclKanbanWeb.LadderComponents do
 
   # ---------- crew rail ----------
 
-  attr(:crew, :list, required: true)
+  attr(:crews, :list, required: true)
   attr(:now, :integer, required: true)
 
   def crew_rail(assigns) do
     ~H"""
     <aside class="rail" aria-label="Crew on duty">
       <h2>Crew on duty</h2>
-      <p :if={@crew == []} class="doing idle">Nobody is enlisted yet. Enlist an agent by the node id its MACULA_MCP_AGENT key signs with, then appoint a supervisor.</p>
-      <ul class="crew">
-        <li :for={a <- @crew}>
-          <span class="av" style={"--c:" <> avatar(a.name)}>{initial(a.name)}</span>
-          <span class="who">
-            {a.name}
-            <span :for={r <- a.roles -- ["agent"]} class={["role", r == "supervisor" && "sup"]}>{r}</span>
-            <details class="menu">
-              <summary aria-label={"Actions for " <> a.name}>⋯</summary>
-              <div class="menu-list" role="menu">
-                <button :if={"supervisor" not in a.roles} type="button" role="menuitem" phx-click="appoint" phx-value-name={a.name} phx-value-role="supervisor">Appoint supervisor</button>
-                <button :if={"prioritiser" not in a.roles} type="button" role="menuitem" phx-click="appoint" phx-value-name={a.name} phx-value-role="prioritiser">Appoint prioritiser</button>
-                <button type="button" role="menuitem" phx-click="open_dialog" phx-value-dialog="reserve_for" phx-value-name={a.name}>Reserve a card</button>
-                <button :if={"supervisor" not in a.roles} type="button" role="menuitem" class="danger" data-discharge={a.name}
-                  phx-click="discharge" phx-value-name={a.name} data-confirm={"Discharge #{a.name}? Its cards stay where they are."}>Discharge</button>
-              </div>
-            </details>
-          </span>
-          <span class="doings">
-            <span :if={a.held == []} class="doing idle">idle · next in lane: {if a.next, do: short_ref(a.next.issue_ref), else: "nothing reserved"}</span>
-            <span :for={c <- a.held} class={["doing", c.state == "blocked" && "blk"]}>
-              <span class={"dot " <> if(c.state == "blocked", do: "blocked", else: "live")}></span>
-              <b tabindex="0" role="link" phx-click="open" phx-value-card={c.card_id}>{short_ref(c.issue_ref)}</b>
-              {if c.state == "blocked", do: "blocked", else: since(c.claimed_at, @now)}
+      <p :if={@crews == []} class="doing idle">Nobody is enlisted yet. Enlist an agent by the node id its MACULA_MCP_AGENT key signs with, then appoint a supervisor.</p>
+      <section :for={c <- @crews} class="crewgroup" data-crew={c.crew}>
+        <h3>
+          {c.crew}
+          <span :if={c.operator} class="whoop">operator {c.operator.name}</span>
+          <span :if={c.operator == nil and c.agents != []} class="doing idle">no operator</span>
+        </h3>
+        <ul class="crew">
+          <li :for={a <- c.agents}>
+            <span class="av" style={"--c:" <> avatar(a.name)}>{initial(a.name)}</span>
+            <span class="who">
+              {a.name}
+              <span :for={r <- a.roles -- ["agent"]} class={["role", r == "supervisor" && "sup"]}>{r}</span>
+              <details class="menu">
+                <summary aria-label={"Actions for " <> a.name}>⋯</summary>
+                <div class="menu-list" role="menu">
+                  <button :if={"supervisor" not in a.roles} type="button" role="menuitem" phx-click="appoint" phx-value-name={a.name} phx-value-role="supervisor">Appoint supervisor</button>
+                  <button :if={"prioritiser" not in a.roles} type="button" role="menuitem" phx-click="appoint" phx-value-name={a.name} phx-value-role="prioritiser">Appoint prioritiser</button>
+                  <button :if={op(c.operator) != a.node_id} type="button" role="menuitem" phx-click="appoint" phx-value-name={a.name} phx-value-role="operator" phx-value-crew={c.crew}>Appoint operator of {c.crew}</button>
+                  <button type="button" role="menuitem" phx-click="open_dialog" phx-value-dialog="reserve_for" phx-value-name={a.name}>Reserve a card</button>
+                  <button :if={"supervisor" not in a.roles} type="button" role="menuitem" class="danger" data-discharge={a.name}
+                    phx-click="discharge" phx-value-name={a.name} data-confirm={"Discharge #{a.name}? Its cards stay where they are."}>Discharge</button>
+                </div>
+              </details>
             </span>
-          </span>
-        </li>
-      </ul>
+            <span class="doings">
+              <span :if={a.held == []} class="doing idle">idle · next in lane: {if a.next, do: short_ref(a.next.issue_ref), else: "nothing reserved"}</span>
+              <span :for={card <- a.held} class={["doing", card.state == "blocked" && "blk"]}>
+                <span class={"dot " <> if(card.state == "blocked", do: "blocked", else: "live")}></span>
+                <b tabindex="0" role="link" phx-click="open" phx-value-card={card.card_id}>{short_ref(card.issue_ref)}</b>
+                {if card.state == "blocked", do: "blocked", else: since(card.claimed_at, @now)}
+              </span>
+            </span>
+          </li>
+        </ul>
+      </section>
       <button type="button" class="enlist" id="enlist-btn" phx-click="open_dialog" phx-value-dialog="enlist">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Enlist an agent
       </button>
@@ -581,11 +591,14 @@ defmodule MclKanbanWeb.LadderComponents do
     """
   end
 
+  defp op(nil), do: nil
+  defp op(operator), do: operator.node_id
+
   # ---------- drawer ----------
 
   attr(:card, :map, default: nil)
   attr(:by_id, :map, required: true)
-  attr(:crew, :list, required: true)
+  attr(:agents, :list, required: true)
   attr(:packages, :list, required: true)
 
   def drawer(%{card: nil} = assigns) do
@@ -645,7 +658,7 @@ defmodule MclKanbanWeb.LadderComponents do
             <label for="lane">Reserve for</label>
             <select id="lane" name="lane" class="sel">
               <option value="">nobody</option>
-              <option :for={a <- @crew} value={a.name} selected={@card.lane == a.name}>{a.name}</option>
+              <option :for={a <- @agents} value={a.name} selected={@card.lane == a.name}>{a.name}{if a.crew != "home", do: " · #{a.crew}", else: ""}</option>
             </select>
           </form>
           <button :if={@card.state not in ["finished", "withdrawn"]} type="button" class="btn danger" phx-click="open_dialog" phx-value-dialog="reason" phx-value-action="withdraw">Withdraw</button>
@@ -792,7 +805,8 @@ defmodule MclKanbanWeb.LadderComponents do
   attr(:boards, :list, required: true)
   attr(:card, :map, default: nil)
   attr(:cards, :list, required: true)
-  attr(:crew, :list, required: true)
+  attr(:agents, :list, required: true)
+  attr(:crews, :list, required: true)
   attr(:packages, :list, default: [])
   attr(:goal, :map, default: nil)
 
@@ -801,7 +815,7 @@ defmodule MclKanbanWeb.LadderComponents do
     <dialog id="enlist" phx-hook="Dialog" phx-mounted={keep_open()}>
       <form id="enlist-form" phx-change="validate_enlist" phx-submit="enlist">
         <h2>Enlist an agent</h2>
-        <p class="lead">The node id is what the agent's MACULA_MCP_AGENT key signs with. Paste it from the agent's first <em>info</em> reply.</p>
+        <p class="lead">The node id is what the agent's MACULA_MCP_AGENT key signs with. Paste it from the agent's first <em>info</em> reply. The crew is the one its operator will be able to command it in.</p>
         <div class="field">
           <label for="e-name">Name</label>
           <input id="e-name" name="name" value={@values["name"]} placeholder="Mercury" required autocomplete="off" phx-debounce="150" aria-invalid={to_string(elem(@enlist.name, 0) == :bad)} />
@@ -813,11 +827,18 @@ defmodule MclKanbanWeb.LadderComponents do
           <span class={["hint", hint_class(@enlist.node)]}>{elem(@enlist.node, 1)}</span>
         </div>
         <div class="field">
+          <label for="e-crew">Crew</label>
+          <input id="e-crew" name="crew" value={@values["crew"] || "home"} list="crew-names" required autocomplete="off" pattern="[A-Za-z][A-Za-z0-9_-]{0,39}" phx-debounce="150" />
+          <datalist id="crew-names"><option :for={c <- @crews} value={c.crew} /></datalist>
+          <span class="hint">An existing crew, or a new name to found one: a crew's operator enlists into its own crew only.</span>
+        </div>
+        <div class="field">
           <label for="e-role">Role</label>
           <select id="e-role" name="role">
             <option value="agent">Agent</option>
             <option value="supervisor" selected={@values["role"] == "supervisor"}>Agent, and appoint as supervisor</option>
             <option value="prioritiser" selected={@values["role"] == "prioritiser"}>Agent, and appoint as prioritiser</option>
+            <option value="operator" selected={@values["role"] == "operator"}>Agent, and appoint as operator of that crew</option>
           </select>
         </div>
         <div class="row"><button class="btn" type="button" phx-click="close_dialog">Cancel</button><button class="btn primary" type="submit">Enlist</button></div>

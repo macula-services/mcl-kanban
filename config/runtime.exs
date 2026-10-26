@@ -27,8 +27,17 @@ config :mcl_om,
       System.get_env("MCL_IDENTITY_KEY_PATH", Path.join([data_dir, "identity", "identity.key"]))
     ),
   # /health on a Unix socket, not a port (mcl_om 0.39): the image's
-  # HEALTHCHECK reaches it with curl --unix-socket.
-  health_socket: "/run/mcl/health.sock",
+  # HEALTHCHECK reaches it with curl --unix-socket. /run is root's, so a TEST
+  # run takes a socket in its own data dir; a local dev boot can override
+  # either with MCL_HEALTH_SOCKET.
+  health_socket:
+    System.get_env(
+      "MCL_HEALTH_SOCKET",
+      if(config_env() == :test,
+        do: Path.join(data_dir, "health.sock"),
+        else: "/run/mcl/health.sock"
+      )
+    ),
   capability_topic: "_mesh.cap.",
   # The wire namespace: every procedure of its own is mcl-kanban/<name>.
   org: "mcl-kanban",

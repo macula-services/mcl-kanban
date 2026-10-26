@@ -16,7 +16,7 @@ defmodule ProjectBoards.ProjectionsTest do
     on_exit(fn ->
       :ok =
         ProjectBoards.ReadModel.write(
-          for t <- ~w(cards card_tags card_links card_comments boards crew packages),
+          for t <- ~w(cards card_tags card_links card_comments boards crew crews packages),
               do: {"DELETE FROM " <> t, []}
         )
     end)
@@ -43,7 +43,8 @@ defmodule ProjectBoards.ProjectionsTest do
     assert types == Enum.uniq(types)
 
     for type <- ~w(board_opened_v1 board_archived_v1 agent_enlisted_v1 agent_discharged_v1
-                   supervisor_appointed_v1 prioritiser_appointed_v1 card_queued_v1
+                   supervisor_appointed_v1 prioritiser_appointed_v1 operator_appointed_v1
+                   card_queued_v1
                    card_reworded_v1 card_reclassified_v1 card_tagged_v1 card_untagged_v1
                    card_prioritised_v1 card_unpinned_v1 card_reserved_v1
                    card_reservation_lifted_v1 card_claimed_v1 card_released_v1
@@ -210,18 +211,43 @@ defmodule ProjectBoards.ProjectionsTest do
     assert [] = ReadModel.q("SELECT 1 FROM card_links WHERE card_id = ?", [id])
   end
 
-  test "the crew table follows enlistment, appointments and discharge" do
+  test "the crew table follows enlistment, crews, appointments and discharge (#28)" do
     name = "agent" <> uniq()
     node = String.pad_leading(uniq(), 64, "e")
+    crew = "crew" <> uniq()
 
-    deliver(%{event_type: "agent_enlisted_v1", node_id: node, name: name, at: 1}, 0)
+    deliver(%{event_type: "agent_enlisted_v1", node_id: node, name: name, crew: crew, at: 1}, 0)
     deliver(%{event_type: "prioritiser_appointed_v1", node_id: node, name: name, at: 2}, 1)
 
-    assert [[^name, "agent,prioritiser"]] =
+    assert [[^name, "agent,prioritiser", ^crew]] =
+             ReadModel.q("SELECT name, roles, crew FROM crew WHERE node_id = ?", [node])
+
+    deliver(
+      %{event_type: "operator_appointed_v1", crew: crew, node_id: node, name: name, at: 3},
+      2
+    )
+
+    assert [[^node]] = ReadModel.q("SELECT operator_node_id FROM crews WHERE name = ?", [crew])
+
+    assert [[^name, "agent,prioritiser,operator"]] =
              ReadModel.q("SELECT name, roles FROM crew WHERE node_id = ?", [node])
 
-    deliver(%{event_type: "agent_discharged_v1", node_id: node, name: name, at: 3}, 2)
+    deliver(%{event_type: "agent_discharged_v1", node_id: node, name: name, at: 4}, 3)
     assert [] = ReadModel.q("SELECT 1 FROM crew WHERE node_id = ?", [node])
+
+    # A discharged operator runs nothing: the crew is left with none, not
+    # with the node id of an agent that is no longer in it.
+    assert [[nil]] = ReadModel.q("SELECT operator_node_id FROM crews WHERE name = ?", [crew])
+  end
+
+  test "an agent enlisted before #28 lands in the home crew" do
+    name = "old" <> uniq()
+    node = String.pad_leading(uniq(), 64, "d")
+
+    deliver(%{event_type: "agent_enlisted_v1", node_id: node, name: name, at: 1}, 0)
+    assert [["home"]] = ReadModel.q("SELECT crew FROM crew WHERE node_id = ?", [node])
+
+    deliver(%{event_type: "agent_discharged_v1", node_id: node, name: name, at: 2}, 1)
   end
 
   test "a board row is opened and archived" do

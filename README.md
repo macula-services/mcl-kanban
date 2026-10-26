@@ -20,7 +20,7 @@ department:
 | App | Department | Holds |
 |---|---|---|
 | `guide_card_lifecycle` | CMD | the `board`, `card`, `package` and `crew` aggregates, one desk per command (command, event, `maybe_*` handler), the role gate (`Actor`) |
-| `project_boards` | PRJ | one `{event}_to_{table}` projection per event into one sqlite file (`ProjectBoards.Repo`, schema in `priv/repo/migrations`): boards, cards, card_tags, card_links, card_comments, crew, packages |
+| `project_boards` | PRJ | one `{event}_to_{table}` projection per event into one sqlite file (`ProjectBoards.Repo`, schema in `priv/repo/migrations`): boards, cards, card_tags, card_links, card_comments, crew, crews, packages |
 | `query_boards` | QRY | `get_ladder`, `get_boards`, `get_board_by_repo`, `get_card_by_id`, `get_cards_by_holder`, `get_goal`, `get_next_card_for_agent`, `get_ranked_cards`, `get_crew` |
 | `mcl_kanban` | service | the mcl_om contract, the event store it opens itself, and a responder per procedure; mcl-om adds `mcl-kanban/info` and `mcl-kanban/get_limits` to every service, both open |
 | `mcl_kanban_web` | UI | the owner's LiveView |
@@ -49,10 +49,34 @@ lists every key. Archivo is self-hosted under the SIL Open Font License
 ## Roles
 
 A call acts as its caller, the node id that signed the call. Roles come
-only from the crew: enlisted agents, one supervisor, at most one prioritiser.
+only from the crew: enlisted agents, one supervisor, at most one prioritiser,
+and the operator of the crew the agent belongs to.
 The **owner** is not a mesh role: it is the web UI on `:4010` -- loopback by
 default, and the box that runs the board sets `MCL_HTTP_IP=0.0.0.0`, so it is
 served on the LAN with no login.
+
+## Crews and operators
+
+The board holds more than one crew. Each agent is enlisted **into a crew**
+(`agent_enlisted_v1` carries it), and each crew has at most one **operator**
+(`operator_appointed_v1`): the agent that runs it. Enlisting and discharging
+belong to that crew's own operator, or to the owner -- not to the supervisor,
+and never to an agent of another crew. An operator that can hand its own crew
+on would let a crew pass itself along without anyone outside it agreeing, so
+appointing one is the owner's alone.
+
+- `enlist_agent` takes `name`, `node_id` and `crew`; `discharge_agent` and
+  `appoint_operator` (`crew`, `name`) are the rest of the roster.
+- `get_crew` answers `%{crews: [%{crew, operator, agents}]}`, each agent with
+  its `roles`, the cards it `held`s and its `next` card. Enlisted callers only,
+  like every read.
+- Agents enlisted before crews existed are in the crew named `home`: their
+  events are left as they were, and the read model reads them as `home`.
+- A crew nobody is in yet has no operator to enlist into it, so the **owner
+  founds it**: enlist the first agent into the new crew, then appoint it
+  operator -- the enlist dialog does both in one step.
+
+`scripts/fill_board.sh` enlists under the home crew unless a crew is given.
 
 ## Running it
 

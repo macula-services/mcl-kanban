@@ -81,12 +81,33 @@ defmodule ProjectBoards.ReadModelMigrationsTest do
     Repo.put_dynamic_repo(pid)
     on_exit(fn -> File.rm(path) end)
 
-    assert [_, _, _, _, _] = migrate(pid)
+    assert [_, _, _, _, _, _] = migrate(pid)
 
-    for table <- ~w(boards cards card_tags card_links card_comments crew packages crew_goal
+    for table <- ~w(boards cards card_tags card_links card_comments crew crews packages crew_goal
                     crew_goal_packages) do
       assert columns(table) != [], table
     end
+
+    # Every row the home crew already had stays in it (#28): the column lands
+    # with `home` as its default, so no agent has to be re-enlisted.
+    assert "crew" in columns("crew")
+    assert [["home"]] = Repo.query!("SELECT name FROM crews").rows
+  end
+
+  test "an agent enlisted before #28 is in the home crew afterwards (#28)" do
+    pid = file_from("v0.2.1")
+
+    Repo.query!("INSERT INTO crew (node_id, name, roles, enlisted_at) VALUES (?, ?, ?, ?)", [
+      "node-old",
+      "old-agent",
+      "agent",
+      1
+    ])
+
+    migrate(pid)
+
+    assert [["old-agent", "home"]] =
+             Repo.query!("SELECT name, crew FROM crew WHERE node_id = 'node-old'").rows
   end
 
   test "a v0.2.x card already filed into its own package is marked as its header (#15)" do

@@ -93,6 +93,48 @@ defmodule MclKanbanWeb.OwnerLadderLiveTest do
     assert render(view) =~ "#{agent}</b> enlisted"
   end
 
+  test "a second crew is enlisted as its own operator, and the rail groups by crew (#28)" do
+    view = ladder()
+    crew = "night" <> uniq()
+    agent = "Nox" <> uniq()
+
+    view |> element("#enlist-btn") |> render_click()
+
+    view
+    |> form("#enlist-form", %{
+      "name" => agent,
+      "node_id" => node_hex(agent),
+      "crew" => crew,
+      "role" => "operator"
+    })
+    |> render_submit()
+
+    assert eventually(fn ->
+             html = render(view)
+             html =~ ~s(data-crew="#{crew}") and html =~ "operator #{agent}"
+           end)
+
+    assert render(view) =~ "#{agent}</b> enlisted in <b>#{crew}</b> and runs it"
+  end
+
+  test "the rail appoints a crew's operator from an agent's menu (#28)" do
+    view = ladder()
+    agent = "Op" <> uniq()
+    button = ~s(button[phx-value-role="operator"][phx-value-name="#{agent}"])
+
+    view |> element("#enlist-btn") |> render_click()
+
+    view
+    |> form("#enlist-form", %{"name" => agent, "node_id" => node_hex(agent)})
+    |> render_submit()
+
+    assert eventually(fn -> has_element?(view, button) end)
+    view |> element(button) |> render_click()
+
+    assert eventually(fn -> render(view) =~ "operator #{agent}" end)
+    refute has_element?(view, button)
+  end
+
   test "open a board and queue a card through dialogs; a duplicate says why and what to do" do
     view = ladder()
     repo = "example-org/ladder" <> uniq()

@@ -24,6 +24,7 @@ defmodule MclKanban.Service do
 
   alias MclKanban.{
     AdoptGoal,
+    AppointOperator,
     ArchiveBoard,
     BlockCard,
     ClaimCard,
@@ -39,6 +40,7 @@ defmodule MclKanban.Service do
     GetBoardByRepo,
     GetBoards,
     GetCardById,
+    GetCrew,
     GetGoal,
     GetLadder,
     GetMyCards,

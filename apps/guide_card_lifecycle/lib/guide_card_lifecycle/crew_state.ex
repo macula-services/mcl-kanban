@@ -27,11 +27,13 @@ defmodule GuideCardLifecycle.CrewState do
   end
 
   @spec name_of(t(), String.t() | nil) :: String.t() | nil
-  def name_of(%__MODULE__{agents: agents}, node_id), do: with(%{} = agent <- Map.get(agents, node_id), do: agent.name)
+  def name_of(%__MODULE__{agents: agents}, node_id),
+    do: with(%{} = agent <- Map.get(agents, node_id), do: agent.name)
 
   @doc "The crew an enlisted agent belongs to, or nil for a node the crew does not know."
   @spec crew_of(t(), String.t() | nil) :: String.t() | nil
-  def crew_of(%__MODULE__{agents: agents}, node_id), do: with(%{} = agent <- Map.get(agents, node_id), do: agent.crew)
+  def crew_of(%__MODULE__{agents: agents}, node_id),
+    do: with(%{} = agent <- Map.get(agents, node_id), do: agent.crew)
 
   @doc "The node id of a crew's operator, or nil while it has none."
   @spec operator_of(t(), String.t()) :: String.t() | nil

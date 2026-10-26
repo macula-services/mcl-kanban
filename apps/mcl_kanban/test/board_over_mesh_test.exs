@@ -6,21 +6,25 @@ defmodule MclKanban.BoardOverMeshTest do
   use ExUnit.Case, async: false
 
   alias GuideCardLifecycle.Actor
+  alias GuideCardLifecycle.AppointOperator.{AppointOperatorV1, MaybeAppointOperator}
   alias GuideCardLifecycle.AppointPrioritiser.{AppointPrioritiserV1, MaybeAppointPrioritiser}
   alias GuideCardLifecycle.AppointSupervisor.{AppointSupervisorV1, MaybeAppointSupervisor}
   alias GuideCardLifecycle.EnlistAgent.{EnlistAgentV1, MaybeEnlistAgent}
 
   alias MclKanban.AdoptGoal.AdoptGoalResponder
+  alias MclKanban.AppointOperator.AppointOperatorResponder
   alias MclKanban.ClaimCard.ClaimCardResponder
   alias MclKanban.ClaimNextCard.ClaimNextCardResponder
   alias MclKanban.CommentOnCard.CommentOnCardResponder
   alias MclKanban.DeferBoard.DeferBoardResponder
   alias MclKanban.DeferCard.DeferCardResponder
   alias MclKanban.DeferPackage.DeferPackageResponder
+  alias MclKanban.DischargeAgent.DischargeAgentResponder
   alias MclKanban.EnlistAgent.EnlistAgentResponder
   alias MclKanban.FileCard.FileCardResponder
   alias MclKanban.FinishCard.FinishCardResponder
   alias MclKanban.GetCardById.GetCardByIdResponder
+  alias MclKanban.GetCrew.GetCrewResponder
   alias MclKanban.GetGoal.GetGoalResponder
   alias MclKanban.GetLadder.GetLadderResponder
   alias MclKanban.GetMyCards.GetMyCardsResponder
@@ -65,16 +69,24 @@ defmodule MclKanban.BoardOverMeshTest do
 
   setup_all do
     sup = "sup" <> uniq()
-    {:ok, enlist} = EnlistAgentV1.new(%{name: sup, node_id: hex(sup), by: Actor.owner()})
+
+    {:ok, enlist} =
+      EnlistAgentV1.new(%{name: sup, node_id: hex(sup), crew: "home", by: Actor.owner()})
+
     {:ok, _, _} = MaybeEnlistAgent.dispatch(enlist)
     {:ok, appoint} = AppointSupervisorV1.new(%{name: sup, by: Actor.owner()})
     {:ok, _, _} = MaybeAppointSupervisor.dispatch(appoint)
 
+    # #28: enlisting and discharging belong to the crew's operator (or the
+    # owner), so the crew that founds this board has one.
+    {:ok, operator} = AppointOperatorV1.new(%{crew: "home", name: sup, by: Actor.owner()})
+    {:ok, _, _} = MaybeAppointOperator.dispatch(operator)
+
     for name <- ~w(bob cyd) do
       agent = name <> uniq()
 
-      %{agent: %{name: ^agent}} =
-        call(EnlistAgentResponder, sup, %{name: agent, node_id: hex(agent)})
+      %{agent: %{name: ^agent, crew: "home"}} =
+        call(EnlistAgentResponder, sup, %{name: agent, node_id: hex(agent), crew: "home"})
     end
 
     repo = "example-org/kanban" <> uniq()
@@ -82,9 +94,12 @@ defmodule MclKanban.BoardOverMeshTest do
     {:ok, sup: sup, repo: repo}
   end
 
-  defp enlist(sup) do
+  defp enlist(sup, crew \\ "home") do
     name = "agent" <> uniq()
-    %{agent: %{name: ^name}} = call(EnlistAgentResponder, sup, %{name: name, node_id: hex(name)})
+
+    %{agent: %{name: ^name, crew: ^crew}} =
+      call(EnlistAgentResponder, sup, %{name: name, node_id: hex(name), crew: crew})
+
     name
   end
 
@@ -178,8 +193,54 @@ defmodule MclKanban.BoardOverMeshTest do
              call(EnlistAgentResponder, bob, %{
                name: "eve" <> uniq(),
                node_id: hex("eve"),
+               crew: "home",
                role: "owner"
              })
+  end
+
+  test "a second crew is founded by the owner, runs its own operator, and get_crew shows both (#28)",
+       %{sup: sup} do
+    night = "night" <> uniq()
+    eve = "eve" <> uniq()
+
+    # A crew no agent is in yet has no operator to enlist into it: the owner
+    # founds it, then appoints the operator who runs it.
+    {:ok, found} =
+      EnlistAgentV1.new(%{name: eve, node_id: hex(eve), crew: night, by: Actor.owner()})
+
+    {:ok, _, _} = MaybeEnlistAgent.dispatch(found)
+    {:ok, operator} = AppointOperatorV1.new(%{crew: night, name: eve, by: Actor.owner()})
+    {:ok, _, _} = MaybeAppointOperator.dispatch(operator)
+
+    # The new operator enlists into its own crew, over the mesh, and only there.
+    dan = enlist(eve, night)
+
+    assert %{reason: "not_permitted"} =
+             call(EnlistAgentResponder, eve, %{
+               name: "outsider" <> uniq(),
+               node_id: hex("outsider" <> uniq()),
+               crew: "home"
+             })
+
+    assert %{crews: crews} = call(GetCrewResponder, dan, %{})
+
+    assert %{crew: ^night, operator: %{name: ^eve}, agents: agents} =
+             Enum.find(crews, &(&1.crew == night))
+
+    assert %{roles: dan_roles} = Enum.find(agents, &(&1.name == dan))
+    assert dan_roles == ["agent"]
+
+    assert %{roles: eve_roles} = Enum.find(agents, &(&1.name == eve))
+    assert "operator" in eve_roles
+    assert %{crew: "home", operator: %{name: ^sup}} = Enum.find(crews, &(&1.crew == "home"))
+
+    # The owner's rule, over the mesh: appointing is the owner's alone.
+    assert %{reason: "not_permitted"} =
+             call(AppointOperatorResponder, sup, %{crew: "home", name: sup})
+
+    # Only a crew's own operator discharges from it.
+    assert %{reason: "not_permitted"} = call(DischargeAgentResponder, eve, %{name: sup})
+    assert %{agent: %{name: ^dan}} = call(DischargeAgentResponder, eve, %{name: dan})
   end
 
   test "a refusal names its reason", %{sup: sup, repo: repo} do

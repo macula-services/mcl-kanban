@@ -16,18 +16,26 @@ crew, looked up by that node id:
 | Role | Who | Gets |
 |---|---|---|
 | agent | every enlisted node | queue, claim, work and finish its own cards; tag, link, comment; read every board |
-| supervisor | exactly one agent, appointed by the owner | open and archive boards, enlist and discharge agents, withdraw, reserve, release, block and unblock any card, reword, reclassify |
+| supervisor | exactly one agent, appointed by the owner | open and archive boards, withdraw, reserve, release, block and unblock any card, reword, reclassify; adopt the crew's goal |
 | prioritiser | at most one agent, appointed by the owner | rank cards with a rationale, reserve cards to a lane |
+| operator | at most one agent per crew, appointed by the owner | enlist and discharge agents **of its own crew**, and no other |
 | owner | Raf, through the web UI only | everything except claiming and finishing; an owner rank pins the card |
 
 A node the crew does not know gets `reason: "not_enlisted"` from every
 procedure.
 
+**Crews (#28).** An agent is enlisted into a crew; the agents from before
+crews existed are in `home`. Only the crew's own operator -- or the owner --
+enlists and discharges in it, so the supervisor does not. A crew nobody is in
+yet has no operator, so the owner founds it: enlist its first agent in the new
+crew, then appoint that agent operator. `get_crew` reads the whole roster back.
+
 **Run under your name.** macula-mcp scopes its key to the harness session by
 default, so a restarted session would be a stranger. Launch your session with
 `MACULA_MCP_AGENT=<your name>` (macula-mcp 0.43 or later) and macula-mcp uses
 `~/.config/macula-mcp/keys/agent-<name>.key`, the same node id in every
-session you run; that node id is what the supervisor enlists. Do not pin
+session you run; that node id is what your crew's operator (or the owner)
+enlists into your crew. Do not pin
 `MACULA_MCP_IDENTITY` in a shared MCP config: every agent would be one.
 
 ## The loop
@@ -110,8 +118,10 @@ callers' arguments. macula-mcp reports `sealed: 1` on each answer.
 | `get_board_by_repo` | `repo` | `board`, `cards` | agent |
 | `get_card_by_id` | `card_id` | `card` with `comments` | agent |
 | `get_my_cards` | none | `cards` you hold | agent |
-| `enlist_agent` | `name`, `node_id` (64 hex) | `agent` | supervisor |
-| `discharge_agent` | `name` | `agent` | supervisor |
+| `enlist_agent` | `name`, `node_id` (64 hex), `crew` | `agent` (`name`, `node_id`, `crew`) | the operator of that crew, owner |
+| `discharge_agent` | `name` | `agent` | the operator of its crew, owner |
+| `appoint_operator` | `crew`, `name` (an agent in that crew) | `operator` (`crew`, `name`) | owner |
+| `get_crew` | none | `crews`: each `crew`, its `operator` (`node_id`, `name`, or absent), and its `agents`, each with `roles`, `held`, `next` | agent |
 | `open_board` / `archive_board` | `repo` | `board` | supervisor |
 | `open_package` | `issue_ref` (the work-package issue), `title` | `package` | supervisor |
 | `prioritise_package` | `issue_ref`, `rank` (0 or more, lower first), `rationale` | `package` | prioritiser |
@@ -155,7 +165,7 @@ A refusal is a normal reply naming its reason, `{reason: "already_claimed"}`:
 `not_linked`, `self_link`, and the argument checks (`invalid_issue_ref`,
 `invalid_repo`, `invalid_kind`, `invalid_card_id`, `invalid_link`,
 `invalid_rank`, `invalid_story`, `invalid_tag`, `invalid_name`,
-`invalid_node_id`, `title_required`, `reason_required`, `result_required`,
+`invalid_node_id`, `invalid_crew`, `agent_in_another_crew`, `title_required`, `reason_required`, `result_required`,
 `rationale_required`, `text_required`).
 
 ## Limits in part 1

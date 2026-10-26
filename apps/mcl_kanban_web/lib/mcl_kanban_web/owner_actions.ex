@@ -8,11 +8,13 @@ defmodule MclKanbanWeb.OwnerActions do
   @moduledoc false
 
   alias GuideCardLifecycle.Actor
+  alias GuideCardLifecycle.AppointOperator.{AppointOperatorV1, MaybeAppointOperator}
   alias GuideCardLifecycle.AppointPrioritiser.{AppointPrioritiserV1, MaybeAppointPrioritiser}
   alias GuideCardLifecycle.AppointSupervisor.{AppointSupervisorV1, MaybeAppointSupervisor}
   alias GuideCardLifecycle.ArchiveBoard.{ArchiveBoardV1, MaybeArchiveBoard}
   alias GuideCardLifecycle.BlockCard.{BlockCardV1, MaybeBlockCard}
   alias GuideCardLifecycle.CommentOnCard.{CommentOnCardV1, MaybeCommentOnCard}
+  alias GuideCardLifecycle.CrewName
   alias GuideCardLifecycle.DischargeAgent.{DischargeAgentV1, MaybeDischargeAgent}
   alias GuideCardLifecycle.EnlistAgent.{EnlistAgentV1, MaybeEnlistAgent}
   alias GuideCardLifecycle.FileCard.{FileCardV1, MaybeFileCard}
@@ -43,6 +45,8 @@ defmodule MclKanbanWeb.OwnerActions do
   @type outcome :: :ok | {:error, atom()}
 
   @refusals %{
+    agent_in_another_crew:
+      {"That agent is in another crew", "Appoint an agent enlisted in this crew."},
     already_appointed:
       {"That agent already holds this role", "Pick another agent, or leave it as it is."},
     already_archived: {"That board is already archived", "Nothing to do."},
@@ -69,6 +73,8 @@ defmodule MclKanbanWeb.OwnerActions do
     invalid_card_id: {"That is not a card", "Reload the page; the card may be gone."},
     invalid_issue_ref:
       {"An issue reads owner/repo#number", "Pick the repo, then type the issue number."},
+    invalid_crew:
+      {"A crew name starts with a letter", "Use letters, digits, - and _, at most 40."},
     invalid_kind: {"A card is a bug, a slice or ui", "Pick one of the three."},
     invalid_link: {"A link blocks, relates to or follows up", "Pick one of the three."},
     invalid_name: {"A name starts with a letter", "Use letters, digits, - and _, at most 40."},
@@ -120,17 +126,26 @@ defmodule MclKanbanWeb.OwnerActions do
 
   @spec enlist(map()) :: outcome()
   def enlist(p),
-    do: run(EnlistAgentV1, MaybeEnlistAgent, %{name: p["name"], node_id: p["node_id"]})
+    do:
+      run(EnlistAgentV1, MaybeEnlistAgent, %{
+        name: p["name"],
+        node_id: p["node_id"],
+        crew: p["crew"] || CrewName.home()
+      })
 
-  @doc "Enlist, then appoint the new agent when a role was chosen with it."
+  @doc """
+  Enlist, then appoint the new agent when a role was chosen with it. An
+  operator appointment names the crew the agent was enlisted into (#28).
+  """
   @spec enlist_as(map()) :: outcome()
   def enlist_as(p) do
-    with :ok <- enlist(p), do: appoint(p["role"], p["name"])
+    with :ok <- enlist(p), do: appoint(p["role"], p["name"], p["crew"] || CrewName.home())
   end
 
-  defp appoint("supervisor", name), do: appoint_supervisor(name)
-  defp appoint("prioritiser", name), do: appoint_prioritiser(name)
-  defp appoint(_agent, _name), do: :ok
+  defp appoint("supervisor", name, _crew), do: appoint_supervisor(name)
+  defp appoint("prioritiser", name, _crew), do: appoint_prioritiser(name)
+  defp appoint("operator", name, crew), do: appoint_operator(crew, name)
+  defp appoint(_agent, _name, _crew), do: :ok
 
   @spec discharge(String.t()) :: outcome()
   def discharge(name), do: run(DischargeAgentV1, MaybeDischargeAgent, %{name: name})
@@ -142,6 +157,11 @@ defmodule MclKanbanWeb.OwnerActions do
   @spec appoint_prioritiser(String.t()) :: outcome()
   def appoint_prioritiser(name),
     do: run(AppointPrioritiserV1, MaybeAppointPrioritiser, %{name: name})
+
+  @doc "Appoint the operator of a crew (#28): an agent already enlisted in that crew."
+  @spec appoint_operator(String.t(), String.t()) :: outcome()
+  def appoint_operator(crew, name),
+    do: run(AppointOperatorV1, MaybeAppointOperator, %{crew: crew, name: name})
 
   @spec open_board(String.t()) :: outcome()
   def open_board(repo), do: run(OpenBoardV1, MaybeOpenBoard, %{repo: repo})
