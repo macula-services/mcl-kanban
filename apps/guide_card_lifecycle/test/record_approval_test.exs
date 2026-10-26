@@ -206,6 +206,11 @@ defmodule GuideCardLifecycle.RecordApprovalTest do
           range(op, %{issue: @ref}),
           range(op, %{nonce: "not-hex"}),
           range(op, %{tip: "xyz"}),
+          # A range binds two exact commits: an abbreviation can name two.
+          range(op, %{tip: "1d44f85"}),
+          range(op, %{base: "5d2a04fc9453637693e8c8aeb4a434fcb4947af"}),
+          range(op, %{tip: String.duplicate("a", 64)}),
+          range(op, %{base: "5D2A04FC9453637693E8C8AEB4A434FCB4947AF1"}),
           Map.delete(range(op), :base),
           Map.delete(gate(op, "gate:design"), :issue),
           Map.put(gate(op, "gate:design"), :tip, "1d44f85")

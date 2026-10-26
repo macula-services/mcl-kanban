@@ -16,7 +16,8 @@ defmodule GuideCardLifecycle.RecordApproval.CrewApproval do
   #   verdict           1 (yes) or 0 (no), never a boolean
   #   at                when the operator signed, ms since the epoch
   #   nonce             32 lowercase hex digits, fresh for every approval
-  #   ref, base, tip    a range: the ref and the two commits (7 to 64 hex)
+  #   ref, base, tip    a range: the ref and the two commits, each a full
+  #                     sha (40 lowercase hex): an abbreviation can name two
   #   tag               a range, optionally: the tag it releases
   #   issue             a gate: the plan issue it passes, "org/repo#n"
   #
@@ -119,7 +120,7 @@ defmodule GuideCardLifecycle.RecordApproval.CrewApproval do
   end
 
   defp range(f) do
-    text?(f["ref"]) and hex?(f["base"], 7, 64) and hex?(f["tip"], 7, 64) and
+    text?(f["ref"]) and hex?(f["base"], 40, 40) and hex?(f["tip"], 40, 40) and
       (not Map.has_key?(f, "tag") or text?(f["tag"]))
   end
 

@@ -113,7 +113,7 @@ sent as standard base64 text. Its fields, all text keys:
 | `verdict` | `1` (yes) or `0` (no); never a boolean |
 | `at` | when it was signed, ms since the epoch |
 | `nonce` | 32 lowercase hex digits, fresh for every approval |
-| `ref`, `base`, `tip` | a `range` only: the ref and the two commits, 7 to 64 hex digits |
+| `ref`, `base`, `tip` | a `range` only: the ref and the two commits, each a full sha (40 lowercase hex digits) |
 | `tag` | a `range` only, optional: the tag it releases |
 | `issue` | a gate only: the plan issue it passes, `org/repo#n` |
 
