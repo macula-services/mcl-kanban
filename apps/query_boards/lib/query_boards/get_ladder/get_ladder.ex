@@ -44,6 +44,21 @@ defmodule QueryBoards.GetLadder.GetLadder do
         timeout_ms
       )
 
+  @doc """
+  Waits (bounded) until the read model shows the package at that rank, so a
+  rank or a re-rank replies only once the next read sees it.
+  """
+  @spec await_rank(String.t(), non_neg_integer(), pos_integer()) ::
+          :ok | {:error, :read_model_behind}
+  def await_rank(package_id, rank, timeout_ms \\ 5_000),
+    do:
+      ReadModel.await(
+        "SELECT rank FROM packages WHERE package_id = ?",
+        [package_id],
+        [[rank]],
+        timeout_ms
+      )
+
   defp package([id, ref, title, rank, pinned, ranked_by, rationale, opened_at, deferred], cards) do
     mine = cards |> Map.get(ref, []) |> Enum.reject(&(&1.package_card == 1))
 

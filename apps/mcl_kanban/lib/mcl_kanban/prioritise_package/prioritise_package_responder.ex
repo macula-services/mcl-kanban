@@ -8,6 +8,7 @@ defmodule MclKanban.PrioritisePackage.PrioritisePackageResponder do
   alias GuideCardLifecycle.IssueRef
   alias GuideCardLifecycle.PrioritisePackage.{MaybePrioritisePackage, PrioritisePackageV1}
   alias MclKanban.Wire
+  alias QueryBoards.GetLadder.GetLadder
 
   @impl true
   def init(_args), do: {:ok, nil}
@@ -25,6 +26,7 @@ defmodule MclKanban.PrioritisePackage.PrioritisePackageResponder do
                by: by
              }),
            {:ok, _version, _events} <- MaybePrioritisePackage.dispatch(cmd),
+           :ok <- GetLadder.await_rank(cmd.package_id, cmd.rank),
            do: {:ok, %{package: %{package_id: cmd.package_id, issue_ref: ref, rank: cmd.rank}}}
 
     {:reply, Wire.reply(reply), state}

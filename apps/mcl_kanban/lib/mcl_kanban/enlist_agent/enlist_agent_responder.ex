@@ -9,6 +9,7 @@ defmodule MclKanban.EnlistAgent.EnlistAgentResponder do
   alias GuideCardLifecycle.Actor
   alias GuideCardLifecycle.EnlistAgent.{MaybeEnlistAgent, EnlistAgentV1}
   alias MclKanban.Wire
+  alias QueryBoards.GetCrew.GetCrew
 
   @impl true
   def init(_args), do: {:ok, nil}
@@ -25,6 +26,7 @@ defmodule MclKanban.EnlistAgent.EnlistAgentResponder do
                by: by
              }),
            {:ok, _version, _events} <- MaybeEnlistAgent.dispatch(cmd),
+           :ok <- GetCrew.await_agent(cmd.node_id, cmd.name),
            do: {:ok, %{agent: %{name: cmd.name, node_id: cmd.node_id, crew: cmd.crew}}}
 
     {:reply, Wire.reply(reply), state}

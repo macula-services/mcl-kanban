@@ -9,6 +9,7 @@ defmodule MclKanban.AppointOperator.AppointOperatorResponder do
   alias GuideCardLifecycle.Actor
   alias GuideCardLifecycle.AppointOperator.{AppointOperatorV1, MaybeAppointOperator}
   alias MclKanban.Wire
+  alias QueryBoards.GetCrew.GetCrew
 
   @impl true
   def init(_args), do: {:ok, nil}
@@ -24,6 +25,7 @@ defmodule MclKanban.AppointOperator.AppointOperatorResponder do
                by: by
              }),
            {:ok, _version, _events} <- MaybeAppointOperator.dispatch(cmd),
+           :ok <- GetCrew.await_operator(cmd.crew, cmd.name),
            do: {:ok, %{operator: %{crew: cmd.crew, name: cmd.name}}}
 
     {:reply, Wire.reply(reply), state}
