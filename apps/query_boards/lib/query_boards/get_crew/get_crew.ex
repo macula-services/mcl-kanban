@@ -35,23 +35,6 @@ defmodule QueryBoards.GetCrew.GetCrew do
         timeout_ms
       )
 
-  @doc """
-  Waits (bounded) until the read model shows that crew run by the node that
-  holds this name, so an appointment's reply is followed by a read that sees
-  the operator.
-  """
-  @spec await_operator(String.t(), String.t(), pos_integer()) ::
-          :ok | {:error, :read_model_behind}
-  def await_operator(crew, name, timeout_ms \\ 5_000),
-    do:
-      ReadModel.await(
-        "SELECT (SELECT operator_node_id FROM crews WHERE name = ?) = " <>
-          "(SELECT node_id FROM crew WHERE crew = ? AND name = ?)",
-        [crew, crew, name],
-        [[1]],
-        timeout_ms
-      )
-
   defp crew_entry(crew, agents, operator_node_id) do
     %{crew: crew, operator: who(agents, operator_node_id), agents: agents}
   end

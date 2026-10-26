@@ -12,7 +12,7 @@ defmodule QueryBoards.CardRows do
              "c.story_value, c.kind, c.rank, c.rationale, c.ranked_by, c.lane, c.lane_node_id, " <>
              "c.holder, c.holder_node_id, c.status, c.comment_count, c.note, c.queued_by, " <>
              "c.queued_at, c.claimed_at, c.changed_at, c.version, c.ranked_at, c.work_package, " <>
-             "c.package_rank, c.package_card, c.deferred"
+             "c.package_rank, c.package_card, c.deferred, c.lane_crew"
 
   @doc "The order of the ladder inside a group: rank (unranked last), then when ranked, then age."
   def ladder_order, do: "c.rank IS NULL, c.rank, c.ranked_at, c.queued_at"
@@ -106,7 +106,8 @@ defmodule QueryBoards.CardRows do
            work_package,
            package_rank,
            package_card,
-           deferred
+           deferred,
+           lane_crew
          ],
          related
        ) do
@@ -125,6 +126,7 @@ defmodule QueryBoards.CardRows do
       ranked_by: ranked_by,
       lane: lane,
       lane_node_id: lane_node_id,
+      lane_crew: lane_crew,
       holder: holder,
       holder_node_id: holder_node_id,
       status: status,

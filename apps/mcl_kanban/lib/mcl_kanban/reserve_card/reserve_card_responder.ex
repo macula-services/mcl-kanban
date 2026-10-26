@@ -1,5 +1,6 @@
 defmodule MclKanban.ReserveCard.ReserveCardResponder do
-  # mcl-kanban/reserve_card: card_id, lane (an agent name). Supervisor, prioritiser. Replies the card.
+  # mcl-kanban/reserve_card: card_id, and lane (an agent name) or crew (#29).
+  # The home crew's supervisor, prioritiser or operator. Replies the card.
   @moduledoc false
 
   @behaviour :macula_response
@@ -12,7 +13,12 @@ defmodule MclKanban.ReserveCard.ReserveCardResponder do
 
   @impl true
   def handle_request(payload, state) do
-    args = %{card_id: Wire.arg(payload, :card_id), lane: Wire.arg(payload, :lane)}
+    args = %{
+      card_id: Wire.arg(payload, :card_id),
+      lane: Wire.arg(payload, :lane),
+      crew: Wire.arg(payload, :crew)
+    }
+
     {:reply, CardProcedure.call(payload, ReserveCardV1, MaybeReserveCard, args), state}
   end
 end

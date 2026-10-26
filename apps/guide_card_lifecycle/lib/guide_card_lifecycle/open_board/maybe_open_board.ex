@@ -1,5 +1,7 @@
 defmodule GuideCardLifecycle.OpenBoard.MaybeOpenBoard do
-  # Handler: the supervisor or the owner opens a repo's board, once.
+  # Handler: the supervisor, the operator or the owner opens a repo's board,
+  # once, for the crew it names (#29): the owner for any crew, the others for
+  # their own only.
   @moduledoc false
 
   alias GuideCardLifecycle.Actor
@@ -13,7 +15,7 @@ defmodule GuideCardLifecycle.OpenBoard.MaybeOpenBoard do
 
   def handle(%BoardState{} = board, %OpenBoardV1{} = cmd) do
     cond do
-      not Actor.allowed?(cmd.by, @who) -> {:error, :not_permitted}
+      refusal = Actor.refused(cmd.by, @who, cmd.crew) -> {:error, refusal}
       BoardState.open?(board) -> {:error, :already_open}
       true -> {:ok, [BoardOpenedV1.from_command(cmd)]}
     end

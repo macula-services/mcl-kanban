@@ -12,6 +12,7 @@ defmodule GuideCardLifecycle.OpenBoard.BoardOpenedV1 do
       event_type: event_type(),
       board_id: cmd.board_id,
       repo: cmd.repo,
+      home_crew: cmd.crew,
       at: System.system_time(:millisecond)
     })
   end

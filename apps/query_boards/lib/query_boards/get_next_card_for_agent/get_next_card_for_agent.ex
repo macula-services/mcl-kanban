@@ -1,7 +1,8 @@
 defmodule QueryBoards.GetNextCardForAgent.GetNextCardForAgent do
   # get_next_card_for_agent: the cards an agent may claim next, best first.
   # The crew goal's packages first (#18); within that and the rest, its own
-  # lane first, then unreserved cards; within each, in ladder order:
+  # lane first, then its crew's lane (#29), then unreserved cards; a card in
+  # another crew's lane is never offered; within each, in ladder order:
   # cards in a package by the package's rank (unranked packages after ranked
   # ones, loose cards after every package), then by card rank (unranked
   # last), then the order they were ranked in, then oldest. Only queued cards
@@ -17,14 +18,16 @@ defmodule QueryBoards.GetNextCardForAgent.GetNextCardForAgent do
 
   alias QueryBoards.CardRows
 
-  @spec get_next_card_for_agent(String.t(), pos_integer()) :: [map()]
-  def get_next_card_for_agent(node_id, limit) when is_binary(node_id) and is_integer(limit) do
+  @spec get_next_card_for_agent(String.t(), String.t(), pos_integer()) :: [map()]
+  def get_next_card_for_agent(node_id, crew, limit)
+      when is_binary(node_id) and is_binary(crew) and is_integer(limit) do
     claimable =
       Enum.join(
         [
           "c.status & 1 = 1 AND c.status & 30 = 0",
           "(b.status IS NULL OR b.status & 2 = 0)",
           "(c.lane_node_id IS NULL OR c.lane_node_id = ?)",
+          "(c.lane_crew IS NULL OR c.lane_crew = ?)",
           CardRows.not_package_card(),
           CardRows.not_deferred()
         ],
@@ -33,9 +36,9 @@ defmodule QueryBoards.GetNextCardForAgent.GetNextCardForAgent do
 
     CardRows.cards(
       "LEFT JOIN boards b ON b.board_id = c.board_id WHERE #{claimable} " <>
-        "ORDER BY #{off_goal()}, c.lane_node_id IS NULL, c.work_package IS NULL, c.package_rank IS NULL, " <>
+        "ORDER BY #{off_goal()}, c.lane_node_id IS NULL, c.lane_crew IS NULL, c.work_package IS NULL, c.package_rank IS NULL, " <>
         "c.package_rank, " <> CardRows.ladder_order() <> " LIMIT ?",
-      [node_id, limit]
+      [node_id, crew, limit]
     )
   end
 

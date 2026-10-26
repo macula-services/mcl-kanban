@@ -1,8 +1,9 @@
 defmodule GuideCardLifecycle.ArchiveBoard.MaybeArchiveBoard do
-  # Handler: the supervisor or the owner archives an open board, once. An
-  # archived board takes no new cards.
+  # Handler: the home crew's supervisor or operator, or the owner (#29),
+  # archives an open board, once. An archived board takes no new cards.
   @moduledoc false
 
+  alias GuideCardLifecycle.CrewName
   alias GuideCardLifecycle.Actor
   alias GuideCardLifecycle.ArchiveBoard.{ArchiveBoardV1, BoardArchivedV1}
   alias GuideCardLifecycle.BoardAggregate
@@ -14,10 +15,17 @@ defmodule GuideCardLifecycle.ArchiveBoard.MaybeArchiveBoard do
 
   def handle(%BoardState{} = board, %ArchiveBoardV1{} = cmd) do
     cond do
-      not Actor.allowed?(cmd.by, @who) -> {:error, :not_permitted}
-      not BoardState.open?(board) -> {:error, :unknown_board}
-      BoardState.archived?(board) -> {:error, :already_archived}
-      true -> {:ok, [BoardArchivedV1.from_command(cmd)]}
+      refusal = Actor.refused(cmd.by, @who, CrewName.home_crew_in(board)) ->
+        {:error, refusal}
+
+      not BoardState.open?(board) ->
+        {:error, :unknown_board}
+
+      BoardState.archived?(board) ->
+        {:error, :already_archived}
+
+      true ->
+        {:ok, [BoardArchivedV1.from_command(cmd)]}
     end
   end
 

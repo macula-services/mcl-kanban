@@ -1,7 +1,9 @@
 defmodule GuideCardLifecycle.ResumeBoard.MaybeResumeBoard do
-  # Handler: the prioritiser or the owner resumes a paused repo (#17).
+  # Handler: the home crew's prioritiser or operator, or the owner (#29),
+  # resumes a paused repo (#17).
   @moduledoc false
 
+  alias GuideCardLifecycle.CrewName
   alias GuideCardLifecycle.Actor
   alias GuideCardLifecycle.BoardState
   alias GuideCardLifecycle.ResumeBoard.{BoardResumedV1, ResumeBoardV1}
@@ -12,10 +14,17 @@ defmodule GuideCardLifecycle.ResumeBoard.MaybeResumeBoard do
 
   def handle(%BoardState{} = board, %ResumeBoardV1{} = cmd) do
     cond do
-      not Actor.allowed?(cmd.by, @who) -> {:error, :not_permitted}
-      not BoardState.open?(board) -> {:error, :unknown_board}
-      not BoardState.deferred?(board) -> {:error, :not_deferred}
-      true -> {:ok, [BoardResumedV1.from_command(cmd)]}
+      refusal = Actor.refused(cmd.by, @who, CrewName.home_crew_in(board)) ->
+        {:error, refusal}
+
+      not BoardState.open?(board) ->
+        {:error, :unknown_board}
+
+      not BoardState.deferred?(board) ->
+        {:error, :not_deferred}
+
+      true ->
+        {:ok, [BoardResumedV1.from_command(cmd)]}
     end
   end
 

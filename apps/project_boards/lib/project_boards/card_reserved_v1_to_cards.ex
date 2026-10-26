@@ -21,5 +21,11 @@ defmodule ProjectBoards.CardReservedV1ToCards do
   end
 
   defp statements(data, version),
-    do: [card_update(data, version, [{"lane", data.lane}, {"lane_node_id", data.lane_node_id}])]
+    do: [
+      card_update(data, version, [
+        {"lane", data.lane},
+        {"lane_node_id", data.lane_node_id},
+        {"lane_crew", data[:lane_crew]}
+      ])
+    ]
 end

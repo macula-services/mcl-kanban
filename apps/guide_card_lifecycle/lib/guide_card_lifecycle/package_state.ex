@@ -1,11 +1,23 @@
 defmodule GuideCardLifecycle.PackageState do
   # One work package: a GitHub issue labelled work-package that groups cards.
   # Packages are ranked on their own scale, ahead of the cards inside them.
+  # A package follows the home crew of its repo's board (#29), copied onto
+  # package_opened_v1; one opened before #29 belongs to the first crew.
   @moduledoc false
 
+  alias GuideCardLifecycle.CrewName
   alias GuideCardLifecycle.PackageStatus
 
-  defstruct [:package_id, :issue_ref, :title, :rank, :rationale, :ranked_by, status: 0]
+  defstruct [
+    :package_id,
+    :issue_ref,
+    :title,
+    :home_crew,
+    :rank,
+    :rationale,
+    :ranked_by,
+    status: 0
+  ]
 
   @type t :: %__MODULE__{}
 
@@ -21,7 +33,13 @@ defmodule GuideCardLifecycle.PackageState do
     do: apply_event(state, Map.put(data, :event_type, type))
 
   def apply_event(state, %{event_type: "package_opened_v1"} = e),
-    do: %{state | issue_ref: e.issue_ref, title: e.title, status: e.status}
+    do: %{
+      state
+      | issue_ref: e.issue_ref,
+        title: e.title,
+        home_crew: CrewName.home_crew_in(e),
+        status: e.status
+    }
 
   def apply_event(state, %{event_type: "package_prioritised_v1"} = e),
     do: %{state | rank: e.rank, rationale: e.rationale, ranked_by: e.by, status: e.status}

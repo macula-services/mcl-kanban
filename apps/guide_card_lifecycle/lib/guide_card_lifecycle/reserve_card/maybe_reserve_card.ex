@@ -1,9 +1,12 @@
 defmodule GuideCardLifecycle.ReserveCard.MaybeReserveCard do
-  # Handler: the supervisor, the prioritiser or the owner reserves a card to
-  # an enlisted agent's lane. Only that agent may then claim it.
+  # Handler: the home crew's supervisor, prioritiser or operator, or the
+  # owner, reserves a card to an enlisted agent's lane, or to a crew's (#29).
+  # Only that agent, or an agent of that crew, may then claim it. The home
+  # crew may reserve its card to an agent or crew of another crew: that is
+  # how it hands work over.
   @moduledoc false
 
-  alias GuideCardLifecycle.{Actor, CardAggregate, CardState, CrewAggregate, CrewState}
+  alias GuideCardLifecycle.{Actor, CardAggregate, CardState, CrewAggregate, CrewName, CrewState}
   alias GuideCardLifecycle.ReserveCard.{CardReservedV1, ReserveCardV1}
 
   @who [:supervisor, :prioritiser, :owner]
@@ -12,23 +15,47 @@ defmodule GuideCardLifecycle.ReserveCard.MaybeReserveCard do
 
   def handle(%CardState{} = card, %ReserveCardV1{} = cmd) do
     cond do
-      not Actor.allowed?(cmd.by, @who) ->
-        {:error, :not_permitted}
+      refusal = Actor.refused(cmd.by, @who, CrewName.home_crew_in(card)) ->
+        {:error, refusal}
+
+      is_binary(cmd.crew) ->
+        {:ok,
+         [
+           CardReservedV1.new(cmd, card.status, %{
+             lane: nil,
+             lane_node_id: nil,
+             lane_crew: cmd.crew
+           })
+         ]}
 
       not is_binary(cmd.lane_node_id) ->
         {:error, :unknown_agent}
 
       true ->
         {:ok,
-         [CardReservedV1.new(cmd, card.status, %{lane: cmd.lane, lane_node_id: cmd.lane_node_id})]}
+         [
+           CardReservedV1.new(cmd, card.status, %{
+             lane: cmd.lane,
+             lane_node_id: cmd.lane_node_id,
+             lane_crew: nil
+           })
+         ]}
     end
   end
 
-  @doc "Resolves the lane's node id from the live crew, then dispatches."
+  @doc "Resolves the lane's node id, or checks the crew, from the live crew, then dispatches."
+  def dispatch(%ReserveCardV1{crew: crew} = cmd) when is_binary(crew),
+    do: crew_reserved(crew in CrewState.crew_names(CrewAggregate.current()), cmd)
+
   def dispatch(%ReserveCardV1{} = cmd) do
     crew = CrewAggregate.current()
     reserved(CrewState.node_id_of(crew, cmd.lane), crew, cmd)
   end
+
+  defp crew_reserved(false, _cmd), do: {:error, :unknown_crew}
+
+  defp crew_reserved(true, cmd),
+    do: CardAggregate.dispatch(:reserve_card, cmd.card_id, ReserveCardV1.to_map(cmd))
 
   defp reserved(nil, _crew, _cmd), do: {:error, :unknown_agent}
 

@@ -1,9 +1,10 @@
 defmodule GuideCardLifecycle.ResumePackage.MaybeResumePackage do
-  # Handler: the prioritiser or the owner resumes a paused package (#17). Its
-  # cards are handed out again; the package comes back unranked.
+  # Handler: the home crew's prioritiser or operator, or the owner (#29),
+  # resumes a paused package (#17). Its cards are handed out again; the
+  # package comes back unranked.
   @moduledoc false
 
-  alias GuideCardLifecycle.{Actor, PackageAggregate, PackageState, PackageStatus}
+  alias GuideCardLifecycle.{Actor, CrewName, PackageAggregate, PackageState, PackageStatus}
   alias GuideCardLifecycle.ResumePackage.{PackageResumedV1, ResumePackageV1}
 
   @who [:prioritiser, :owner]
@@ -12,8 +13,8 @@ defmodule GuideCardLifecycle.ResumePackage.MaybeResumePackage do
 
   def handle(%PackageState{} = package, %ResumePackageV1{} = cmd) do
     cond do
-      not Actor.allowed?(cmd.by, @who) ->
-        {:error, :not_permitted}
+      refusal = Actor.refused(cmd.by, @who, CrewName.home_crew_in(package)) ->
+        {:error, refusal}
 
       not PackageState.deferred?(package) ->
         {:error, :not_deferred}

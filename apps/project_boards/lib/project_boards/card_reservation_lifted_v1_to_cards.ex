@@ -21,5 +21,5 @@ defmodule ProjectBoards.CardReservationLiftedV1ToCards do
   end
 
   defp statements(data, version),
-    do: [card_update(data, version, [{"lane", nil}, {"lane_node_id", nil}])]
+    do: [card_update(data, version, [{"lane", nil}, {"lane_node_id", nil}, {"lane_crew", nil}])]
 end

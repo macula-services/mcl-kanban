@@ -2,7 +2,9 @@ defmodule GuideCardLifecycle.QueueCard.MaybeQueueCard do
   # Handler: any agent, the supervisor or the owner queues a card, unranked
   # (the bottom of the queue until the prioritiser ranks it). One card per
   # issue. The card's board must be open and not archived; that is checked
-  # against the board's live aggregate before dispatch.
+  # against the board's live aggregate before dispatch, which also puts the
+  # board's home crew on the card (#29). Any crew queues on any board: posting
+  # work for another crew is allowed, ordering it is not.
   @moduledoc false
 
   alias GuideCardLifecycle.Actor
@@ -11,6 +13,7 @@ defmodule GuideCardLifecycle.QueueCard.MaybeQueueCard do
   alias GuideCardLifecycle.CardAggregate
   alias GuideCardLifecycle.CardState
   alias GuideCardLifecycle.CardStatus
+  alias GuideCardLifecycle.CrewName
   alias GuideCardLifecycle.QueueCard.{CardQueuedV1, QueueCardV1}
 
   @who [:agent, :owner]
@@ -30,6 +33,7 @@ defmodule GuideCardLifecycle.QueueCard.MaybeQueueCard do
       issue_ref: cmd.issue_ref,
       repo: cmd.repo,
       board_id: cmd.board_id,
+      home_crew: CrewName.home_crew_in(cmd),
       title: cmd.title,
       story: cmd.story,
       kind: cmd.kind,
@@ -43,7 +47,9 @@ defmodule GuideCardLifecycle.QueueCard.MaybeQueueCard do
     cond do
       not BoardState.open?(board) -> {:error, :unknown_board}
       BoardState.archived?(board) -> {:error, :board_archived}
-      true -> CardAggregate.dispatch(:queue_card, cmd.card_id, QueueCardV1.to_map(cmd))
+      true -> CardAggregate.dispatch(:queue_card, cmd.card_id, on_board(cmd, board))
     end
   end
+
+  defp on_board(cmd, board), do: QueueCardV1.to_map(%{cmd | home_crew: board.home_crew})
 end

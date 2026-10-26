@@ -20,6 +20,14 @@ defmodule GuideCardLifecycle.CrewName do
   @spec home() :: String.t()
   def home, do: @home
 
+  @doc """
+  The home crew an event names (#29): a board, card or package from before
+  #29 names none, and belongs to the first crew, for the reason home/0 gives.
+  """
+  @spec home_crew_in(map()) :: String.t()
+  def home_crew_in(%{home_crew: crew}) when is_binary(crew), do: crew
+  def home_crew_in(_event), do: @home
+
   @spec name(term()) :: {:ok, String.t()} | {:error, :invalid_crew}
   def name(name) when is_binary(name), do: named(Regex.match?(@name, name), name)
   def name(_), do: {:error, :invalid_crew}

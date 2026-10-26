@@ -1,5 +1,7 @@
 defmodule MclKanban.OpenBoard.OpenBoardResponder do
-  # mcl-kanban/open_board: repo (owner/repo). The supervisor opens a repo's board. Replies the board.
+  # mcl-kanban/open_board: repo (owner/repo), optional crew (#29): the board's
+  # home crew, by default the caller's. The supervisor or an operator opens a
+  # board for its own crew. Replies the board with its home crew.
   @moduledoc false
 
   @behaviour :macula_response
@@ -15,9 +17,14 @@ defmodule MclKanban.OpenBoard.OpenBoardResponder do
   def handle_request(payload, state) do
     reply =
       with {:ok, by} <- Actor.of_caller(payload),
-           {:ok, cmd} <- OpenBoardV1.new(Map.put(%{repo: Wire.arg(payload, :repo)}, :by, by)),
+           {:ok, cmd} <-
+             OpenBoardV1.new(%{
+               repo: Wire.arg(payload, :repo),
+               crew: Wire.arg(payload, :crew),
+               by: by
+             }),
            {:ok, _version, _events} <- MaybeOpenBoard.dispatch(cmd),
-           do: {:ok, %{board: %{board_id: cmd.board_id, repo: cmd.repo}}}
+           do: {:ok, %{board: %{board_id: cmd.board_id, repo: cmd.repo, home_crew: cmd.crew}}}
 
     {:reply, Wire.reply(reply), state}
   end

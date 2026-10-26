@@ -1,8 +1,9 @@
 defmodule GuideCardLifecycle.LiftCardReservation.MaybeLiftCardReservation do
-  # Handler: the supervisor, the prioritiser or the owner lifts a lane.
+  # Handler: the home crew's supervisor, prioritiser or operator, or the
+  # owner (#29), lifts a lane, an agent's or a crew's.
   @moduledoc false
 
-  alias GuideCardLifecycle.{Actor, CardAggregate, CardState}
+  alias GuideCardLifecycle.{Actor, CardAggregate, CardState, CrewName}
   alias GuideCardLifecycle.LiftCardReservation.{CardReservationLiftedV1, LiftCardReservationV1}
 
   @who [:supervisor, :prioritiser, :owner]
@@ -11,11 +12,18 @@ defmodule GuideCardLifecycle.LiftCardReservation.MaybeLiftCardReservation do
 
   def handle(%CardState{} = card, %LiftCardReservationV1{} = cmd) do
     cond do
-      not Actor.allowed?(cmd.by, @who) -> {:error, :not_permitted}
-      card.lane == nil -> {:error, :not_reserved}
-      true -> {:ok, [CardReservationLiftedV1.new(cmd, card.status, %{lane: card.lane})]}
+      refusal = Actor.refused(cmd.by, @who, CrewName.home_crew_in(card)) ->
+        {:error, refusal}
+
+      card.lane == nil and card.lane_crew == nil ->
+        {:error, :not_reserved}
+
+      true ->
+        {:ok, [CardReservationLiftedV1.new(cmd, card.status, lifted(card))]}
     end
   end
+
+  defp lifted(card), do: %{lane: card.lane, lane_crew: card.lane_crew}
 
   def dispatch(%LiftCardReservationV1{} = cmd),
     do:

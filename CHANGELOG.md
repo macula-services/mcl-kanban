@@ -5,6 +5,44 @@ Versioning: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Home crew per board, crew lanes, and the cross-crew rules (#29).** Every
+  board belongs to a home crew: `open_board` names it (`crew`, by default the
+  opener's own; `board_opened_v1` carries `home_crew`), and its cards and
+  packages follow it. Only the home crew orders a board's work: ranking,
+  deferring, resuming, withdrawing, rewording, reclassifying, reserving,
+  filing, opening packages and archiving take the role each procedure names
+  (or the operator) **in the home crew**, or the owner, and another crew's
+  caller is refused `not_home_crew`; `Actor.refused/3` is the one place that
+  rule is written. Any crew still queues, comments, tags and links on any
+  board, and claims an unreserved card wherever it is. `reserve_card` takes
+  `crew` as well as `lane`: a crew's lane is claimed by that crew's agents
+  only (`other_crew_lane` for anyone else), and `claim_next_card` offers it to
+  them after their own lane. Cards carry `lane_crew`; `get_boards` and
+  `get_board_by_repo` name each board's `home_crew`. Refs #29.
+
+### Changed
+
+- **The supervisor and the prioritiser act on their own crew's boards only
+  (#29).** Both are still appointed once by the owner, but a board of another
+  crew answers them `not_home_crew`. Boards, cards and packages from before
+  #29 belong to `home`, read so from their events and by a read-model
+  migration, so a single-crew board works exactly as before.
+- **A holder from another crew works the card but does not reword it (#29);**
+  blocking, releasing and finishing keep the holder rules.
+- **`open_package` needs the repo's board open (#29):** the package takes that
+  board's home crew, and is refused `unknown_board` otherwise.
+- **Only the owner discharges the prioritiser (#29):** an operator whose crew
+  it is enlisted in is refused `appointed_by_owner`, so no operator undoes the
+  owner's appointment.
+
+### Removed
+
+- **`appoint_operator` is no longer served on the mesh (#29).** The owner is
+  never a mesh caller, so it could only ever answer `not_permitted`; the owner
+  appoints operators in the web UI, as with the supervisor and the prioritiser.
+
 ## [0.5.1] - 2026-10-26
 
 ### Fixed
@@ -25,7 +63,6 @@ Versioning: [SemVer](https://semver.org/).
   is now `system_time(:microsecond)` plus the OS pid.
 - **The `get_crew` race test waits for the read, bounded.** It polled a single
   time and lost the race against the projection roughly one run in ten.
-
 ## [0.5.0] - 2026-10-26
 
 ### Added

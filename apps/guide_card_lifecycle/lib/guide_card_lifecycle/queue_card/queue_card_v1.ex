@@ -1,6 +1,7 @@
 defmodule GuideCardLifecycle.QueueCard.QueueCardV1 do
   # Command: put a GitHub issue on its repo's board as a card. The card and
-  # board ids are derived from the issue reference.
+  # board ids are derived from the issue reference; the home crew is the
+  # board's, put here by MaybeQueueCard.dispatch/1 (#29), never the caller's.
   @moduledoc false
 
   @behaviour :evoq_command
@@ -13,7 +14,18 @@ defmodule GuideCardLifecycle.QueueCard.QueueCardV1 do
   alias GuideCardLifecycle.IssueRef
 
   @enforce_keys [:card_id, :board_id, :issue_ref, :repo, :title, :kind, :by]
-  defstruct [:card_id, :board_id, :issue_ref, :repo, :title, :story, :kind, :by, tags: []]
+  defstruct [
+    :card_id,
+    :board_id,
+    :issue_ref,
+    :repo,
+    :home_crew,
+    :title,
+    :story,
+    :kind,
+    :by,
+    tags: []
+  ]
 
   @impl true
   def command_type, do: :queue_card

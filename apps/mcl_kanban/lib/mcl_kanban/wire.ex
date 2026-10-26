@@ -12,7 +12,7 @@ defmodule MclKanban.Wire do
   alias QueryBoards.GetCardById.GetCardById
   alias QueryBoards.GetGoal.GetGoal
 
-  @card_fields ~w(card_id issue_ref board title story kind colour tags rank rationale lane holder
+  @card_fields ~w(card_id issue_ref board title story kind colour tags rank rationale lane lane_crew holder
                   status state pinned note links linked_from comment_count queued_at claimed_at comments
                   work_package package_rank package_card deferred)a
 

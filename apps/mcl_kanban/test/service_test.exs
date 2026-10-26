@@ -7,7 +7,7 @@ defmodule MclKanban.ServiceTest do
   @procedures ~w(claim_next_card claim_card unblock_card release_card block_card finish_card
                  queue_card tag_card untag_card link_card unlink_card comment_on_card
                  prioritise_card reserve_card get_boards get_board_by_repo get_card_by_id
-                 get_my_cards enlist_agent discharge_agent appoint_operator get_crew open_board
+                 get_my_cards enlist_agent discharge_agent get_crew open_board
                  withdraw_card
                  open_package prioritise_package file_card unfile_card get_ladder
                  defer_card resume_card defer_package resume_package defer_board resume_board

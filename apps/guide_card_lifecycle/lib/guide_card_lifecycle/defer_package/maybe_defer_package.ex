@@ -1,10 +1,11 @@
 defmodule GuideCardLifecycle.DeferPackage.MaybeDeferPackage do
-  # Handler: the prioritiser or the owner pauses an open package (#17). Its
-  # cards stay queued and are not handed out until it is resumed. A paused
-  # package is not a contender, so deferring clears its rank and its pin.
+  # Handler: the home crew's prioritiser or operator, or the owner (#29),
+  # pauses an open package (#17). Its cards stay queued and are not handed out
+  # until it is resumed. A paused package is not a contender, so deferring
+  # clears its rank and its pin.
   @moduledoc false
 
-  alias GuideCardLifecycle.{Actor, PackageAggregate, PackageState, PackageStatus}
+  alias GuideCardLifecycle.{Actor, CrewName, PackageAggregate, PackageState, PackageStatus}
   alias GuideCardLifecycle.DeferPackage.{DeferPackageV1, PackageDeferredV1}
 
   @who [:prioritiser, :owner]
@@ -13,8 +14,8 @@ defmodule GuideCardLifecycle.DeferPackage.MaybeDeferPackage do
 
   def handle(%PackageState{} = package, %DeferPackageV1{} = cmd) do
     cond do
-      not Actor.allowed?(cmd.by, @who) ->
-        {:error, :not_permitted}
+      refusal = Actor.refused(cmd.by, @who, CrewName.home_crew_in(package)) ->
+        {:error, refusal}
 
       not PackageState.open?(package) ->
         {:error, :unknown_package}

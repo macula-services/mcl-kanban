@@ -1,19 +1,19 @@
 defmodule GuideCardLifecycle.ResumeCard.MaybeResumeCard do
-  # Handler: the prioritiser or the owner resumes a deferred card (#17). It
-  # is queued again, unranked.
+  # Handler: the home crew's prioritiser or operator, or the owner (#29),
+  # resumes a deferred card (#17). It is queued again, unranked.
   @moduledoc false
 
-  alias GuideCardLifecycle.{Actor, CardAggregate, CardState, CardStatus}
+  alias GuideCardLifecycle.{Actor, CardAggregate, CardState, CardStatus, CrewName}
   alias GuideCardLifecycle.ResumeCard.{CardResumedV1, ResumeCardV1}
 
   @who [:prioritiser, :owner]
 
   def handle_payload(state, payload), do: handle(state, struct(ResumeCardV1, payload))
 
-  def handle(%CardState{status: status}, %ResumeCardV1{} = cmd) do
+  def handle(%CardState{status: status} = card, %ResumeCardV1{} = cmd) do
     cond do
-      not Actor.allowed?(cmd.by, @who) ->
-        {:error, :not_permitted}
+      refusal = Actor.refused(cmd.by, @who, CrewName.home_crew_in(card)) ->
+        {:error, refusal}
 
       not CardStatus.has?(status, CardStatus.deferred()) ->
         {:error, :not_deferred}

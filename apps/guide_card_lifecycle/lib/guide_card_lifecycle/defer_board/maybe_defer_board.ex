@@ -1,9 +1,10 @@
 defmodule GuideCardLifecycle.DeferBoard.MaybeDeferBoard do
-  # Handler: the prioritiser or the owner pauses a repo (#17): its cards stay
-  # queued and are not handed out until the board is resumed. No card is
-  # marked blocked.
+  # Handler: the home crew's prioritiser or operator, or the owner (#29),
+  # pauses a repo (#17): its cards stay queued and are not handed out until
+  # the board is resumed. No card is marked blocked.
   @moduledoc false
 
+  alias GuideCardLifecycle.CrewName
   alias GuideCardLifecycle.Actor
   alias GuideCardLifecycle.BoardState
   alias GuideCardLifecycle.DeferBoard.{BoardDeferredV1, DeferBoardV1}
@@ -14,10 +15,17 @@ defmodule GuideCardLifecycle.DeferBoard.MaybeDeferBoard do
 
   def handle(%BoardState{} = board, %DeferBoardV1{} = cmd) do
     cond do
-      not Actor.allowed?(cmd.by, @who) -> {:error, :not_permitted}
-      not BoardState.open?(board) -> {:error, :unknown_board}
-      BoardState.deferred?(board) -> {:error, :already_deferred}
-      true -> {:ok, [BoardDeferredV1.from_command(cmd, %{reason: cmd.reason})]}
+      refusal = Actor.refused(cmd.by, @who, CrewName.home_crew_in(board)) ->
+        {:error, refusal}
+
+      not BoardState.open?(board) ->
+        {:error, :unknown_board}
+
+      BoardState.deferred?(board) ->
+        {:error, :already_deferred}
+
+      true ->
+        {:ok, [BoardDeferredV1.from_command(cmd, %{reason: cmd.reason})]}
     end
   end
 

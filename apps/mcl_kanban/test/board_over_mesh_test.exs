@@ -12,7 +12,6 @@ defmodule MclKanban.BoardOverMeshTest do
   alias GuideCardLifecycle.EnlistAgent.{EnlistAgentV1, MaybeEnlistAgent}
 
   alias MclKanban.AdoptGoal.AdoptGoalResponder
-  alias MclKanban.AppointOperator.AppointOperatorResponder
   alias MclKanban.ClaimCard.ClaimCardResponder
   alias MclKanban.ClaimNextCard.ClaimNextCardResponder
   alias MclKanban.CommentOnCard.CommentOnCardResponder
@@ -287,13 +286,57 @@ defmodule MclKanban.BoardOverMeshTest do
     assert "operator" in eve_roles
     assert %{crew: "home", operator: %{name: ^sup}} = Enum.find(crews, &(&1.crew == "home"))
 
-    # The owner's rule, over the mesh: appointing is the owner's alone.
-    assert %{reason: "not_permitted"} =
-             call(AppointOperatorResponder, sup, %{crew: "home", name: sup})
-
     # Only a crew's own operator discharges from it.
     assert %{reason: "not_permitted"} = call(DischargeAgentResponder, eve, %{name: sup})
     assert %{agent: %{name: ^dan}} = call(DischargeAgentResponder, eve, %{name: dan})
+  end
+
+  test "two crews: each orders its own boards, posts on the other's, and claims in its crew's lane (#29)",
+       %{sup: sup, repo: repo} do
+    night = "night" <> uniq()
+    eve = "eve" <> uniq()
+
+    {:ok, found} =
+      EnlistAgentV1.new(%{name: eve, node_id: hex(eve), crew: night, by: Actor.owner()})
+
+    {:ok, _, _} = MaybeEnlistAgent.dispatch(found)
+    {:ok, operator} = AppointOperatorV1.new(%{crew: night, name: eve, by: Actor.owner()})
+    {:ok, _, _} = MaybeAppointOperator.dispatch(operator)
+    dan = enlist(eve, night)
+    bob = enlist(sup)
+
+    # night opens its own board; home's supervisor opens none for it.
+    nights = "example-org/night" <> uniq()
+
+    assert %{reason: "not_home_crew"} =
+             call(OpenBoardResponder, sup, %{repo: nights, crew: night})
+
+    assert %{board: %{repo: ^nights, home_crew: ^night}} =
+             call(OpenBoardResponder, eve, %{repo: nights})
+
+    # night posts work on home's board, and may not order it.
+    for_home = queue(dan, repo, 290)
+
+    assert %{reason: "not_home_crew"} =
+             call(ReserveCardResponder, eve, %{card_id: for_home, crew: night})
+
+    # home hands it to night's lane: only night claims it.
+    assert %{card: %{lane_crew: ^night}} =
+             call(ReserveCardResponder, sup, %{card_id: for_home, crew: night})
+
+    assert %{reason: "other_crew_lane"} = call(ClaimCardResponder, bob, %{card_id: for_home})
+
+    assert %{card: %{card_id: ^for_home, holder: ^dan}} =
+             call(ClaimCardResponder, dan, %{card_id: for_home})
+
+    # A card on night's board is night's to order, not home's.
+    on_night = queue(bob, nights, 1)
+
+    assert %{reason: "not_home_crew"} =
+             call(DeferCardResponder, sup, %{card_id: on_night, reason: "not ours"})
+
+    assert %{card: %{card_id: ^on_night}} =
+             call(DeferCardResponder, eve, %{card_id: on_night, reason: "later"})
   end
 
   test "a refusal names its reason", %{sup: sup, repo: repo} do

@@ -151,13 +151,81 @@ defmodule QueryBoards.QueriesTest do
 
     ids =
       me
-      |> GetNextCardForAgent.get_next_card_for_agent(50)
+      |> GetNextCardForAgent.get_next_card_for_agent("home", 50)
       |> Enum.map(& &1.card_id)
       |> Enum.filter(
         &(&1 in [old_unranked, ranked_low, ranked_high, mine, theirs, claimed, blocked])
       )
 
     assert ids == [mine, ranked_high, ranked_low, old_unranked]
+  end
+
+  test "a crew's lane is offered to that crew's agents only, after an agent's own lane (#29)" do
+    repo = "example-org/crewlanes" <> uniq()
+    b = board(repo)
+    me = hex32("crewlane-me" <> repo)
+    loose = card(repo, b, 1)
+    nights = card(repo, b, 2)
+    mine = card(repo, b, 3)
+
+    deliver(
+      %{
+        event_type: "card_reserved_v1",
+        card_id: nights,
+        lane: nil,
+        lane_node_id: nil,
+        lane_crew: "night",
+        status: 1,
+        at: 6
+      },
+      1
+    )
+
+    deliver(
+      %{
+        event_type: "card_reserved_v1",
+        card_id: mine,
+        lane: "me",
+        lane_node_id: me,
+        lane_crew: nil,
+        status: 1,
+        at: 6
+      },
+      1
+    )
+
+    offered = fn crew ->
+      me
+      |> GetNextCardForAgent.get_next_card_for_agent(crew, 500)
+      |> Enum.map(& &1.card_id)
+      |> Enum.filter(&(&1 in [loose, nights, mine]))
+    end
+
+    assert offered.("night") == [mine, nights, loose]
+    assert offered.("home") == [mine, loose]
+
+    assert {:ok, %{lane_crew: "night", lane: nil}} = GetCardById.get_card_by_id(nights, 1)
+
+    deliver(%{event_type: "card_reservation_lifted_v1", card_id: nights, status: 1, at: 7}, 2)
+    assert {:ok, %{lane_crew: nil}} = GetCardById.get_card_by_id(nights, 2)
+  end
+
+  test "every board names its home crew; one opened before #29 belongs to home" do
+    night = "example-org/nightboard" <> uniq()
+    old = "example-org/oldboard" <> uniq()
+    id = "board-" <> hex32(night)
+
+    deliver(
+      %{event_type: "board_opened_v1", board_id: id, repo: night, home_crew: "night", at: 1},
+      0
+    )
+
+    board(old)
+    crews = Map.new(GetBoards.get_boards(), &{&1.repo, &1.home_crew})
+
+    assert crews[night] == "night"
+    assert crews[old] == "home"
+    assert {:ok, %{board: %{home_crew: "night"}}} = GetBoardByRepo.get_board_by_repo(night)
   end
 
   test "a card by id carries both directions of its links, its tags and comments" do
@@ -463,7 +531,7 @@ defmodule QueryBoards.QueriesTest do
 
     ids =
       me
-      |> GetNextCardForAgent.get_next_card_for_agent(500)
+      |> GetNextCardForAgent.get_next_card_for_agent("home", 500)
       |> Enum.map(& &1.card_id)
       |> Enum.filter(&(&1 in [in_low, in_top, loose]))
 
@@ -600,7 +668,7 @@ defmodule QueryBoards.QueriesTest do
     file(member, ref, 1)
 
     node = hex32("pkg-agent" <> uniq()) <> hex32("pad")
-    ids = GetNextCardForAgent.get_next_card_for_agent(node, 500) |> Enum.map(& &1.card_id)
+    ids = GetNextCardForAgent.get_next_card_for_agent(node, "home", 500) |> Enum.map(& &1.card_id)
 
     assert member in ids
     refute package in ids
@@ -675,7 +743,7 @@ defmodule QueryBoards.QueriesTest do
     )
 
     node = hex32("defer-agent" <> uniq()) <> hex32("pad")
-    ids = GetNextCardForAgent.get_next_card_for_agent(node, 500) |> Enum.map(& &1.card_id)
+    ids = GetNextCardForAgent.get_next_card_for_agent(node, "home", 500) |> Enum.map(& &1.card_id)
     assert open_card in ids
     refute paused_card in ids
 
@@ -704,7 +772,12 @@ defmodule QueryBoards.QueriesTest do
     )
 
     node = hex32("defer-agent2" <> uniq()) <> hex32("pad")
-    refute c in Enum.map(GetNextCardForAgent.get_next_card_for_agent(node, 500), & &1.card_id)
+
+    refute c in Enum.map(
+             GetNextCardForAgent.get_next_card_for_agent(node, "home", 500),
+             & &1.card_id
+           )
+
     assert %{deferred: 1} = Enum.find(GetBoards.get_boards(), &(&1.board_id == b))
   end
 
@@ -760,7 +833,7 @@ defmodule QueryBoards.QueriesTest do
 
     assert %{goal: "So the goal ships", packages: [^on_goal], by: "ada"} = GetGoal.get_goal()
 
-    ids = GetNextCardForAgent.get_next_card_for_agent(node, 500) |> Enum.map(& &1.card_id)
+    ids = GetNextCardForAgent.get_next_card_for_agent(node, "home", 500) |> Enum.map(& &1.card_id)
     mine = Enum.filter(ids, &(&1 in [lane_off, goal_free, goal_lane]))
     assert mine == [goal_lane, goal_free, lane_off]
   end

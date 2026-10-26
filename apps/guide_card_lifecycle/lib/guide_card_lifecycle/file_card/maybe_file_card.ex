@@ -1,13 +1,15 @@
 defmodule GuideCardLifecycle.FileCard.MaybeFileCard do
-  # Handler: the supervisor or the owner files a card into an open work
-  # package; filing it into another package moves it. The package must be
-  # open; that is checked against the package's live aggregate before dispatch.
+  # Handler: the home crew's supervisor or operator, or the owner (#29), files
+  # a card into an open work package; filing it into another package moves it.
+  # The package must be open; that is checked against the package's live
+  # aggregate before dispatch.
   @moduledoc false
 
   alias GuideCardLifecycle.{
     Actor,
     CardAggregate,
     CardState,
+    CrewName,
     IssueRef,
     PackageAggregate,
     PackageState
@@ -21,7 +23,7 @@ defmodule GuideCardLifecycle.FileCard.MaybeFileCard do
 
   def handle(%CardState{status: status} = card, %FileCardV1{} = cmd) do
     cond do
-      not Actor.allowed?(cmd.by, @who) -> {:error, :not_permitted}
+      refusal = Actor.refused(cmd.by, @who, CrewName.home_crew_in(card)) -> {:error, refusal}
       card.work_package == cmd.package_ref -> {:error, :already_filed}
       true -> {:ok, [CardFiledV1.new(cmd, status, %{work_package: cmd.package_ref})]}
     end

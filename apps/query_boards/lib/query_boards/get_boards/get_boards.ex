@@ -15,7 +15,7 @@ defmodule QueryBoards.GetBoards.GetBoards do
     waiting = "c.status & 30 = 0 AND c.status & 1 = 1"
 
     """
-    SELECT b.board_id, b.repo, b.status, b.opened_at,
+    SELECT b.board_id, b.repo, b.status, b.opened_at, b.home_crew,
       (SELECT COUNT(*) FROM cards c WHERE #{on_board} AND #{waiting} AND #{CardRows.not_deferred()}),
       (SELECT COUNT(*) FROM cards c WHERE #{on_board} AND c.status & 2 = 2 AND c.status & 28 = 0),
       (SELECT COUNT(*) FROM cards c WHERE #{on_board} AND c.status & 4 = 4 AND c.status & 24 = 0),
@@ -42,10 +42,22 @@ defmodule QueryBoards.GetBoards.GetBoards do
       )
 
   @doc false
-  def board([id, repo, status, opened_at, queued, claimed, blocked, finished, deferred]) do
+  def board([
+        id,
+        repo,
+        status,
+        opened_at,
+        home_crew,
+        queued,
+        claimed,
+        blocked,
+        finished,
+        deferred
+      ]) do
     %{
       board_id: id,
       repo: repo,
+      home_crew: home_crew,
       archived: Bitwise.band(status, 2) |> Bitwise.bsr(1),
       deferred: Bitwise.band(status, 4) |> Bitwise.bsr(2),
       opened_at: opened_at,

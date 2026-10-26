@@ -1,19 +1,20 @@
 defmodule GuideCardLifecycle.PrioritiseCard.MaybePrioritiseCard do
-  # Handler: the prioritiser or the owner ranks. An owner rank PINS the card:
-  # the prioritiser cannot change it until the owner unpins.
+  # Handler: the home crew's prioritiser or operator, or the owner (#29),
+  # ranks. An owner rank PINS the card: the prioritiser cannot change it until
+  # the owner unpins.
   @moduledoc false
 
-  alias GuideCardLifecycle.{Actor, CardAggregate, CardState, CardStatus}
+  alias GuideCardLifecycle.{Actor, CardAggregate, CardState, CardStatus, CrewName}
   alias GuideCardLifecycle.PrioritiseCard.{CardPrioritisedV1, PrioritiseCardV1}
 
   @who [:prioritiser, :owner]
 
   def handle_payload(state, payload), do: handle(state, struct(PrioritiseCardV1, payload))
 
-  def handle(%CardState{status: status}, %PrioritiseCardV1{by: by} = cmd) do
+  def handle(%CardState{status: status} = card, %PrioritiseCardV1{by: by} = cmd) do
     cond do
-      not Actor.allowed?(by, @who) ->
-        {:error, :not_permitted}
+      refusal = Actor.refused(by, @who, CrewName.home_crew_in(card)) ->
+        {:error, refusal}
 
       CardStatus.has?(status, CardStatus.deferred()) ->
         {:error, :deferred}

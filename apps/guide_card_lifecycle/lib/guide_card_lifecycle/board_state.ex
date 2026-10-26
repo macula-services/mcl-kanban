@@ -1,12 +1,20 @@
 defmodule GuideCardLifecycle.BoardState do
-  # One board per repo.
+  # One board per repo, with the crew it belongs to (#29): its home crew
+  # orders its work. A board opened before #29 names none and belongs to the
+  # first crew.
   @moduledoc false
 
   alias GuideCardLifecycle.BoardStatus
+  alias GuideCardLifecycle.CrewName
 
-  defstruct [:board_id, :repo, status: 0]
+  defstruct [:board_id, :repo, :home_crew, status: 0]
 
-  @type t :: %__MODULE__{board_id: String.t(), repo: String.t() | nil, status: non_neg_integer()}
+  @type t :: %__MODULE__{
+          board_id: String.t(),
+          repo: String.t() | nil,
+          home_crew: String.t() | nil,
+          status: non_neg_integer()
+        }
 
   @spec new(String.t()) :: t()
   def new(board_id), do: %__MODULE__{board_id: board_id}
@@ -19,8 +27,14 @@ defmodule GuideCardLifecycle.BoardState do
   def apply_event(state, %{data: data, event_type: type}),
     do: apply_event(state, Map.put(data, :event_type, type))
 
-  def apply_event(state, %{event_type: "board_opened_v1", repo: repo}),
-    do: %{state | repo: repo, status: :evoq_bit_flags.set(state.status, BoardStatus.opened())}
+  def apply_event(state, %{event_type: "board_opened_v1", repo: repo} = e) do
+    %{
+      state
+      | repo: repo,
+        home_crew: CrewName.home_crew_in(e),
+        status: :evoq_bit_flags.set(state.status, BoardStatus.opened())
+    }
+  end
 
   def apply_event(state, %{event_type: "board_archived_v1"}),
     do: %{state | status: :evoq_bit_flags.set(state.status, BoardStatus.archived())}

@@ -1,6 +1,7 @@
 defmodule GuideCardLifecycle.ClaimCard.MaybeClaimCard do
-  # Handler: an enlisted agent claims a queued card that is in its lane, or
-  # in no lane. A holder is always an agent, so the owner never claims. The
+  # Handler: an enlisted agent claims a queued card that is in its lane, in
+  # its crew's lane (#29), or in no lane: an unreserved card may be claimed by
+  # any crew, whoever's board it is on. A holder is always an agent, so the owner never claims. The
   # card's own stream serialises claims: the second gets already_claimed.
   #
   # A package's own card (filed into itself) is never claimed (#15): packages
@@ -21,10 +22,19 @@ defmodule GuideCardLifecycle.ClaimCard.MaybeClaimCard do
       CardStatus.has?(status, CardStatus.claimed()) -> {:error, :already_claimed}
       CardStatus.has?(status, CardStatus.blocked()) -> {:error, :blocked}
       CardStatus.has?(status, CardStatus.deferred()) -> {:error, :deferred}
-      card.lane_node_id not in [nil, by.node_id] -> {:error, :not_in_lane}
+      refusal = lane_refusal(card, by) -> {:error, refusal}
       true -> {:ok, [claimed(cmd, status)]}
     end
   end
+
+  # A lane is an agent's or a crew's, never both.
+  defp lane_refusal(%CardState{lane_node_id: node_id}, by) when node_id not in [nil, by.node_id],
+    do: :not_in_lane
+
+  defp lane_refusal(%CardState{lane_crew: crew}, by) when crew not in [nil, by.crew],
+    do: :other_crew_lane
+
+  defp lane_refusal(_card, _by), do: nil
 
   defp claimed(cmd, status),
     do:

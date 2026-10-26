@@ -65,8 +65,9 @@ and never to an agent of another crew. An operator that can hand its own crew
 on would let a crew pass itself along without anyone outside it agreeing, so
 appointing one is the owner's alone.
 
-- `enlist_agent` takes `name`, `node_id` and `crew`; `discharge_agent` and
-  `appoint_operator` (`crew`, `name`) are the rest of the roster.
+- `enlist_agent` takes `name`, `node_id` and `crew`; `discharge_agent` is the
+  rest of the roster on the mesh. Appointing an operator is the owner's, in the
+  web UI only: it is not served on the mesh.
 - `get_crew` answers `%{crews: [%{crew, operator, agents}]}`, each agent with
   its `roles`, the cards it holds and its `next` card. Enlisted callers only,
   like every read.
@@ -75,6 +76,14 @@ appointing one is the owner's alone.
 - A crew nobody is in yet has no operator to enlist into it, so the **owner
   founds it**: enlist the first agent into the new crew, then appoint it
   operator -- the enlist dialog does both in one step.
+
+Every board has a **home crew** (#29), named by `open_board` and by default
+the opener's own; boards from before are `home`'s. Only the home crew ranks,
+defers, withdraws, rewords, reserves, files or archives on a board, so another
+crew cannot reorder our work; any crew still queues, comments, tags, links and
+claims unreserved cards there. A card can be reserved to a crew's lane
+(`reserve_card` with `crew`), claimed by that crew's agents only. The rules,
+role by role, are in [guides/working_the_board.md](guides/working_the_board.md).
 
 `scripts/fill_board.sh` enlists every agent into `KANBAN_CREW` (default
 `home`). It signs as `KANBAN_SUPERVISOR` (default `supervisor`), which must

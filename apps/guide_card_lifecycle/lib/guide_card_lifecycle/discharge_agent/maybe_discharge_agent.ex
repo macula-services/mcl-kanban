@@ -1,8 +1,10 @@
 defmodule GuideCardLifecycle.DischargeAgent.MaybeDischargeAgent do
   # Handler: the owner, or the operator of the crew the agent belongs to
   # (#28). The supervisor itself cannot be discharged (the crew always has
-  # one); a discharged prioritiser leaves the crew without one, and a
-  # discharged operator leaves its crew without one.
+  # one); a discharged operator leaves its crew without one. The prioritiser
+  # is appointed by the owner once for all crews, so only the owner
+  # discharges it, even when it is enlisted in an operator's crew (#29): an
+  # operator does not undo the owner's appointment.
   @moduledoc false
 
   alias GuideCardLifecycle.Actor
@@ -26,6 +28,9 @@ defmodule GuideCardLifecycle.DischargeAgent.MaybeDischargeAgent do
 
       node_id == crew.supervisor ->
         {:error, :supervisor_required}
+
+      node_id == crew.prioritiser and not Actor.allowed?(cmd.by, [:owner]) ->
+        {:error, :appointed_by_owner}
 
       true ->
         {:ok, [AgentDischargedV1.new(cmd.by, node_id, CrewState.name_of(crew, node_id))]}

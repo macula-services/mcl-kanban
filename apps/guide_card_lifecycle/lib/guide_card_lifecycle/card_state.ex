@@ -1,12 +1,18 @@
 defmodule GuideCardLifecycle.CardState do
   # One card, one GitHub issue. Each event carries the card's status after it.
+  # The card follows its board's home crew (#29), copied onto card_queued_v1
+  # from the board, which never changes crew. A lane is an agent's
+  # (lane_node_id) or a crew's (lane_crew), never both.
   @moduledoc false
+
+  alias GuideCardLifecycle.CrewName
 
   defstruct [
     :card_id,
     :issue_ref,
     :repo,
     :board_id,
+    :home_crew,
     :title,
     :story,
     :kind,
@@ -15,6 +21,7 @@ defmodule GuideCardLifecycle.CardState do
     :ranked_by,
     :lane,
     :lane_node_id,
+    :lane_crew,
     :holder,
     :holder_node_id,
     :queued_at,
@@ -46,6 +53,7 @@ defmodule GuideCardLifecycle.CardState do
       | issue_ref: e.issue_ref,
         repo: e.repo,
         board_id: e.board_id,
+        home_crew: CrewName.home_crew_in(e),
         title: e.title,
         story: e.story,
         kind: e.kind,
@@ -64,8 +72,12 @@ defmodule GuideCardLifecycle.CardState do
 
   defp fold(_e, "card_unpinned_v1", s), do: s
   defp fold(_e, "card_deferred_v1", s), do: %{s | rank: nil, rationale: nil, ranked_by: nil}
-  defp fold(e, "card_reserved_v1", s), do: %{s | lane: e.lane, lane_node_id: e.lane_node_id}
-  defp fold(_e, "card_reservation_lifted_v1", s), do: %{s | lane: nil, lane_node_id: nil}
+
+  defp fold(e, "card_reserved_v1", s),
+    do: %{s | lane: e.lane, lane_node_id: e.lane_node_id, lane_crew: Map.get(e, :lane_crew)}
+
+  defp fold(_e, "card_reservation_lifted_v1", s),
+    do: %{s | lane: nil, lane_node_id: nil, lane_crew: nil}
 
   defp fold(e, "card_claimed_v1", s),
     do: %{s | holder: e.holder, holder_node_id: e.holder_node_id, claimed_at: e.at}

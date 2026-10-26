@@ -81,7 +81,7 @@ defmodule ProjectBoards.ReadModelMigrationsTest do
     Repo.put_dynamic_repo(pid)
     on_exit(fn -> File.rm(path) end)
 
-    assert [_, _, _, _, _, _] = migrate(pid)
+    assert [_, _, _, _, _, _, _] = migrate(pid)
 
     for table <- ~w(boards cards card_tags card_links card_comments crew crews packages crew_goal
                     crew_goal_packages) do
@@ -92,6 +92,22 @@ defmodule ProjectBoards.ReadModelMigrationsTest do
     # with `home` as its default, so no agent has to be re-enlisted.
     assert "crew" in columns("crew")
     assert [["home"]] = Repo.query!("SELECT name FROM crews").rows
+  end
+
+  test "a board opened before #29 belongs to the home crew afterwards, and no card is in a crew's lane (#29)" do
+    pid = file_from("v0.2.1")
+
+    Repo.query!(
+      "INSERT INTO boards (board_id, repo, status, opened_by, opened_at) VALUES (?, ?, 1, ?, ?)",
+      ["board-older", "example-org/older", "sup", 1]
+    )
+
+    migrate(pid)
+
+    assert [["home"]] =
+             Repo.query!("SELECT home_crew FROM boards WHERE board_id = 'board-older'").rows
+
+    assert [[nil]] = Repo.query!("SELECT lane_crew FROM cards WHERE card_id = 'card-old'").rows
   end
 
   test "an agent enlisted before #28 is in the home crew afterwards (#28)" do

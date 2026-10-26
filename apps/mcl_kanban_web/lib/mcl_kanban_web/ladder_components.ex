@@ -476,6 +476,12 @@ defmodule MclKanbanWeb.LadderComponents do
     """
   end
 
+  defp card_state(%{card: %{lane_crew: crew}} = assigns) when is_binary(crew) do
+    ~H"""
+    <span class="lane">for crew <b>{@card.lane_crew}</b></span>
+    """
+  end
+
   defp card_state(assigns) do
     ~H"""
     <span class="lane">open</span>
@@ -668,7 +674,8 @@ defmodule MclKanbanWeb.LadderComponents do
           <dd>{@card.state}<span :if={@card.holder}> by <b>{@card.holder}</b></span><span :if={@card.note} class={@card.state == "blocked" && "blk"}>: {@card.note}</span></dd>
           <dt>Lane</dt>
           <dd :if={@card.lane}>reserved for <b>{@card.lane}</b></dd>
-          <dd :if={!@card.lane}>open to any agent</dd>
+          <dd :if={@card[:lane_crew]}>reserved for crew <b>{@card[:lane_crew]}</b></dd>
+          <dd :if={!@card.lane and !@card[:lane_crew]}>open to any agent</dd>
           <dt>Repo</dt><dd>{@card.board}</dd>
           <dt>Kind</dt>
           <dd>
@@ -977,7 +984,11 @@ defmodule MclKanbanWeb.LadderComponents do
     assigns =
       assign(assigns,
         name: name,
-        open: Enum.filter(assigns.cards, &(&1.state == "queued" and &1.lane == nil))
+        open:
+          Enum.filter(
+            assigns.cards,
+            &(&1.state == "queued" and &1.lane == nil and &1[:lane_crew] == nil)
+          )
       )
 
     ~H"""

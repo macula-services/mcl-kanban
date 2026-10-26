@@ -19,6 +19,13 @@ defmodule GuideCardLifecycle.Actor do
   # enlist and discharge in that crew and no other. `commands_crew?/2` is the
   # only place that rule is written.
   #
+  # A board belongs to a home crew, and its cards and packages follow it
+  # (#29). Ordering a board's work (rank, defer, withdraw, reword, reserve,
+  # file, archive) is for the roles a desk names plus the operator, and only
+  # when the caller is of the board's home crew: the supervisor and the
+  # prioritiser are appointed once for all crews, yet act on their own crew's
+  # boards only. `refused/3` is the only place that rule is written.
+  #
   # The OWNER is not a mesh role. It exists only in-process, for the web UI,
   # which listens on loopback on the box that runs the board (part 1, #2).
   # No function here turns a mesh caller into the owner, and the crew refuses
@@ -87,6 +94,22 @@ defmodule GuideCardLifecycle.Actor do
   @spec commands_crew?(t(), String.t()) :: boolean()
   def commands_crew?(%__MODULE__{} = actor, crew) do
     allowed?(actor, [:owner]) or (allowed?(actor, [:operator]) and actor.crew == crew)
+  end
+
+  @doc """
+  Why the actor may not order the work of a board whose home crew is named,
+  or nil when it may (#29). The owner may on every board. Anyone else needs
+  one of the named roles, or the operator's, and must be of the home crew:
+  not_permitted without the role, not_home_crew with it in another crew.
+  """
+  @spec refused(t(), [role()], String.t()) :: nil | :not_permitted | :not_home_crew
+  def refused(%__MODULE__{} = actor, permitted, home_crew) do
+    cond do
+      allowed?(actor, [:owner]) -> nil
+      not allowed?(actor, [:operator | permitted]) -> :not_permitted
+      actor.crew != home_crew -> :not_home_crew
+      true -> nil
+    end
   end
 
   @doc "Whether the actor holds one of the named roles. The owner passes only where :owner is named."

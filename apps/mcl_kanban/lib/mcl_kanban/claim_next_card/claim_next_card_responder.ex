@@ -1,6 +1,7 @@
 defmodule MclKanban.ClaimNextCard.ClaimNextCardResponder do
   # mcl-kanban/claim_next_card: no arguments. Claims the caller's next card:
-  # its own lane first, then unreserved, by rank, then age. Another agent may
+  # its own lane first, then its crew's lane (#29), then unreserved, by rank,
+  # then age. Another agent may
   # take a candidate between the read and the claim, so it claims down the
   # list; a card lost that way is skipped. Replies the card with the crew's
   # goal sentence (#18), or reason board_empty.
@@ -14,7 +15,15 @@ defmodule MclKanban.ClaimNextCard.ClaimNextCardResponder do
   alias QueryBoards.GetNextCardForAgent.GetNextCardForAgent
 
   @candidates 25
-  @lost [:already_claimed, :not_in_lane, :blocked, :finished, :withdrawn, :package_card]
+  @lost [
+    :already_claimed,
+    :not_in_lane,
+    :other_crew_lane,
+    :blocked,
+    :finished,
+    :withdrawn,
+    :package_card
+  ]
 
   @impl true
   def init(_args), do: {:ok, nil}
@@ -25,7 +34,7 @@ defmodule MclKanban.ClaimNextCard.ClaimNextCardResponder do
       with {:ok, by} <- Actor.of_caller(payload),
            do:
              by.node_id
-             |> GetNextCardForAgent.get_next_card_for_agent(@candidates)
+             |> GetNextCardForAgent.get_next_card_for_agent(by.crew, @candidates)
              |> claim_first(by)
              |> Wire.with_goal()
 

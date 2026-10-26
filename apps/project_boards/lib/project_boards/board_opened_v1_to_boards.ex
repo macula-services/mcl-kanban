@@ -1,6 +1,9 @@
 defmodule ProjectBoards.BoardOpenedV1ToBoards do
-  # Projects board_opened_v1 into boards.
+  # Projects board_opened_v1 into boards, with its home crew (#29): one
+  # opened before #29 names none and belongs to the first crew.
   @moduledoc false
+
+  alias GuideCardLifecycle.CrewName
 
   @behaviour :evoq_event_handler
 
@@ -22,8 +25,9 @@ defmodule ProjectBoards.BoardOpenedV1ToBoards do
 
   defp statements(data, _version) do
     [
-      {"INSERT OR IGNORE INTO boards (board_id, repo, status, opened_by, opened_at) VALUES (?, ?, 1, ?, ?)",
-       [data.board_id, data.repo, data[:by], data.at]}
+      {"INSERT OR IGNORE INTO boards (board_id, repo, status, opened_by, opened_at, home_crew) " <>
+         "VALUES (?, ?, 1, ?, ?, ?)",
+       [data.board_id, data.repo, data[:by], data.at, CrewName.home_crew_in(data)]}
     ]
   end
 end
