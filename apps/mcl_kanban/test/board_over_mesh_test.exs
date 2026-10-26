@@ -40,6 +40,10 @@ defmodule MclKanban.BoardOverMeshTest do
 
   @moduletag timeout: 120_000
 
+  # How long a read waits for the projection to show the write it depends on
+  # (#28). The production query side waits the same way; see QueryBoards.ReadModel.
+  @read_model_await_ms 5_000
+
   defp node_id(name), do: :crypto.hash(:sha256, "synthetic kanban node " <> name)
   defp hex(name), do: Base.encode16(node_id(name), case: :lower)
 
@@ -112,6 +116,46 @@ defmodule MclKanban.BoardOverMeshTest do
       })
 
     id
+  end
+
+  # The read model takes the crew row and the agent row in separate
+  # transactions, so it can hold a crew before it holds the agent just enlisted
+  # into it: a read taken straight after an enlist can still miss that agent.
+  # Poll the read, bounded, rather than sleeping a guess (#28).
+  defp crews_once_seeded(caller, seeded?),
+    do:
+      crews_once_seeded(
+        caller,
+        seeded?,
+        System.monotonic_time(:millisecond) + @read_model_await_ms
+      )
+
+  defp crews_once_seeded(caller, seeded?, deadline) do
+    case seeded_crews(caller, seeded?) do
+      nil ->
+        retry_crews(caller, seeded?, deadline, System.monotonic_time(:millisecond) >= deadline)
+
+      crews ->
+        crews
+    end
+  end
+
+  # nil while the caller is not enlisted yet or the write has not landed.
+  defp seeded_crews(caller, seeded?) do
+    with %{crews: crews} <- call(GetCrewResponder, caller, %{}),
+         true <- seeded?.(crews) do
+      crews
+    else
+      _ -> nil
+    end
+  end
+
+  defp retry_crews(_caller, _seeded?, _deadline, true),
+    do: flunk("the read model did not show the write within #{@read_model_await_ms} ms")
+
+  defp retry_crews(caller, seeded?, deadline, false) do
+    Process.sleep(15)
+    crews_once_seeded(caller, seeded?, deadline)
   end
 
   test "an agent queues and claims a card through the procedures", %{sup: sup, repo: repo} do
@@ -222,7 +266,16 @@ defmodule MclKanban.BoardOverMeshTest do
                crew: "home"
              })
 
-    assert %{crews: crews} = call(GetCrewResponder, dan, %{})
+    crews =
+      crews_once_seeded(dan, fn crews ->
+        Enum.any?(crews, fn
+          %{crew: ^night, operator: %{name: ^eve}, agents: agents} ->
+            Enum.any?(agents, &(&1.name == dan)) and Enum.any?(agents, &(&1.name == eve))
+
+          _other ->
+            false
+        end)
+      end)
 
     assert %{crew: ^night, operator: %{name: ^eve}, agents: agents} =
              Enum.find(crews, &(&1.crew == night))
