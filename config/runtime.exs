@@ -4,11 +4,17 @@ import Config
 # writable local path, the io.macula realm, no mesh); the deployed container
 # sets the real values. Fleet placement lives in macula-io/macula-fleet.
 #
-# A TEST run gets a fresh data dir every time: the reckon store leaves dets
-# files behind, and a second run against the same dir fails to reopen them.
+# A TEST run gets a data dir of its own every time: the reckon store leaves dets
+# files behind, and a second run against the same dir restores the first run's
+# events. System.unique_integer restarts with each VM, so it named the same dir
+# on two runs often enough to show as a flake: the restored crew stream already
+# held the run's supers, and setup_all met already_enlisted (#28).
 data_dir =
   if config_env() == :test do
-    Path.join(System.tmp_dir!(), "mcl_kanban_test_#{System.unique_integer([:positive])}")
+    Path.join(
+      System.tmp_dir!(),
+      "mcl_kanban_test_#{System.system_time(:microsecond)}_#{System.pid()}"
+    )
   else
     System.get_env("MCL_DATA_DIR", "/tmp/mcl-kanban-dev")
   end
