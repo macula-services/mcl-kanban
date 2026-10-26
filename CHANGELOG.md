@@ -52,6 +52,22 @@ Versioning: [SemVer](https://semver.org/).
   never a mesh caller, so it could only ever answer `not_permitted`; the owner
   appoints operators in the web UI, as with the supervisor and the prioritiser.
 
+### Fixed
+
+- **The last four desks wait for the read model too (#37).** `open_board`,
+  `archive_board`, `open_package` and `discharge_agent` replied as soon as the
+  event was written, so a caller's next `get_boards`, `get_ladder` or
+  `get_crew` could miss its own write. Each now awaits its own row —
+  `GetBoards.await_opened`/`await_archived`, `GetLadder.await_opened`,
+  `GetCrew.await_discharged` — in the shape `ReadModel.await` already sets.
+  Every desk that changes the board now replies only once the read after it
+  agrees; a check in the suite lists any responder that does not
+  (`MclKanban.RespondersWaitForTheirReadTest`).
+- **`ReadModel.await` says what a timeout means.** It answers
+  `read_model_behind` although the event WAS written, so a caller's retry meets
+  its own effect (`already_enlisted` for an enlist, `name_taken` for a second agent of that name): that is a stalled
+  projection, not a command to replay.
+
 ## [0.5.1] - 2026-10-26
 
 ### Fixed

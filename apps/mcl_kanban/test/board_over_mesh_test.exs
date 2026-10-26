@@ -24,6 +24,7 @@ defmodule MclKanban.BoardOverMeshTest do
   alias MclKanban.EnlistAgent.EnlistAgentResponder
   alias MclKanban.FileCard.FileCardResponder
   alias MclKanban.FinishCard.FinishCardResponder
+  alias MclKanban.GetBoards.GetBoardsResponder
   alias MclKanban.GetCardById.GetCardByIdResponder
   alias MclKanban.GetCrew.GetCrewResponder
   alias MclKanban.GetGoal.GetGoalResponder
@@ -352,6 +353,43 @@ defmodule MclKanban.BoardOverMeshTest do
 
     assert %{reason: "board_archived"} =
              call(OpenPackageResponder, sup, %{issue_ref: "#{nights}#9", title: "Too late"})
+  end
+
+||||||| parent of 596da6c (kanban#37: every desk's reply waits for the read it is about)
+  # #37: a command's reply waits for the read model, so each read below
+  # follows its own command with no polling and still sees the write.
+  test "every desk's reply is followed by a read that sees it: board, package, crew", %{
+    sup: sup,
+    repo: repo
+  } do
+    boards = fn -> call(GetBoardsResponder, sup, %{}).boards end
+
+    crew_names = fn ->
+      for %{agents: agents} <- call(GetCrewResponder, sup, %{}).crews,
+          agent <- agents,
+          do: agent.name
+    end
+
+    opened = "example-org/opened" <> uniq()
+    %{board: %{repo: ^opened}} = call(OpenBoardResponder, sup, %{repo: opened})
+    assert Enum.any?(boards.(), &(&1.repo == opened and &1.archived == 0))
+
+    %{board: %{repo: ^opened}} = call(ArchiveBoardResponder, sup, %{repo: opened})
+    assert Enum.any?(boards.(), &(&1.repo == opened and &1.archived == 1))
+
+    ref = "#{repo}#37" <> uniq()
+
+    %{package: %{issue_ref: ^ref}} =
+      call(OpenPackageResponder, sup, %{issue_ref: ref, title: "Ship it"})
+
+    %{packages: packages} = call(GetLadderResponder, sup, %{})
+    assert Enum.any?(packages, &(&1.issue_ref == ref))
+
+    leaving = enlist(sup)
+    assert leaving in crew_names.()
+
+    %{agent: %{name: ^leaving}} = call(DischargeAgentResponder, sup, %{name: leaving})
+    refute leaving in crew_names.()
   end
 
   test "a refusal names its reason", %{sup: sup, repo: repo} do

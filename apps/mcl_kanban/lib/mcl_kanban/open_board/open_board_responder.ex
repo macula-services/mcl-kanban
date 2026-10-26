@@ -9,6 +9,7 @@ defmodule MclKanban.OpenBoard.OpenBoardResponder do
   alias GuideCardLifecycle.Actor
   alias GuideCardLifecycle.OpenBoard.{MaybeOpenBoard, OpenBoardV1}
   alias MclKanban.Wire
+  alias QueryBoards.GetBoards.GetBoards
 
   @impl true
   def init(_args), do: {:ok, nil}
@@ -24,6 +25,7 @@ defmodule MclKanban.OpenBoard.OpenBoardResponder do
                by: by
              }),
            {:ok, _version, _events} <- MaybeOpenBoard.dispatch(cmd),
+           :ok <- GetBoards.await_opened(cmd.board_id),
            do: {:ok, %{board: %{board_id: cmd.board_id, repo: cmd.repo, home_crew: cmd.crew}}}
 
     {:reply, Wire.reply(reply), state}

@@ -35,6 +35,20 @@ defmodule QueryBoards.GetCrew.GetCrew do
         timeout_ms
       )
 
+  @doc """
+  Waits (bounded) until the read model holds no agent of that name, so a
+  discharge's reply is followed by a read that no longer lists it.
+  """
+  @spec await_discharged(String.t(), pos_integer()) :: :ok | {:error, :read_model_behind}
+  def await_discharged(name, timeout_ms \\ 5_000),
+    do:
+      ReadModel.await(
+        "SELECT COUNT(*) FROM crew WHERE name = ?",
+        [name],
+        [[0]],
+        timeout_ms
+      )
+
   defp crew_entry(crew, agents, operator_node_id) do
     %{crew: crew, operator: who(agents, operator_node_id), agents: agents}
   end

@@ -41,6 +41,34 @@ defmodule QueryBoards.GetBoards.GetBoards do
         timeout_ms
       )
 
+  @doc """
+  Waits (bounded) until the read model holds the board, so an open replies
+  only once the next read lists it.
+  """
+  @spec await_opened(String.t(), pos_integer()) :: :ok | {:error, :read_model_behind}
+  def await_opened(board_id, timeout_ms \\ 5_000),
+    do:
+      ReadModel.await(
+        "SELECT COUNT(*) FROM boards WHERE board_id = ?",
+        [board_id],
+        [[1]],
+        timeout_ms
+      )
+
+  @doc """
+  Waits (bounded) until the read model shows the board archived (1) or not
+  (0), so an archive replies only once the next read sees it archived.
+  """
+  @spec await_archived(String.t(), 0 | 1, pos_integer()) :: :ok | {:error, :read_model_behind}
+  def await_archived(board_id, archived, timeout_ms \\ 5_000),
+    do:
+      ReadModel.await(
+        "SELECT (status & 2) / 2 FROM boards WHERE board_id = ?",
+        [board_id],
+        [[archived]],
+        timeout_ms
+      )
+
   @doc false
   def board([
         id,
