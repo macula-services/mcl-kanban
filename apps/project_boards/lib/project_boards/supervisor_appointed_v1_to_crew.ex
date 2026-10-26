@@ -23,8 +23,7 @@ defmodule ProjectBoards.SupervisorAppointedV1ToCrew do
   defp statements(data, _version) do
     [
       {"UPDATE crew SET supervisor = (node_id = ?)", [data.node_id]},
-      {"UPDATE crew SET roles = 'agent' || CASE WHEN supervisor = 1 THEN ',supervisor' ELSE '' END || CASE WHEN prioritiser = 1 THEN ',prioritiser' ELSE '' END",
-       []}
+      ProjectBoards.Projection.roles_sql()
     ]
   end
 end

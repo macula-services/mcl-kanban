@@ -91,6 +91,8 @@ defmodule MclKanban.Service do
     {"get_my_cards", GetMyCards.GetMyCardsResponder},
     {"enlist_agent", EnlistAgent.EnlistAgentResponder},
     {"discharge_agent", DischargeAgent.DischargeAgentResponder},
+    {"appoint_operator", AppointOperator.AppointOperatorResponder},
+    {"get_crew", GetCrew.GetCrewResponder},
     {"open_board", OpenBoard.OpenBoardResponder},
     {"archive_board", ArchiveBoard.ArchiveBoardResponder},
     {"open_package", OpenPackage.OpenPackageResponder},

@@ -71,6 +71,34 @@ defmodule MclKanban.Wire do
   @doc "A card as the wire carries it."
   def card(card), do: Map.take(card, @card_fields)
 
+  @doc """
+  A crew as the wire carries it (#28): its operator, and its agents each with
+  their roles and the cards they hold now and next. An absent operator or next
+  card is an absent key, never a null.
+  """
+  def crew(entry) do
+    %{
+      crew: entry.crew,
+      operator: operator(entry.operator),
+      agents: Enum.map(entry.agents, &agent/1)
+    }
+  end
+
+  defp operator(nil), do: nil
+  defp operator(%{node_id: node_id, name: name}), do: %{node_id: node_id, name: name}
+
+  defp agent(a) do
+    %{
+      node_id: a.node_id,
+      name: a.name,
+      crew: a.crew,
+      roles: a.roles,
+      enlisted_at: a.enlisted_at,
+      held: Enum.map(a.held, &card/1),
+      next: a.next && card(a.next)
+    }
+  end
+
   @doc "The reply for a result, ready for macula."
   def reply({:ok, map}) when is_map(map), do: out(map)
   def reply({:error, reason}) when is_atom(reason), do: %{reason: {:text, Atom.to_string(reason)}}

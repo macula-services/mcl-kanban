@@ -1,12 +1,13 @@
 defmodule GuideCardLifecycle.CrewAggregate do
-  # The crew: ONE roster, one stream. Enlisting, discharging and the two
+  # The crew: ONE roster, one stream. Enlisting, discharging and the three
   # appointments are serialised here, so the invariant "exactly one supervisor
-  # once founded" holds without a lock.
+  # once founded" holds without a lock, and so does "one operator per crew".
   @moduledoc false
 
   @behaviour :evoq_aggregate
 
   alias GuideCardLifecycle.AdoptGoal.MaybeAdoptGoal
+  alias GuideCardLifecycle.AppointOperator.MaybeAppointOperator
   alias GuideCardLifecycle.AppointPrioritiser.MaybeAppointPrioritiser
   alias GuideCardLifecycle.AppointSupervisor.MaybeAppointSupervisor
   alias GuideCardLifecycle.CrewState
@@ -49,6 +50,9 @@ defmodule GuideCardLifecycle.CrewAggregate do
 
   def execute(state, %{command_type: :appoint_prioritiser} = p),
     do: MaybeAppointPrioritiser.handle_payload(state, p)
+
+  def execute(state, %{command_type: :appoint_operator} = p),
+    do: MaybeAppointOperator.handle_payload(state, p)
 
   def execute(state, %{command_type: :adopt_goal} = p),
     do: MaybeAdoptGoal.handle_payload(state, p)

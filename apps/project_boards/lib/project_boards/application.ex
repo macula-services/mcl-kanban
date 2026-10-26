@@ -46,6 +46,7 @@ defmodule ProjectBoards.Application do
     ProjectBoards.PackageResumedV1ToPackages,
     ProjectBoards.PackageUnpinnedV1ToPackages,
     ProjectBoards.PrioritiserAppointedV1ToCrew,
+    ProjectBoards.OperatorAppointedV1ToCrews,
     ProjectBoards.SupervisorAppointedV1ToCrew
   ]
 

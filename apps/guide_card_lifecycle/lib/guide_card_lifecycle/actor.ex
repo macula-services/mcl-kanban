@@ -10,9 +10,14 @@ defmodule GuideCardLifecycle.Actor do
   # nothing else in a payload is.
   #
   # Roles come ONLY from the crew, looked up by that node id: agent for every
-  # enlisted node, supervisor and prioritiser for the two appointed ones. A
+  # enlisted node, supervisor and prioritiser for the two appointed ones, and
+  # operator for the node appointed to run the crew it belongs to (#28). A
   # name, a role or a caller written into the payload is never read here. A
   # node the crew does not know is refused with not_enlisted.
+  #
+  # An operator's role is bound to its own crew, not to the board: it may
+  # enlist and discharge in that crew and no other. `commands_crew?/2` is the
+  # only place that rule is written.
   #
   # The OWNER is not a mesh role. It exists only in-process, for the web UI,
   # which listens on loopback on the box that runs the board (part 1, #2).
@@ -25,13 +30,14 @@ defmodule GuideCardLifecycle.Actor do
   alias GuideCardLifecycle.CrewState
 
   @enforce_keys [:kind, :name, :roles]
-  defstruct [:kind, :name, :node_id, :roles]
+  defstruct [:kind, :name, :node_id, :crew, :roles]
 
-  @type role :: :owner | :agent | :supervisor | :prioritiser
+  @type role :: :owner | :agent | :supervisor | :prioritiser | :operator
   @type t :: %__MODULE__{
           kind: :owner | :agent,
           name: String.t(),
           node_id: String.t() | nil,
+          crew: String.t() | nil,
           roles: [role()]
         }
 
@@ -59,17 +65,28 @@ defmodule GuideCardLifecycle.Actor do
 
   defp enlisted(_crew, _hex, nil), do: {:error, :not_enlisted}
 
-  defp enlisted(crew, hex, name) do
+  defp enlisted(crew, hex, agent) do
     roles =
       [:agent] ++
         appointed(crew.supervisor == hex, :supervisor) ++
-        appointed(crew.prioritiser == hex, :prioritiser)
+        appointed(crew.prioritiser == hex, :prioritiser) ++
+        appointed(CrewState.operator_of(crew, agent.crew) == hex, :operator)
 
-    {:ok, %__MODULE__{kind: :agent, name: name, node_id: hex, roles: roles}}
+    {:ok, %__MODULE__{kind: :agent, name: agent.name, node_id: hex, crew: agent.crew, roles: roles}}
   end
 
   defp appointed(true, role), do: [role]
   defp appointed(false, _role), do: []
+
+  @doc """
+  Whether the actor may act on the named crew: the owner for every crew, an
+  operator only for the one it runs. This is the whole rule for who enlists
+  and discharges (#28).
+  """
+  @spec commands_crew?(t(), String.t()) :: boolean()
+  def commands_crew?(%__MODULE__{} = actor, crew) do
+    allowed?(actor, [:owner]) or (allowed?(actor, [:operator]) and actor.crew == crew)
+  end
 
   @doc "Whether the actor holds one of the named roles. The owner passes only where :owner is named."
   @spec allowed?(t(), [role()]) :: boolean()

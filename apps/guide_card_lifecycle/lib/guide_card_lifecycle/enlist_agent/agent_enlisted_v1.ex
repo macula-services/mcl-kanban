@@ -12,6 +12,7 @@ defmodule GuideCardLifecycle.EnlistAgent.AgentEnlistedV1 do
       event_type: event_type(),
       node_id: cmd.node_id,
       name: cmd.name,
+      crew: cmd.crew,
       at: System.system_time(:millisecond)
     })
   end

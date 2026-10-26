@@ -50,6 +50,20 @@ defmodule ProjectBoards.Projection do
   defp flag(false), do: 0
 
   @doc """
+  Recomputes every agent's `roles` string from the flags on its row and the
+  crew's operator (#28). One statement, used by every projection that can
+  change one of the three, so appointing a supervisor cannot silently drop an
+  operator's role and the other way round.
+  """
+  def roles_sql do
+    {"UPDATE crew SET roles = 'agent' || " <>
+       "CASE WHEN supervisor = 1 THEN ',supervisor' ELSE '' END || " <>
+       "CASE WHEN prioritiser = 1 THEN ',prioritiser' ELSE '' END || " <>
+       "CASE WHEN EXISTS (SELECT 1 FROM crews c WHERE c.name = crew.crew AND c.operator_node_id = crew.node_id) " <>
+       "THEN ',operator' ELSE '' END", []}
+  end
+
+  @doc """
   Recomputes cards.deferred for the cards the condition picks (#17): 1 while
   the card's own DEFERRED bit is set, its package is paused or its board is.
   Every projection that can change one of the three runs it.

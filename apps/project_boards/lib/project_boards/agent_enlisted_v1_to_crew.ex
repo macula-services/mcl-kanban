@@ -22,8 +22,13 @@ defmodule ProjectBoards.AgentEnlistedV1ToCrew do
 
   defp statements(data, _version) do
     [
-      {"INSERT OR REPLACE INTO crew (node_id, name, supervisor, prioritiser, roles, enlisted_at) VALUES (?, ?, 0, 0, 'agent', ?)",
-       [data.node_id, data.name, data.at]}
+      {"INSERT OR REPLACE INTO crew (node_id, name, supervisor, prioritiser, crew, roles, enlisted_at) VALUES (?, ?, 0, 0, ?, 'agent', ?)",
+       [data.node_id, data.name, crew_in(data), data.at]}
     ]
   end
+
+  # An agent enlisted before #28 carries no crew in its event: it belongs to
+  # the home crew. The event is left as it was.
+  defp crew_in(%{crew: crew}) when is_binary(crew), do: crew
+  defp crew_in(_data), do: GuideCardLifecycle.CrewName.home()
 end

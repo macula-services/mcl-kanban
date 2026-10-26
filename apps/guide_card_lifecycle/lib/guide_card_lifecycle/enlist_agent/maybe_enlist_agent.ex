@@ -1,6 +1,6 @@
 defmodule GuideCardLifecycle.EnlistAgent.MaybeEnlistAgent do
-  # Handler: the supervisor or the owner enlists. A node id is enlisted once,
-  # a name is taken once (case-insensitive).
+  # Handler: the owner, or the operator of the crew being enlisted into (#28).
+  # A node id is enlisted once, a name is taken once (case-insensitive).
   @moduledoc false
 
   alias GuideCardLifecycle.Actor
@@ -8,13 +8,11 @@ defmodule GuideCardLifecycle.EnlistAgent.MaybeEnlistAgent do
   alias GuideCardLifecycle.CrewState
   alias GuideCardLifecycle.EnlistAgent.{AgentEnlistedV1, EnlistAgentV1}
 
-  @who [:supervisor, :owner]
-
   def handle_payload(state, payload), do: handle(state, struct(EnlistAgentV1, payload))
 
   def handle(%CrewState{} = crew, %EnlistAgentV1{} = cmd) do
     cond do
-      not Actor.allowed?(cmd.by, @who) -> {:error, :not_permitted}
+      not Actor.commands_crew?(cmd.by, cmd.crew) -> {:error, :not_permitted}
       Map.has_key?(crew.agents, cmd.node_id) -> {:error, :already_enlisted}
       CrewState.node_id_of(crew, cmd.name) != nil -> {:error, :name_taken}
       true -> {:ok, [AgentEnlistedV1.from_command(cmd)]}
