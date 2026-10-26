@@ -5,6 +5,27 @@ Versioning: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-10-26
+
+### Fixed
+
+- **A command's reply waits for the read model (#28).** `enlist_agent`,
+  `appoint_operator` and `prioritise_package` replied as soon as the event was
+  written, so a caller's very next read could miss its own write: enlist then
+  `get_crew` showed no such agent, appoint then `get_crew` showed no operator,
+  prioritise then `get_ladder` came back with no `:rank` key at all (`Wire.out/1`
+  drops nil). Each now awaits its own projection row — `GetCrew.await_agent`,
+  `GetCrew.await_operator`, `GetLadder.await_rank`, in the shape `QueryBoards.ReadModel.await`
+  already uses and `Wire.once_read` documents. `defer_package` and
+  `resume_package` already worked this way.
+- **A test run gets a data dir of its own, every run.** `System.unique_integer`
+  restarts with each VM, so two runs could name the same test data dir and the
+  second restored the first run's reckon store; `setup_all` then met
+  `already_enlisted` and the module went invalid with no failing test. The name
+  is now `system_time(:microsecond)` plus the OS pid.
+- **The `get_crew` race test waits for the read, bounded.** It polled a single
+  time and lost the race against the projection roughly one run in ten.
+
 ## [0.5.0] - 2026-10-26
 
 ### Added
