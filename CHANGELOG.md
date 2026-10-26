@@ -3,7 +3,25 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [SemVer](https://semver.org/).
 
-## Unreleased
+## [Unreleased]
+
+## [0.5.0] - 2026-10-26
+
+### Added
+
+- **Crews and operators on the board (#28).** The roster holds more than one
+  crew: every agent is enlisted **into a crew** (`enlist_agent` takes `crew`,
+  and `agent_enlisted_v1` carries it), and each crew has at most one
+  **operator** (the new `appoint_operator` desk and its
+  `operator_appointed_v1`), the agent that runs it. Enlisting and discharging
+  belong to that crew's own operator or to the owner, never to the supervisor
+  as such, and no agent acts on a crew but its own; `Actor.commands_crew?/2` is
+  the one place that rule is written. Operators and agents enrolled before
+  crews existed are the `home` crew in the read model, their events untouched.
+  `get_crew` is advertised (fixes #13) and answers
+  `%{crews: [%{crew, operator, agents}]}`. Refs #28.
+
+### Changed
 
 - **The base library is macula 16** (macula-codebase-checks#4): the floors move
   `~> 15.6` to `~> 16.0` and `mcl_om` to `~> 1.4`, the release whose own base
@@ -12,8 +30,24 @@ Versioning: [SemVer](https://semver.org/).
   speaks to every wire 1.0 box; what it adds is the revocation bound
   (macula#118). This service gates no overlay and issues no endorsement.
 
+### Fixed
 
-## [Unreleased]
+- **`enlist_agent` reaches the crew it names.** The responder dropped `crew`
+  from the call, so every enlistment over the mesh would have been refused as
+  `missing_required_fields`.
+- **`appoint_operator` and `get_crew` advertise modules that exist.** The
+  service named both responders without importing them, so the two
+  capabilities pointed at modules that do not exist.
+- **A discharged operator runs no crew.** `crews.operator_node_id` kept the
+  node id of an agent no longer in the crew.
+- **`mix test` boots as an ordinary user again.** The test run took the image's
+  `/health` socket path under `/run`, which belongs to root; a test run now
+  takes a socket in its own data dir, and the release keeps
+  `/run/mcl/health.sock`.
+- **`scripts/fill_board.sh` enlists into a crew.** It sent no `crew`, so every
+  run stopped at step 1 with `invalid_crew`; it now sends `KANBAN_CREW`
+  (default `home`), and its header says the signing identity must be that
+  crew's operator as well as the board's supervisor.
 
 ## [0.4.0] - 2026-10-17
 
