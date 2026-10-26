@@ -305,12 +305,25 @@ defmodule MclKanbanWeb.LadderLive do
 
   # ---------- boards and cards ----------
 
-  def handle_event("open_board", %{"repo" => repo}, socket) do
+  def handle_event("open_board", %{"repo" => repo} = p, socket) do
     repo = String.trim(repo)
+    crew = String.trim(p["crew"] || "home")
 
     socket
     |> assign(dialog: nil)
-    |> outcome(OwnerActions.open_board(repo), fn -> "Board <b>#{esc(repo)}</b> opened" end)
+    |> outcome(OwnerActions.open_board(repo, crew), fn ->
+      "Board <b>#{esc(repo)}</b> opened for <b>#{esc(crew)}</b>"
+    end)
+  end
+
+  def handle_event("hand_over_board", %{"repo" => repo, "crew" => crew}, socket) do
+    crew = String.trim(crew)
+
+    socket
+    |> assign(dialog: nil)
+    |> outcome(OwnerActions.hand_over_board(repo, crew), fn ->
+      "Board <b>#{esc(repo)}</b> handed over to <b>#{esc(crew)}</b>"
+    end)
   end
 
   def handle_event("queue_card", %{"repo" => repo, "number" => n} = p, socket) do
@@ -559,7 +572,7 @@ defmodule MclKanbanWeb.LadderLive do
   defp dialog("reason", p), do: {:reason, p["action"]}
   defp dialog("reserve_for", p), do: {:reserve_for, p["name"]}
 
-  defp dialog(name, _p) when name in ~w(enlist open_board queue help goal),
+  defp dialog(name, _p) when name in ~w(enlist open_board hand_over_board queue help goal),
     do: String.to_existing_atom(name)
 
   defp patch(socket, changes) do

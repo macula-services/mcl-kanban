@@ -1,7 +1,8 @@
 defmodule GuideCardLifecycle.OpenPackage.MaybeOpenPackage do
   # Handler: the supervisor, the operator or the owner opens a work package,
   # once. The package belongs to its repo's board's home crew (#29): the
-  # board must be open, and only that crew (or the owner) opens it.
+  # board must be open and not archived, as for a card, and only that crew
+  # (or the owner) opens it.
   @moduledoc false
 
   alias GuideCardLifecycle.{Actor, BoardAggregate, BoardState, PackageAggregate, PackageState}
@@ -23,11 +24,15 @@ defmodule GuideCardLifecycle.OpenPackage.MaybeOpenPackage do
   def dispatch(%OpenPackageV1{} = cmd),
     do: opened(BoardAggregate.current(cmd.board_id), cmd)
 
-  defp opened(board, cmd), do: opened_on(BoardState.open?(board), board, cmd)
+  defp opened(board, cmd) do
+    cond do
+      not BoardState.open?(board) -> {:error, :unknown_board}
+      BoardState.archived?(board) -> {:error, :board_archived}
+      true -> on_board(board, cmd)
+    end
+  end
 
-  defp opened_on(false, _board, _cmd), do: {:error, :unknown_board}
-
-  defp opened_on(true, board, cmd) do
+  defp on_board(board, cmd) do
     cmd = %{cmd | home_crew: board.home_crew}
     PackageAggregate.dispatch(:open_package, cmd.package_id, OpenPackageV1.to_map(cmd))
   end

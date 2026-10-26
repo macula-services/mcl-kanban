@@ -152,6 +152,34 @@ defmodule MclKanbanWeb.OwnerLadderLiveTest do
     assert html =~ "That issue already has a card"
   end
 
+  test "the owner opens a board for a crew, then hands it over to another (#29)" do
+    view = ladder()
+    repo = "example-org/crewboard" <> uniq()
+
+    view |> element("#open-board-btn") |> render_click()
+    view |> form("#open-board-form", %{"repo" => repo, "crew" => "night"}) |> render_submit()
+    assert eventually(fn -> crew_of(repo) == "night" end)
+
+    view |> element("#open-board-btn") |> render_click()
+    view |> element("#hand-over-btn") |> render_click()
+    view |> form("#hand-over-form", %{"repo" => repo, "crew" => "home"}) |> render_submit()
+
+    assert render(view) =~ "handed over to <b>home</b>"
+    assert eventually(fn -> crew_of(repo) == "home" end)
+
+    view |> element("#open-board-btn") |> render_click()
+    view |> element("#hand-over-btn") |> render_click()
+    view |> form("#hand-over-form", %{"repo" => repo, "crew" => "home"}) |> render_submit()
+    assert render(view) =~ "already_home_crew"
+  end
+
+  defp crew_of(repo) do
+    Enum.find_value(
+      QueryBoards.GetBoards.GetBoards.get_boards(),
+      &(&1.repo == repo && &1.home_crew)
+    )
+  end
+
   test "packages lead the ladder with their cards; the repo view cuts the same cards by repo" do
     view = ladder()
     repo = "example-org/pkgs" <> uniq()

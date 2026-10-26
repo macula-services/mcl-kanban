@@ -21,6 +21,11 @@ Versioning: [SemVer](https://semver.org/).
   only (`other_crew_lane` for anyone else), and `claim_next_card` offers it to
   them after their own lane. Cards carry `lane_crew`; `get_boards` and
   `get_board_by_repo` name each board's `home_crew`. Refs #29.
+- **The owner hands a board over to another crew (#29).** `hand_over_board`
+  (owner only, in the web UI, with `board_handed_over_v1`) moves a board, its
+  cards and its packages to another crew, so the first crew to open a repo's
+  board does not hold it forever: card and package commands read the board's
+  home crew live. The owner's open-board dialog names the crew too.
 
 ### Changed
 
@@ -30,9 +35,13 @@ Versioning: [SemVer](https://semver.org/).
   #29 belong to `home`, read so from their events and by a read-model
   migration, so a single-crew board works exactly as before.
 - **A holder from another crew works the card but does not reword it (#29);**
-  blocking, releasing and finishing keep the holder rules.
-- **`open_package` needs the repo's board open (#29):** the package takes that
-  board's home crew, and is refused `unknown_board` otherwise.
+  blocking, releasing and finishing keep the holder rules. Releasing, blocking
+  or unblocking someone else's card takes the home crew's supervisor or
+  operator, and an unheld blocked card in a crew's lane is that crew's to
+  unblock.
+- **`open_package` needs the repo's board open and not archived (#29):** the
+  package takes that board's home crew, and is refused `unknown_board` or
+  `board_archived` otherwise.
 - **Only the owner discharges the prioritiser (#29):** an operator whose crew
   it is enlisted in is refused `appointed_by_owner`, so no operator undoes the
   owner's appointment.

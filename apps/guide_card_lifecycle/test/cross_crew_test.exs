@@ -10,6 +10,7 @@ defmodule GuideCardLifecycle.CrossCrewTest do
 
   alias GuideCardLifecycle.Actor
   alias GuideCardLifecycle.BoardState
+  alias GuideCardLifecycle.CardAggregate
   alias GuideCardLifecycle.CardState
   alias GuideCardLifecycle.CardStatus
   alias GuideCardLifecycle.CrewState
@@ -26,6 +27,7 @@ defmodule GuideCardLifecycle.CrossCrewTest do
   alias GuideCardLifecycle.DischargeAgent.{DischargeAgentV1, MaybeDischargeAgent}
   alias GuideCardLifecycle.FileCard.{FileCardV1, MaybeFileCard}
   alias GuideCardLifecycle.FinishCard.{FinishCardV1, MaybeFinishCard}
+  alias GuideCardLifecycle.HandOverBoard.{HandOverBoardV1, MaybeHandOverBoard}
   alias GuideCardLifecycle.LiftCardReservation.{LiftCardReservationV1, MaybeLiftCardReservation}
   alias GuideCardLifecycle.LinkCard.{LinkCardV1, MaybeLinkCard}
   alias GuideCardLifecycle.OpenBoard.{MaybeOpenBoard, OpenBoardV1}
@@ -41,6 +43,7 @@ defmodule GuideCardLifecycle.CrossCrewTest do
   alias GuideCardLifecycle.ResumePackage.{MaybeResumePackage, ResumePackageV1}
   alias GuideCardLifecycle.RewordCard.{MaybeRewordCard, RewordCardV1}
   alias GuideCardLifecycle.TagCard.{MaybeTagCard, TagCardV1}
+  alias GuideCardLifecycle.UnblockCard.{MaybeUnblockCard, UnblockCardV1}
   alias GuideCardLifecycle.UnfileCard.{MaybeUnfileCard, UnfileCardV1}
   alias GuideCardLifecycle.WithdrawCard.{MaybeWithdrawCard, WithdrawCardV1}
 
@@ -462,6 +465,100 @@ defmodule GuideCardLifecycle.CrossCrewTest do
                )
 
       assert CardStatus.has?(status, CardStatus.finished())
+    end
+  end
+
+  describe "steering a held or blocked card belongs to the home crew (r1)" do
+    # A card on night's board, held by eve and blocked by her; home's
+    # supervisor may not release, block or unblock it, night's operator may.
+    defp held_on_night, do: claimed(card_of("night"), "eve")
+
+    defp blocked_on_night do
+      run(
+        held_on_night(),
+        MaybeBlockCard,
+        cmd(BlockCardV1, %{card_id: card_id(), reason: "wait", by: Actor.owner()})
+      )
+    end
+
+    test "another crew's supervisor is refused not_home_crew; the home crew's operator may" do
+      release = &cmd(ReleaseCardV1, %{card_id: card_id(), reason: "drop", by: &1})
+      block = &cmd(BlockCardV1, %{card_id: card_id(), reason: "wait", by: &1})
+      unblock = &cmd(UnblockCardV1, %{card_id: card_id(), by: &1})
+      ada = operator_actor("ada")
+
+      assert {:error, :not_home_crew} = MaybeReleaseCard.handle(held_on_night(), release.(ada))
+      assert {:error, :not_home_crew} = MaybeBlockCard.handle(held_on_night(), block.(ada))
+      assert {:error, :not_home_crew} = MaybeUnblockCard.handle(blocked_on_night(), unblock.(ada))
+
+      held_by_cyd = claimed(card_of("night"), "cyd")
+      eve = operator_actor("eve")
+      assert {:ok, [_]} = MaybeReleaseCard.handle(held_by_cyd, release.(eve))
+      assert {:ok, [_]} = MaybeBlockCard.handle(held_by_cyd, block.(eve))
+    end
+
+    test "a plain agent who does not hold the card is still told not_holder" do
+      release =
+        cmd(ReleaseCardV1, %{card_id: card_id(), reason: "drop", by: operator_actor("cyd")})
+
+      assert {:error, :not_holder} = MaybeReleaseCard.handle(held_on_night(), release)
+    end
+
+    test "an unheld blocked card in a crew's lane is unblocked by that crew only (b1)" do
+      reserve = cmd(ReserveCardV1, %{card_id: card_id(), crew: "night", by: Actor.owner()})
+      block = cmd(BlockCardV1, %{card_id: card_id(), reason: "wait", by: Actor.owner()})
+      unheld = card_of("home") |> run(MaybeReserveCard, reserve) |> run(MaybeBlockCard, block)
+      unblock = &cmd(UnblockCardV1, %{card_id: card_id(), by: &1})
+
+      assert {:error, :other_crew_lane} =
+               MaybeUnblockCard.handle(unheld, unblock.(operator_actor("cyd")))
+
+      assert {:ok, [_]} = MaybeUnblockCard.handle(unheld, unblock.(operator_actor("eve")))
+    end
+  end
+
+  describe "handing a board over to another crew (r2)" do
+    test "the owner hands a board over; its cards and packages follow it" do
+      hand = cmd(HandOverBoardV1, %{repo: @repo, crew: "night", by: Actor.owner()})
+      handed = run(board_of("home"), MaybeHandOverBoard, hand, BoardState)
+      assert handed.home_crew == "night"
+
+      # A card queued while the board was home's is ordered by night now: the
+      # board's live home crew rides on every card command.
+      rank =
+        cmd(PrioritiseCardV1, %{
+          card_id: card_id(),
+          rank: 3,
+          rationale: "ours",
+          by: operator_actor("eve")
+        })
+
+      payload = Map.put(PrioritiseCardV1.to_map(rank), :home_crew, "night")
+      assert {:ok, [_]} = CardAggregate.execute(card_of("home"), payload)
+
+      payload =
+        Map.put(PrioritiseCardV1.to_map(%{rank | by: operator_actor("bob")}), :home_crew, "night")
+
+      assert {:error, :not_home_crew} = CardAggregate.execute(card_of("home"), payload)
+    end
+
+    test "only the owner hands a board over, and only an open one to another crew" do
+      hand = &cmd(HandOverBoardV1, %{repo: @repo, crew: &2, by: &1})
+
+      assert {:error, :not_permitted} =
+               MaybeHandOverBoard.handle(board_of("home"), hand.(operator_actor("bob"), "night"))
+
+      assert {:error, :unknown_board} =
+               MaybeHandOverBoard.handle(
+                 BoardState.new(IssueRef.board_id(@repo)),
+                 hand.(Actor.owner(), "night")
+               )
+
+      assert {:error, :already_home_crew} =
+               MaybeHandOverBoard.handle(board_of("night"), hand.(Actor.owner(), "night"))
+
+      assert {:error, :invalid_crew} =
+               HandOverBoardV1.new(%{repo: @repo, crew: "no spaces", by: Actor.owner()})
     end
   end
 

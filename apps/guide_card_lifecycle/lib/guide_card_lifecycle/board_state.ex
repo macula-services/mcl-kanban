@@ -1,7 +1,7 @@
 defmodule GuideCardLifecycle.BoardState do
   # One board per repo, with the crew it belongs to (#29): its home crew
-  # orders its work. A board opened before #29 names none and belongs to the
-  # first crew.
+  # orders its work, until the owner hands the board over to another. A board
+  # opened before #29 names none and belongs to the first crew.
   @moduledoc false
 
   alias GuideCardLifecycle.BoardStatus
@@ -35,6 +35,9 @@ defmodule GuideCardLifecycle.BoardState do
         status: :evoq_bit_flags.set(state.status, BoardStatus.opened())
     }
   end
+
+  def apply_event(state, %{event_type: "board_handed_over_v1", home_crew: crew}),
+    do: %{state | home_crew: crew}
 
   def apply_event(state, %{event_type: "board_archived_v1"}),
     do: %{state | status: :evoq_bit_flags.set(state.status, BoardStatus.archived())}

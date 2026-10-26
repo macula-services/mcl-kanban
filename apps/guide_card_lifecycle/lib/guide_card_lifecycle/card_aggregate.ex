@@ -5,6 +5,12 @@ defmodule GuideCardLifecycle.CardAggregate do
   # Blanket rules before any desk: a card that was never queued is
   # unknown_card; a finished or withdrawn card refuses everything except
   # tags, links and comments.
+  #
+  # A card follows its board's home crew (#29), and the owner may hand a
+  # board over, so dispatch/3 reads the board's crew live and puts it on the
+  # command; execute/2 decides with it in place of the crew the card was
+  # queued under. Nothing a caller sends reaches that key: commands are built
+  # from named arguments, and dispatch/3 writes it.
   @moduledoc false
 
   @behaviour :evoq_aggregate
@@ -12,6 +18,7 @@ defmodule GuideCardLifecycle.CardAggregate do
   alias GuideCardLifecycle.DeferCard.MaybeDeferCard
   alias GuideCardLifecycle.ResumeCard.MaybeResumeCard
   alias GuideCardLifecycle.CardState
+  alias GuideCardLifecycle.BoardAggregate
   alias GuideCardLifecycle.CardStatus
   alias GuideCardLifecycle.LiveState
 
@@ -81,7 +88,9 @@ defmodule GuideCardLifecycle.CardAggregate do
 
   def execute(%CardState{status: 0}, _payload), do: {:error, :unknown_card}
 
-  def execute(%CardState{status: status} = state, %{command_type: type} = p) do
+  def execute(%CardState{status: status} = card, %{command_type: type} = p) do
+    state = on_board(card, p)
+
     cond do
       type in @after_close -> route(state, type, p)
       CardStatus.has?(status, CardStatus.finished()) -> {:error, :finished}
@@ -92,6 +101,9 @@ defmodule GuideCardLifecycle.CardAggregate do
 
   def execute(_state, _payload), do: {:error, :unknown_command}
 
+  defp on_board(card, %{home_crew: crew}) when is_binary(crew), do: %{card | home_crew: crew}
+  defp on_board(card, _payload), do: card
+
   defp route(state, type, payload), do: routed(Map.get(@desks, type), state, payload)
 
   defp routed(nil, _state, _payload), do: {:error, :unknown_command}
@@ -101,7 +113,13 @@ defmodule GuideCardLifecycle.CardAggregate do
   @spec dispatch(atom(), String.t(), map()) ::
           {:ok, non_neg_integer(), [map()]} | {:error, term()}
   def dispatch(command_type, card_id, payload) do
+    # queue_card brings the crew of the board it opens the card on.
+    payload = Map.put_new_lazy(payload, :home_crew, fn -> board_crew(current(card_id)) end)
+
     :evoq_command.new(command_type, __MODULE__, card_id, payload)
     |> :evoq_router.dispatch()
   end
+
+  defp board_crew(%CardState{board_id: nil}), do: nil
+  defp board_crew(%CardState{board_id: board_id}), do: BoardAggregate.current(board_id).home_crew
 end

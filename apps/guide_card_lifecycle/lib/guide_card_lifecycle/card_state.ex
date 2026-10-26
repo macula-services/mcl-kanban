@@ -1,7 +1,8 @@
 defmodule GuideCardLifecycle.CardState do
   # One card, one GitHub issue. Each event carries the card's status after it.
-  # The card follows its board's home crew (#29), copied onto card_queued_v1
-  # from the board, which never changes crew. A lane is an agent's
+  # The card follows its board's home crew (#29): card_queued_v1 records the
+  # crew it was queued under, and CardAggregate puts the board's live crew in
+  # its place on every command, since the owner may hand a board over. A lane is an agent's
   # (lane_node_id) or a crew's (lane_crew), never both.
   @moduledoc false
 

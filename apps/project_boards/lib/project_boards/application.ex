@@ -15,6 +15,7 @@ defmodule ProjectBoards.Application do
     ProjectBoards.AgentEnlistedV1ToCrew,
     ProjectBoards.BoardArchivedV1ToBoards,
     ProjectBoards.BoardDeferredV1ToBoards,
+    ProjectBoards.BoardHandedOverV1ToBoards,
     ProjectBoards.BoardOpenedV1ToBoards,
     ProjectBoards.BoardResumedV1ToBoards,
     ProjectBoards.CardBlockedV1ToCards,

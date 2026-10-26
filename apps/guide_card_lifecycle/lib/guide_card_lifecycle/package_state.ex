@@ -1,8 +1,9 @@
 defmodule GuideCardLifecycle.PackageState do
   # One work package: a GitHub issue labelled work-package that groups cards.
   # Packages are ranked on their own scale, ahead of the cards inside them.
-  # A package follows the home crew of its repo's board (#29), copied onto
-  # package_opened_v1; one opened before #29 belongs to the first crew.
+  # A package follows the home crew of its repo's board (#29): recorded on
+  # package_opened_v1 (one opened before #29 belongs to the first crew), and
+  # read live from the board by PackageAggregate on every command.
   @moduledoc false
 
   alias GuideCardLifecycle.CrewName

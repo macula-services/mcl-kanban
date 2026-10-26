@@ -865,7 +865,37 @@ defmodule MclKanbanWeb.LadderComponents do
           <input id="ob-repo" name="repo" value={@values["repo"]} placeholder="owner/repo" required autocomplete="off" pattern="[A-Za-z0-9][A-Za-z0-9_.\-]*/[A-Za-z0-9_.\-]+" />
           <span class="hint">As on GitHub: owner/repo</span>
         </div>
-        <div class="row"><button class="btn" type="button" phx-click="close_dialog">Cancel</button><button class="btn primary" type="submit">Open the board</button></div>
+        <div class="field">
+          <label for="ob-crew">Crew</label>
+          <input id="ob-crew" name="crew" value={@values["crew"] || "home"} list="ob-crew-names" required autocomplete="off" pattern="[A-Za-z][A-Za-z0-9_-]{0,39}" />
+          <datalist id="ob-crew-names"><option :for={c <- @crews} value={c.crew} /></datalist>
+          <span class="hint">The board's home crew: only it ranks, defers, reserves and withdraws its cards. Any crew may still queue work on it.</span>
+        </div>
+        <div class="row">
+          <button :if={@boards != []} id="hand-over-btn" class="btn" type="button" phx-click="open_dialog" phx-value-dialog="hand_over_board">Hand over a board…</button>
+          <button class="btn" type="button" phx-click="close_dialog">Cancel</button><button class="btn primary" type="submit">Open the board</button>
+        </div>
+      </form>
+    </dialog>
+    """
+  end
+
+  def dialogs(%{dialog: :hand_over_board} = assigns) do
+    ~H"""
+    <dialog id="hand-over" phx-hook="Dialog" phx-mounted={keep_open()}>
+      <form id="hand-over-form" phx-change="dialog_change" phx-submit="hand_over_board">
+        <h2>Hand over a board</h2>
+        <p class="lead">The board, its cards and its packages move to another crew. That crew orders its work from now on.</p>
+        <div class="field">
+          <label for="ho-repo">Board</label>
+          <select id="ho-repo" name="repo"><option :for={b <- @boards} value={b.repo} selected={@values["repo"] == b.repo}>{b.repo} ({b.home_crew})</option></select>
+        </div>
+        <div class="field">
+          <label for="ho-crew">To crew</label>
+          <input id="ho-crew" name="crew" value={@values["crew"]} list="ho-crew-names" required autocomplete="off" pattern="[A-Za-z][A-Za-z0-9_-]{0,39}" />
+          <datalist id="ho-crew-names"><option :for={c <- @crews} value={c.crew} /></datalist>
+        </div>
+        <div class="row"><button class="btn" type="button" phx-click="close_dialog">Cancel</button><button class="btn primary" type="submit">Hand it over</button></div>
       </form>
     </dialog>
     """

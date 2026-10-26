@@ -18,6 +18,7 @@ defmodule MclKanbanWeb.OwnerActions do
   alias GuideCardLifecycle.DischargeAgent.{DischargeAgentV1, MaybeDischargeAgent}
   alias GuideCardLifecycle.EnlistAgent.{EnlistAgentV1, MaybeEnlistAgent}
   alias GuideCardLifecycle.FileCard.{FileCardV1, MaybeFileCard}
+  alias GuideCardLifecycle.HandOverBoard.{HandOverBoardV1, MaybeHandOverBoard}
   alias GuideCardLifecycle.LiftCardReservation.{LiftCardReservationV1, MaybeLiftCardReservation}
   alias GuideCardLifecycle.OpenBoard.{MaybeOpenBoard, OpenBoardV1}
   alias GuideCardLifecycle.PrioritiseCard.{MaybePrioritiseCard, PrioritiseCardV1}
@@ -60,6 +61,7 @@ defmodule MclKanbanWeb.OwnerActions do
     already_filed: {"The card is already in that package", "Nothing to do."},
     already_linked: {"Those cards are already linked that way", "Nothing to do."},
     already_on_board: {"That issue already has a card", "Search for its number to find it."},
+    already_home_crew: {"That crew has the board already", "Pick another crew."},
     already_open: {"That is open already", "Nothing to do."},
     already_tagged: {"The card already has that tag", "Nothing to do."},
     blocked: {"The card is blocked", "Unblock it first."},
@@ -99,6 +101,9 @@ defmodule MclKanbanWeb.OwnerActions do
     not_filed: {"The card is in no package", "Nothing to do."},
     not_holder: {"Only the holder can do that", "Release the card from its holder instead."},
     not_in_lane: {"The card is reserved for another agent", "Lift the reservation first."},
+    other_crew_lane: {"The card is reserved for another crew", "Lift the reservation first."},
+    unknown_crew: {"No crew by that name", "Enlist an agent into it first."},
+    one_lane: {"A card is reserved to an agent or a crew", "Pick one of the two."},
     not_linked: {"Those cards are not linked", "Nothing to do."},
     not_permitted: {"The owner may not do that", "Agents do this over the mesh."},
     not_pinned: {"The card is not pinned", "Nothing to do."},
@@ -163,8 +168,15 @@ defmodule MclKanbanWeb.OwnerActions do
   def appoint_operator(crew, name),
     do: run(AppointOperatorV1, MaybeAppointOperator, %{crew: crew, name: name})
 
-  @spec open_board(String.t()) :: outcome()
-  def open_board(repo), do: run(OpenBoardV1, MaybeOpenBoard, %{repo: repo})
+  @doc "Open a repo's board for a crew, its home crew (#29)."
+  @spec open_board(String.t(), String.t()) :: outcome()
+  def open_board(repo, crew \\ CrewName.home()),
+    do: run(OpenBoardV1, MaybeOpenBoard, %{repo: repo, crew: crew})
+
+  @doc "Hand a repo's board, its cards and packages over to another crew (#29)."
+  @spec hand_over_board(String.t(), String.t()) :: outcome()
+  def hand_over_board(repo, crew),
+    do: run(HandOverBoardV1, MaybeHandOverBoard, %{repo: repo, crew: crew})
 
   @spec archive_board(String.t()) :: outcome()
   def archive_board(repo), do: run(ArchiveBoardV1, MaybeArchiveBoard, %{repo: repo})

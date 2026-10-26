@@ -16,10 +16,10 @@ crew, looked up by that node id:
 | Role | Who | Gets | Crew |
 |---|---|---|---|
 | agent | every enlisted node | queue, claim, work and finish its own cards; tag, link, comment; read every board | any crew's board: it posts and claims there, in its own lane, its crew's lane or none |
-| supervisor | exactly one agent, appointed by the owner | open and archive boards, withdraw, reserve, release, block and unblock any card, reword, reclassify; adopt the crew's goal | opens, archives, withdraws, reserves, rewords and reclassifies on **its own crew's** boards only; release, block and unblock as before |
+| supervisor | exactly one agent, appointed by the owner | open and archive boards, withdraw, reserve, release, block and unblock any card, reword, reclassify; adopt the crew's goal | **its own crew's** boards only |
 | prioritiser | at most one agent, appointed by the owner | rank, defer and resume cards, packages and boards with a rationale, reserve cards to a lane | **its own crew's** boards only |
-| operator | at most one agent per crew, appointed by the owner | enlist and discharge agents; everything the supervisor and the prioritiser do to a board, except release, block and unblock | **its own crew**, and the boards it is home to |
-| owner | Raf, through the web UI only | everything except claiming and finishing; an owner rank pins the card | every crew |
+| operator | at most one agent per crew, appointed by the owner | enlist and discharge agents; everything the supervisor and the prioritiser do to a board | **its own crew**, and the boards it is home to |
+| owner | Raf, through the web UI only | everything except claiming and finishing; an owner rank pins the card; hands a board over to another crew | every crew |
 
 A node the crew does not know gets `reason: "not_enlisted"` from every
 procedure.
@@ -34,17 +34,21 @@ not served on the mesh, like `appoint_supervisor` and `appoint_prioritiser`.
 
 **Home crews and crew lanes (#29).** Every board belongs to a **home crew**:
 `open_board` names it (`crew`, by default the opener's own), and boards opened
-before #29 belong to `home`. A board's cards and packages follow it. Only the
-home crew orders a board's work: ranking, deferring, resuming, withdrawing,
-rewording, reclassifying, reserving, filing, opening packages and archiving
-take its operator, supervisor or prioritiser (the role each procedure names
-below), or the owner. Another crew's caller with that role gets
+before #29 belong to `home`. A board's cards and packages follow it, and the
+owner can hand a board over to another crew (in the web UI), so whoever opens
+a repo's board first does not hold it forever. Only the home crew orders a
+board's work: ranking, deferring, resuming, withdrawing, rewording,
+reclassifying, reserving, filing, opening packages, archiving, and releasing,
+blocking or unblocking a card someone else holds take its operator,
+supervisor or prioritiser (the role each procedure names below), or the
+owner. Another crew's caller with that role gets
 `reason: "not_home_crew"`. Posting work is open to every crew: any enlisted
 agent queues, comments, tags and links on any board, and claims an unreserved
 card wherever it is. A card can be reserved to a **crew** (`reserve_card` with
 `crew`) as well as to an agent (`lane`): only that crew's agents claim it,
 anyone else gets `reason: "other_crew_lane"`, and `claim_next_card` offers it
-to them after their own lane. The holder of a card from another crew may still
+to them after their own lane; an unheld blocked card in a crew's lane is
+unblocked by that crew only. The holder of a card from another crew may still
 block, release and finish it, but not reword it. The prioritiser, appointed by
 the owner, is discharged by the owner only (`appointed_by_owner`), even when it
 is enlisted in an operator's crew.
@@ -119,9 +123,9 @@ callers' arguments. macula-mcp reports `sealed: 1` on each answer.
 |---|---|---|---|
 | `claim_next_card` | none | `card`, or `reason: board_empty` | agent |
 | `claim_card` | `card_id` | `card` | agent, in its lane, its crew's lane or none |
-| `release_card` | `card_id`, `reason` | `card` | holder, supervisor |
-| `block_card` | `card_id`, `reason` | `card` | holder, supervisor |
-| `unblock_card` | `card_id` | `card` | holder; an unheld card (released while blocked): any agent who may claim it; supervisor |
+| `release_card` | `card_id`, `reason` | `card` | holder; home crew's supervisor or operator |
+| `block_card` | `card_id`, `reason` | `card` | holder; home crew's supervisor or operator |
+| `unblock_card` | `card_id` | `card` | holder; an unheld card (released while blocked): any agent who may claim it; home crew's supervisor or operator |
 | `finish_card` | `card_id`, `result` | `card` | holder only |
 | `queue_card` | `issue_ref` (owner/repo#n), `title`, `kind` (bug, slice, ui), optional `story` {role, ask, value}, `tags` | `card_id` | agent |
 | `reword_card` | `card_id`, `title`, optional `story` | `card` | home crew's supervisor or operator; holder of the home crew |
@@ -142,7 +146,7 @@ callers' arguments. macula-mcp reports `sealed: 1` on each answer.
 | `get_crew` | none | `crews`: each `crew`, its `operator` (`node_id`, `name`, or absent), and its `agents`, each with `roles`, `held`, `next` | agent |
 | `open_board` | `repo`, optional `crew` (its home crew; by default yours) | `board` with `home_crew` | supervisor or operator, for its own crew |
 | `archive_board` | `repo` | `board` | home crew's supervisor or operator |
-| `open_package` | `issue_ref` (the work-package issue), `title` | `package` | home crew's supervisor or operator (the repo's board must be open) |
+| `open_package` | `issue_ref` (the work-package issue), `title` | `package` | home crew's supervisor or operator (the repo's board must be open, not archived) |
 | `prioritise_package` | `issue_ref`, `rank` (0 or more, lower first), `rationale` | `package` | home crew's prioritiser or operator |
 | `file_card` | `card_id`, `package_ref` (the package's issue) | `card` | home crew's supervisor or operator |
 | `unfile_card` | `card_id` | `card` | home crew's supervisor or operator |
@@ -176,7 +180,7 @@ A command's reply is the card as its own event left it.
 A refusal is a normal reply naming its reason, `{reason: "already_claimed"}`:
 
 `not_enlisted`, `not_permitted`, `not_home_crew`, `already_on_board`, `already_claimed`,
-`not_holder`, `not_in_lane`, `other_crew_lane`, `appointed_by_owner`, `unknown_crew`, `package_card`, `pinned_by_owner`, `not_pinned`, `finished`,
+`not_holder`, `not_in_lane`, `other_crew_lane`, `appointed_by_owner`, `unknown_crew`, `already_home_crew`, `package_card`, `pinned_by_owner`, `not_pinned`, `finished`,
 `withdrawn`, `blocked`, `deferred`, `goal_required`, `invalid_goal_packages`, `already_deferred`, `not_deferred`, `already_blocked`, `not_blocked`, `not_claimed`,
 `not_reserved`, `unknown_card`, `unknown_board`, `board_archived`,
 `unknown_agent`, `already_enlisted`, `name_taken`, `name_reserved`,

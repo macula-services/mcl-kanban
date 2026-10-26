@@ -10,8 +10,10 @@ defmodule MclKanban.BoardOverMeshTest do
   alias GuideCardLifecycle.AppointPrioritiser.{AppointPrioritiserV1, MaybeAppointPrioritiser}
   alias GuideCardLifecycle.AppointSupervisor.{AppointSupervisorV1, MaybeAppointSupervisor}
   alias GuideCardLifecycle.EnlistAgent.{EnlistAgentV1, MaybeEnlistAgent}
+  alias GuideCardLifecycle.HandOverBoard.{HandOverBoardV1, MaybeHandOverBoard}
 
   alias MclKanban.AdoptGoal.AdoptGoalResponder
+  alias MclKanban.ArchiveBoard.ArchiveBoardResponder
   alias MclKanban.ClaimCard.ClaimCardResponder
   alias MclKanban.ClaimNextCard.ClaimNextCardResponder
   alias MclKanban.CommentOnCard.CommentOnCardResponder
@@ -337,6 +339,19 @@ defmodule MclKanban.BoardOverMeshTest do
 
     assert %{card: %{card_id: ^on_night}} =
              call(DeferCardResponder, eve, %{card_id: on_night, reason: "later"})
+
+    # The owner hands night's board to home: its card follows the board.
+    {:ok, hand} = HandOverBoardV1.new(%{repo: nights, crew: "home", by: Actor.owner()})
+    {:ok, _, _} = MaybeHandOverBoard.dispatch(hand)
+
+    assert %{reason: "not_home_crew"} = call(ResumeCardResponder, eve, %{card_id: on_night})
+    assert %{card: %{card_id: ^on_night}} = call(ResumeCardResponder, sup, %{card_id: on_night})
+
+    # No package is opened on an archived board.
+    assert %{board: _} = call(ArchiveBoardResponder, sup, %{repo: nights})
+
+    assert %{reason: "board_archived"} =
+             call(OpenPackageResponder, sup, %{issue_ref: "#{nights}#9", title: "Too late"})
   end
 
   test "a refusal names its reason", %{sup: sup, repo: repo} do

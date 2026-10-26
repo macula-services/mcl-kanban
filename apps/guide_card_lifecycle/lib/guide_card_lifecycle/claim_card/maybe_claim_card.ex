@@ -10,7 +10,7 @@ defmodule GuideCardLifecycle.ClaimCard.MaybeClaimCard do
   # worked the same issue three times on the first day.
   @moduledoc false
 
-  alias GuideCardLifecycle.{CardAggregate, CardState, CardStatus}
+  alias GuideCardLifecycle.{Actor, CardAggregate, CardState, CardStatus}
   alias GuideCardLifecycle.ClaimCard.{CardClaimedV1, ClaimCardV1}
 
   def handle_payload(state, payload), do: handle(state, struct(ClaimCardV1, payload))
@@ -27,14 +27,18 @@ defmodule GuideCardLifecycle.ClaimCard.MaybeClaimCard do
     end
   end
 
-  # A lane is an agent's or a crew's, never both.
-  defp lane_refusal(%CardState{lane_node_id: node_id}, by) when node_id not in [nil, by.node_id],
+  @doc """
+  Why the actor may not take the card's lane, or nil: a lane is an agent's
+  or a crew's, never both. Unblocking an unheld card asks the same (#16).
+  """
+  @spec lane_refusal(CardState.t(), Actor.t()) :: nil | :not_in_lane | :other_crew_lane
+  def lane_refusal(%CardState{lane_node_id: node_id}, by) when node_id not in [nil, by.node_id],
     do: :not_in_lane
 
-  defp lane_refusal(%CardState{lane_crew: crew}, by) when crew not in [nil, by.crew],
+  def lane_refusal(%CardState{lane_crew: crew}, by) when crew not in [nil, by.crew],
     do: :other_crew_lane
 
-  defp lane_refusal(_card, _by), do: nil
+  def lane_refusal(_card, _by), do: nil
 
   defp claimed(cmd, status),
     do:
