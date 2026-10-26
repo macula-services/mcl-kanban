@@ -177,6 +177,15 @@ defmodule GuideCardLifecycle.RecordApprovalTest do
     assert {:error, :wrong_repo} = record(card(), approval, keys)
   end
 
+  test "a gate yes naming another issue is refused, in this repo or another", %{keys: keys} do
+    op = keys.home_operator
+
+    for issue <- [@repo <> "#999", "example-org/gadget#999"] do
+      approval = gate(op, "gate:design") |> Map.put(:issue, issue) |> signed(op)
+      assert {:error, :wrong_issue} = record(card(), approval, keys), issue
+    end
+  end
+
   test "a tampered field breaks the signature", %{keys: keys} do
     approval = range(keys.home_operator) |> CrewApproval.sign(keys.home_operator)
     {:ok, object} = :macula_signed_object.decode(approval)

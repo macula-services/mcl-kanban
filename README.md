@@ -124,7 +124,8 @@ these hold, and otherwise answers the reason:
    over the label, the carried key and the fields as signed
    (`approval_malformed`, `signature_invalid`, `alg_mismatch`);
 2. `operator_node_id` is the node id of the key that signed (`signer_mismatch`);
-3. it names this card and this card's repo (`wrong_card`, `wrong_repo`);
+3. it names this card and this card's repo, and a gate names this card's
+   issue (`wrong_card`, `wrong_repo`, `wrong_issue`);
 4. its signer is, right now, the appointed operator of the crew the card's
    board belongs to (`not_home_operator`): an agent's key and another crew's
    operator are refused alike, and once the owner hands a board over, its old

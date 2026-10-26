@@ -1,7 +1,7 @@
 defmodule GuideCardLifecycle.RecordApproval.MaybeRecordApproval do
   # Handler: any enlisted agent brings an approval to the card; the signature
   # is the authority, not the caller (#30). The approval is recorded only when
-  # it names this card and its repo, its signer is the operator of the card's
+  # it names this card and its repo (and, for a gate, its issue), its signer is the operator of the card's
   # home crew right now, and its nonce is new on this card. The nonce is kept
   # per card, which is enough because the card id is signed: a yes for one
   # card is wrong_card on every other.
@@ -38,11 +38,17 @@ defmodule GuideCardLifecycle.RecordApproval.MaybeRecordApproval do
       not Actor.allowed?(cmd.by, @who) -> :not_permitted
       cmd.approval_card_id != card.card_id -> :wrong_card
       cmd.repo != card.repo -> :wrong_repo
+      other_issue?(card, cmd) -> :wrong_issue
       not operator?(cmd.home_operator, cmd.operator_node_id) -> :not_home_operator
       MapSet.member?(card.approval_nonces, cmd.nonce) -> :replayed_nonce
       true -> nil
     end
   end
+
+  # The card is one issue (its id is that issue's digest), so a gate passes
+  # on the card only when it names that issue.
+  defp other_issue?(card, %{kind: "gate:" <> _, issue: issue}), do: issue != card.issue_ref
+  defp other_issue?(_card, _range), do: false
 
   defp operator?(home_operator, signer), do: is_binary(home_operator) and home_operator == signer
 
