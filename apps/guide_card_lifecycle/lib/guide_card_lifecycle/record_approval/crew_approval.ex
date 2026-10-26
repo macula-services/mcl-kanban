@@ -82,9 +82,14 @@ defmodule GuideCardLifecycle.RecordApproval.CrewApproval do
   defp refusal(result), do: result
 
   # The fields with their text wrapping and the alg the object adds removed.
+  # A key that is not text stays wrapped, so no kind allows it and the
+  # approval is malformed: it was signed, so it may not be dropped.
   defp plain(fields) do
-    for {{:text, k}, v} <- fields, k != "alg", into: %{}, do: {k, unwrap(v)}
+    for {k, v} <- fields, k != {:text, "alg"}, into: %{}, do: {unkey(k), unwrap(v)}
   end
+
+  defp unkey({:text, k}), do: k
+  defp unkey(k), do: {:not_text, k}
 
   # Text and integers are the only values a field takes; bytes, lists and
   # maps stay wrapped, so no check below can mistake them for either.

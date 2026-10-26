@@ -74,6 +74,9 @@ defmodule GuideCardLifecycle.RecordApprovalTest do
 
   defp signed(fields, key), do: fields |> CrewApproval.sign(key) |> Base.encode64()
 
+  defp wire(v) when is_binary(v), do: {:text, v}
+  defp wire(v) when is_integer(v), do: v
+
   defp card(ref \\ @ref) do
     {:ok, queue} =
       QueueCardV1.new(%{issue_ref: ref, title: "Draw it", kind: "slice", by: actor("cyd")})
@@ -210,6 +213,20 @@ defmodule GuideCardLifecycle.RecordApprovalTest do
       assert {:error, :approval_malformed} = record(card(), signed(fields, op), keys),
              inspect(fields)
     end
+
+    # A field under an integer key is signed too, so it is no field to drop.
+    integer_keyed =
+      range(op)
+      |> Map.new(fn {k, v} -> {{:text, to_string(k)}, wire(v)} end)
+      |> Map.put(1, {:text, "x"})
+
+    smuggled =
+      CrewApproval.label()
+      |> :macula_signed_object.sign(integer_keyed, op)
+      |> :macula_signed_object.encode()
+      |> Base.encode64()
+
+    assert {:error, :approval_malformed} = record(card(), smuggled, keys)
 
     assert {:error, :approval_malformed} = record(card(), "not base64!", keys)
     assert {:error, :approval_malformed} = record(card(), Base.encode64("not cbor"), keys)
