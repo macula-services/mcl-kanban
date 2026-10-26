@@ -301,6 +301,61 @@ defmodule QueryBoards.QueriesTest do
              Enum.find(crews, &(&1.crew == second))
   end
 
+  test "an await waits for the row its command wrote, and says read_model_behind when it never comes" do
+    repo = "example-org/await" <> uniq()
+    board_id = "board-" <> hex32(repo)
+    ref = "#{repo}#1"
+    package_id = "package-" <> hex32(ref)
+    leaving = "leaving" <> uniq()
+
+    # Nothing written yet: these new awaits (#37) do not answer :ok early.
+    assert {:error, :read_model_behind} = GetBoards.await_opened(board_id, 0)
+    assert {:error, :read_model_behind} = GetBoards.await_archived(board_id, 1, 0)
+    assert {:error, :read_model_behind} = GetLadder.await_opened(package_id, 0)
+    # A discharge's await is the absence of the row: absent already, so :ok.
+    assert :ok = GetCrew.await_discharged(leaving, 0)
+
+    # Written while the caller is already waiting: the await sees it, which is
+    # what makes a reply and the read after it agree.
+    writer =
+      Task.async(fn ->
+        Process.sleep(60)
+        deliver(%{event_type: "board_opened_v1", board_id: board_id, repo: repo, at: 1}, 0)
+        deliver(%{event_type: "board_archived_v1", board_id: board_id, at: 2}, 1)
+
+        deliver(
+          %{
+            event_type: "package_opened_v1",
+            package_id: package_id,
+            issue_ref: ref,
+            title: "P",
+            by: "ada",
+            at: 1
+          },
+          0
+        )
+
+        :written
+      end)
+
+    assert :ok = GetBoards.await_opened(board_id)
+    assert :ok = GetBoards.await_archived(board_id, 1)
+    assert :ok = GetLadder.await_opened(package_id)
+    assert :written = Task.await(writer)
+
+    # A discharge's await is the absence of the row.
+    node = hex32(leaving)
+
+    deliver(
+      %{event_type: "agent_enlisted_v1", node_id: node, name: leaving, crew: "home", at: 1},
+      0
+    )
+
+    assert {:error, :read_model_behind} = GetCrew.await_discharged(leaving, 0)
+    deliver(%{event_type: "agent_discharged_v1", node_id: node, name: leaving, at: 2}, 1)
+    assert :ok = GetCrew.await_discharged(leaving)
+  end
+
   defp package(ref, rank, version \\ 1, pinned \\ 0) do
     id = "package-" <> hex32(ref)
 

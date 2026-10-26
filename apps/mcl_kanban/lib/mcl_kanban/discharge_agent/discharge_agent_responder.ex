@@ -9,6 +9,7 @@ defmodule MclKanban.DischargeAgent.DischargeAgentResponder do
   alias GuideCardLifecycle.Actor
   alias GuideCardLifecycle.DischargeAgent.{MaybeDischargeAgent, DischargeAgentV1}
   alias MclKanban.Wire
+  alias QueryBoards.GetCrew.GetCrew
 
   @impl true
   def init(_args), do: {:ok, nil}
@@ -20,6 +21,7 @@ defmodule MclKanban.DischargeAgent.DischargeAgentResponder do
            {:ok, cmd} <-
              DischargeAgentV1.new(Map.put(%{name: Wire.arg(payload, :name)}, :by, by)),
            {:ok, _version, _events} <- MaybeDischargeAgent.dispatch(cmd),
+           :ok <- GetCrew.await_discharged(cmd.name),
            do: {:ok, %{agent: %{name: cmd.name}}}
 
     {:reply, Wire.reply(reply), state}

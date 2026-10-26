@@ -7,6 +7,7 @@ defmodule MclKanban.ArchiveBoard.ArchiveBoardResponder do
   alias GuideCardLifecycle.Actor
   alias GuideCardLifecycle.ArchiveBoard.{MaybeArchiveBoard, ArchiveBoardV1}
   alias MclKanban.Wire
+  alias QueryBoards.GetBoards.GetBoards
 
   @impl true
   def init(_args), do: {:ok, nil}
@@ -17,6 +18,7 @@ defmodule MclKanban.ArchiveBoard.ArchiveBoardResponder do
       with {:ok, by} <- Actor.of_caller(payload),
            {:ok, cmd} <- ArchiveBoardV1.new(Map.put(%{repo: Wire.arg(payload, :repo)}, :by, by)),
            {:ok, _version, _events} <- MaybeArchiveBoard.dispatch(cmd),
+           :ok <- GetBoards.await_archived(cmd.board_id, 1),
            do: {:ok, %{board: %{board_id: cmd.board_id, repo: cmd.repo}}}
 
     {:reply, Wire.reply(reply), state}

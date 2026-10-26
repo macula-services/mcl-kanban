@@ -59,6 +59,20 @@ defmodule QueryBoards.GetLadder.GetLadder do
         timeout_ms
       )
 
+  @doc """
+  Waits (bounded) until the read model holds the package, so an open replies
+  only once the next read lists it.
+  """
+  @spec await_opened(String.t(), pos_integer()) :: :ok | {:error, :read_model_behind}
+  def await_opened(package_id, timeout_ms \\ 5_000),
+    do:
+      ReadModel.await(
+        "SELECT COUNT(*) FROM packages WHERE package_id = ?",
+        [package_id],
+        [[1]],
+        timeout_ms
+      )
+
   defp package([id, ref, title, rank, pinned, ranked_by, rationale, opened_at, deferred], cards) do
     mine = cards |> Map.get(ref, []) |> Enum.reject(&(&1.package_card == 1))
 

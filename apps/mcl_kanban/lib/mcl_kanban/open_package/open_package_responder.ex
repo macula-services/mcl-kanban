@@ -7,6 +7,7 @@ defmodule MclKanban.OpenPackage.OpenPackageResponder do
   alias GuideCardLifecycle.Actor
   alias GuideCardLifecycle.OpenPackage.{MaybeOpenPackage, OpenPackageV1}
   alias MclKanban.Wire
+  alias QueryBoards.GetLadder.GetLadder
 
   @impl true
   def init(_args), do: {:ok, nil}
@@ -22,6 +23,7 @@ defmodule MclKanban.OpenPackage.OpenPackageResponder do
                by: by
              }),
            {:ok, _version, _events} <- MaybeOpenPackage.dispatch(cmd),
+           :ok <- GetLadder.await_opened(cmd.package_id),
            do:
              {:ok,
               %{
