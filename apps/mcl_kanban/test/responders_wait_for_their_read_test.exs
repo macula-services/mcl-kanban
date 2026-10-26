@@ -23,9 +23,12 @@ defmodule MclKanban.RespondersWaitForTheirReadTest do
 
   # Every card desk goes through this one face, so its wait is the one that
   # keeps them all honest: if it stopped reading the card first, every card
-  # desk would reply from the command alone.
-  test "the card desk's shared face still replies from the card read" do
-    assert {:Wire, :card_after} in calls(File.read!(@card_procedure))
+  # desk would reply from the command alone. It counts only if it dispatches,
+  # and only with the wait after the dispatch.
+  test "the card desk's shared face still dispatches and then waits for the card read" do
+    source = File.read!(@card_procedure)
+    assert dispatches?(source), "#{@card_procedure} dispatches nothing"
+    assert waits_after_dispatch?(source)
   end
 
   test "the check reads the syntax tree, not the text" do
@@ -40,17 +43,20 @@ defmodule MclKanban.RespondersWaitForTheirReadTest do
            end
            """)
 
-    # Task.await is not a read of this service's read model.
-    refute waits_after_dispatch?("""
-           defmodule X do
-             def handle_request(payload, state) do
-               with {:ok, _v, _e} <- MaybeX.dispatch(cmd) do
-                 Task.await(task)
-                 {:ok, %{card_id: cmd.card_id}}
+    # Task.await and Task.await_many are not reads of this service's read model,
+    # however they are spelled.
+    for stray <- ["Task.await(task)", "Task.await_many(tasks)"] do
+      refute waits_after_dispatch?("""
+             defmodule X do
+               def handle_request(payload, state) do
+                 with {:ok, _v, _e} <- MaybeX.dispatch(cmd) do
+                   #{stray}
+                   {:ok, %{card_id: cmd.card_id}}
+                 end
                end
              end
-           end
-           """)
+             """)
+    end
 
     # A wait before the dispatch is not a wait for that dispatch.
     refute waits_after_dispatch?("""
@@ -77,11 +83,31 @@ defmodule MclKanban.RespondersWaitForTheirReadTest do
              """)
     end
 
-    # And a card face that answered without reading the card first is caught.
-    refute {:Wire, :card_after} in calls("""
+    # Nothing for the card face to wait on? Then it is not a gate at all.
+    refute dispatches?("""
+           defmodule CardProcedure do
+             def call(payload, _command, _desk, args), do: {:ok, args}
+           end
+           """)
+
+    # A card face that read the card BEFORE dispatching has not waited for its
+    # own write.
+    refute waits_after_dispatch?("""
            defmodule CardProcedure do
              def call(payload, command, desk, args) do
-               with {:ok, _v, _e} <- desk.dispatch(cmd), do: {:ok, args}
+               with {:ok, card} <- Wire.card_after(args.card_id, 0),
+                    {:ok, _v, _e} <- desk.dispatch(cmd),
+                    do: {:ok, card}
+             end
+           end
+           """)
+
+    # And the real shape: dispatch, then read the card.
+    assert waits_after_dispatch?("""
+           defmodule CardProcedure do
+             def call(payload, command, desk, args) do
+               with {:ok, _v, _e} <- desk.dispatch(cmd),
+                    do: Wire.card_after(args.card_id, 1)
              end
            end
            """)
@@ -114,6 +140,9 @@ defmodule MclKanban.RespondersWaitForTheirReadTest do
   defp module_name({:__aliases__, _, mods}), do: List.last(mods)
   defp module_name(other), do: other
 
+  defp dispatches?(source),
+    do: Enum.any?(calls(source), fn {_module, fun} -> fun == :dispatch end)
+
   # A responder that dispatches nothing has no write to wait for: the read
   # desks, and the card desks, whose wait lives in CardProcedure.call (checked
   # by the test above).
@@ -128,8 +157,15 @@ defmodule MclKanban.RespondersWaitForTheirReadTest do
 
   defp wait?({:Wire, fun}), do: fun in [:card_after, :once_read]
 
-  defp wait?({_module, fun}) when is_atom(fun),
-    do: String.starts_with?(Atom.to_string(fun), "await_")
+  # Only a wait on this service's read model counts: Task.await_many is an
+  # await_* call, and it reads nothing of the board.
+  defp wait?({module, fun}) when is_atom(module) and is_atom(fun),
+    do: reads?(module) and String.starts_with?(Atom.to_string(fun), "await_")
 
   defp wait?(_call), do: false
+
+  # The query desks (GetBoards, GetCrew, GetLadder, GetGoal, GetCardById, ...)
+  # and ReadModel itself, which is the shape every one of them uses.
+  defp reads?(module),
+    do: module == :ReadModel or String.starts_with?(Atom.to_string(module), "Get")
 end
