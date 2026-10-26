@@ -120,6 +120,15 @@ defmodule MclKanban.BoardOverMeshTest do
     id
   end
 
+  # The reads the four #37 desks must agree with: one call each, no waiting.
+  defp boards(sup), do: call(GetBoardsResponder, sup, %{}).boards
+
+  defp crew_names(sup) do
+    for %{agents: agents} <- call(GetCrewResponder, sup, %{}).crews,
+        agent <- agents,
+        do: agent.name
+  end
+
   # The read model takes the crew row and the agent row in separate
   # transactions, so it can hold a crew before it holds the agent just enlisted
   # into it: a read taken straight after an enlist can still miss that agent.
@@ -355,28 +364,28 @@ defmodule MclKanban.BoardOverMeshTest do
              call(OpenPackageResponder, sup, %{issue_ref: "#{nights}#9", title: "Too late"})
   end
 
-||||||| parent of 596da6c (kanban#37: every desk's reply waits for the read it is about)
   # #37: a command's reply waits for the read model, so each read below
-  # follows its own command with no polling and still sees the write.
-  test "every desk's reply is followed by a read that sees it: board, package, crew", %{
+  # follows its own command with no polling and still sees the write. One desk
+  # per test, so a failure names the desk that stopped waiting.
+  test "open_board's reply is followed by a get_boards that lists the board", %{sup: sup} do
+    repo = "example-org/opened" <> uniq()
+
+    %{board: %{repo: ^repo}} = call(OpenBoardResponder, sup, %{repo: repo})
+    assert Enum.any?(boards(sup), &(&1.repo == repo and &1.archived == 0))
+  end
+
+  test "archive_board's reply is followed by a get_boards that shows it archived", %{sup: sup} do
+    repo = "example-org/archived" <> uniq()
+
+    %{board: %{repo: ^repo}} = call(OpenBoardResponder, sup, %{repo: repo})
+    %{board: %{repo: ^repo}} = call(ArchiveBoardResponder, sup, %{repo: repo})
+    assert Enum.any?(boards(sup), &(&1.repo == repo and &1.archived == 1))
+  end
+
+  test "open_package's reply is followed by a get_ladder that lists the package", %{
     sup: sup,
     repo: repo
   } do
-    boards = fn -> call(GetBoardsResponder, sup, %{}).boards end
-
-    crew_names = fn ->
-      for %{agents: agents} <- call(GetCrewResponder, sup, %{}).crews,
-          agent <- agents,
-          do: agent.name
-    end
-
-    opened = "example-org/opened" <> uniq()
-    %{board: %{repo: ^opened}} = call(OpenBoardResponder, sup, %{repo: opened})
-    assert Enum.any?(boards.(), &(&1.repo == opened and &1.archived == 0))
-
-    %{board: %{repo: ^opened}} = call(ArchiveBoardResponder, sup, %{repo: opened})
-    assert Enum.any?(boards.(), &(&1.repo == opened and &1.archived == 1))
-
     ref = "#{repo}#37" <> uniq()
 
     %{package: %{issue_ref: ^ref}} =
@@ -384,12 +393,16 @@ defmodule MclKanban.BoardOverMeshTest do
 
     %{packages: packages} = call(GetLadderResponder, sup, %{})
     assert Enum.any?(packages, &(&1.issue_ref == ref))
+  end
 
+  test "discharge_agent's reply is followed by a get_crew that no longer lists the agent", %{
+    sup: sup
+  } do
     leaving = enlist(sup)
-    assert leaving in crew_names.()
+    assert leaving in crew_names(sup)
 
     %{agent: %{name: ^leaving}} = call(DischargeAgentResponder, sup, %{name: leaving})
-    refute leaving in crew_names.()
+    refute leaving in crew_names(sup)
   end
 
   test "a refusal names its reason", %{sup: sup, repo: repo} do
