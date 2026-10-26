@@ -36,15 +36,17 @@ defmodule QueryBoards.GetCrew.GetCrew do
       )
 
   @doc """
-  Waits (bounded) until the read model holds no agent of that name, so a
-  discharge's reply is followed by a read that no longer lists it.
+  Waits (bounded) until the read model no longer holds that node, so a
+  discharge's reply is followed by a read that no longer lists the agent. The
+  node id is the projection's own key (it deletes by it), which is what makes
+  this right for a discharge typed in another case than the enlist's.
   """
   @spec await_discharged(String.t(), pos_integer()) :: :ok | {:error, :read_model_behind}
-  def await_discharged(name, timeout_ms \\ 5_000),
+  def await_discharged(node_id, timeout_ms \\ 5_000),
     do:
       ReadModel.await(
-        "SELECT COUNT(*) FROM crew WHERE name = ?",
-        [name],
+        "SELECT COUNT(*) FROM crew WHERE node_id = ?",
+        [node_id],
         [[0]],
         timeout_ms
       )

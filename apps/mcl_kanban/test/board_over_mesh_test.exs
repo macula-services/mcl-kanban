@@ -405,6 +405,18 @@ defmodule MclKanban.BoardOverMeshTest do
     refute leaving in crew_names(sup)
   end
 
+  # The aggregate resolves the name case-insensitively and the await keys on the
+  # node the event carries, so a discharge typed in another case than the
+  # enlist's still waits for its own row to go (#37).
+  test "a discharge typed in another case waits for that agent's row to go", %{sup: sup} do
+    leaving = enlist(sup)
+    assert leaving in crew_names(sup)
+
+    shouted = String.upcase(leaving)
+    %{agent: %{name: ^shouted}} = call(DischargeAgentResponder, sup, %{name: shouted})
+    refute leaving in crew_names(sup)
+  end
+
   test "a refusal names its reason", %{sup: sup, repo: repo} do
     bob = enlist(sup)
     queue(bob, repo, 41)

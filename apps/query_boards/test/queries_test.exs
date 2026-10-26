@@ -380,8 +380,8 @@ defmodule QueryBoards.QueriesTest do
     assert {:error, :read_model_behind} = GetBoards.await_opened(board_id, 0)
     assert {:error, :read_model_behind} = GetBoards.await_archived(board_id, 1, 0)
     assert {:error, :read_model_behind} = GetLadder.await_opened(package_id, 0)
-    # A discharge's await is the absence of the row: absent already, so :ok.
-    assert :ok = GetCrew.await_discharged(leaving, 0)
+    # A discharge's await is the absence of that NODE: absent already, so :ok.
+    assert :ok = GetCrew.await_discharged(hex32(leaving), 0)
 
     # Written while the caller is already waiting: the await sees it, which is
     # what makes a reply and the read after it agree.
@@ -411,17 +411,31 @@ defmodule QueryBoards.QueriesTest do
     assert :ok = GetLadder.await_opened(package_id)
     assert :written = Task.await(writer)
 
-    # A discharge's await is the absence of the row.
+    # A discharge's await is the absence of that node, and the node is the key
+    # the projection deletes by: the name is left in another case on purpose,
+    # which is what a discharge typed as "DAN" for an agent enlisted as "dan"
+    # looks like.
     node = hex32(leaving)
 
     deliver(
-      %{event_type: "agent_enlisted_v1", node_id: node, name: leaving, crew: "home", at: 1},
+      %{
+        event_type: "agent_enlisted_v1",
+        node_id: node,
+        name: String.upcase(leaving),
+        crew: "home",
+        at: 1
+      },
       0
     )
 
-    assert {:error, :read_model_behind} = GetCrew.await_discharged(leaving, 0)
-    deliver(%{event_type: "agent_discharged_v1", node_id: node, name: leaving, at: 2}, 1)
-    assert :ok = GetCrew.await_discharged(leaving)
+    assert {:error, :read_model_behind} = GetCrew.await_discharged(node, 0)
+
+    deliver(
+      %{event_type: "agent_discharged_v1", node_id: node, name: leaving, at: 2},
+      1
+    )
+
+    assert :ok = GetCrew.await_discharged(node)
   end
 
   defp package(ref, rank, version \\ 1, pinned \\ 0) do

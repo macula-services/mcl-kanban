@@ -15,7 +15,7 @@ defmodule QueryBoards.ReadModel do
   A timeout answers `{:error, :read_model_behind}` although the event WAS
   written: the command succeeded and only its projection is late. A caller
   that retries the command then meets its own effect instead -- `already_enlisted`
-  for an enlist, `name_taken` for an appoint -- so treat this error as a
+  for an enlist, `already_open` for a package -- so treat this error as a
   projection that has stalled, not as a command that may be replayed. Every
   caller here bounds the wait at 5 s.
   """
