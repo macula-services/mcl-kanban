@@ -5,6 +5,8 @@ Versioning: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-26
+
 ### Added
 
 - **Signed approvals on a card (#30).** `record_approval` takes a
@@ -13,10 +15,12 @@ Versioning: [SemVer](https://semver.org/).
   when its signature verifies, its signer derives `operator_node_id` and is the
   appointed operator of the card's home crew right now, it names this card and
   its repo, and its nonce is new on the card. `kind` is a `range` (`ref`,
-  `base`, `tip`, optional `tag`) or a planning gate (`gate:vision`,
-  `gate:boundary`, `gate:design`, with the plan `issue`); `verdict` is 1 or 0.
-  The signed fields name the card, so a yes cannot be replayed onto another
-  card. `get_approvals(card_id)` returns them, each with its object to
+  `base`, `tip` as full 40-hex shas, optional `tag`) or a planning gate
+  (`gate:vision`, `gate:boundary`, `gate:design`, with the plan `issue`, which
+  must be the card's own: `wrong_issue` otherwise); `verdict` is 1 or 0. A
+  field the check does not read, including one under a non-text key, makes
+  the approval `approval_malformed`. The signed fields name the card, so a yes
+  cannot be replayed onto another card. `get_approvals(card_id)` returns them, each with its object to
   re-verify; README "Signed approvals" documents the object and the check.
   Refs #30.
 
