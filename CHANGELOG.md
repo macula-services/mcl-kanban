@@ -10,19 +10,26 @@ Versioning: [SemVer](https://semver.org/).
 ### Added
 
 - **Crews and operators on the board (#28).** The roster holds more than one
-  crew: every agent is enlisted **into a crew** (`enlist_agent` takes `crew`,
-  and `agent_enlisted_v1` carries it), and each crew has at most one
-  **operator** (the new `appoint_operator` desk and its
-  `operator_appointed_v1`), the agent that runs it. Enlisting and discharging
-  belong to that crew's own operator or to the owner, never to the supervisor
-  as such, and no agent acts on a crew but its own; `Actor.commands_crew?/2` is
-  the one place that rule is written. Operators and agents enrolled before
-  crews existed are the `home` crew in the read model, their events untouched.
-  `get_crew` is advertised (fixes #13) and answers
-  `%{crews: [%{crew, operator, agents}]}`. Refs #28.
+  crew: every agent is enlisted **into a crew** and `agent_enlisted_v1` carries
+  it, and each crew has at most one **operator**, the agent that runs it, named
+  through the new `appoint_operator` and its `operator_appointed_v1`. Only that
+  crew's own operator, or the owner, enlists and discharges in it, and no agent
+  acts on a crew but its own: `Actor.commands_crew?/2` is the one place that
+  rule is written. Agents enlisted before crews existed are the `home` crew in
+  the read model, their events untouched. `get_crew` is advertised (fixes #13)
+  and answers `%{crews: [%{crew, operator, agents}]}`. Refs #28.
 
 ### Changed
 
+- **A crew's operator enlists and discharges, not the supervisor (#28).**
+  `enlist_agent` now requires `crew`: a 0.4.0-shaped call, naming only the agent
+  and its node id, is refused `invalid_crew`, and enlisting or discharging from
+  the supervisor now answers `not_permitted`. The owner appoints each crew's
+  operator from its UI, which also founds a second crew.
+- **`scripts/fill_board.sh` signs as a crew's operator.** It enlists every
+  agent into `KANBAN_CREW` (default `home`), so the identity behind
+  `KANBAN_SUPERVISOR` must be that crew's operator as well as the board's
+  supervisor: the owner appoints it, since the owner is never a mesh caller.
 - **The base library is macula 16** (macula-codebase-checks#4): the floors move
   `~> 15.6` to `~> 16.0` and `mcl_om` to `~> 1.4`, the release whose own base
   is macula 16 (`~> 1.0` also admits 1.3.0, which requires macula `~> 15.6`:
@@ -32,26 +39,10 @@ Versioning: [SemVer](https://semver.org/).
 
 ### Fixed
 
-- **`enlist_agent` reaches the crew it names.** The responder dropped `crew`
-  from the call, so every enlistment over the mesh would have been refused as
-  `missing_required_fields`.
-- **`appoint_operator` and `get_crew` advertise modules that exist.** The
-  service named both responders without importing them, so the two
-  capabilities pointed at modules that do not exist.
-- **A discharged operator runs no crew.** `crews.operator_node_id` kept the
-  node id of an agent no longer in the crew.
-- **An operator enlisted in one step keeps its role.** The enlistment
-  projection recomputes the roles after it writes the row, so the owner's
-  "enlist as operator" is right whatever order the two handlers ran in, and
-  discharging an unknown name answers `unknown_agent` whoever asks.
 - **`mix test` boots as an ordinary user again.** The test run took the image's
-  `/health` socket path under `/run`, which belongs to root; a test run now
-  takes a socket in its own data dir, and the release keeps
+  `/health` socket path, `/run/mcl/health.sock`, which belongs to root; a test
+  run now takes a socket in its own data dir, and the release keeps
   `/run/mcl/health.sock`.
-- **`scripts/fill_board.sh` enlists into a crew.** It sent no `crew`, so every
-  run stopped at step 1 with `invalid_crew`; it now sends `KANBAN_CREW`
-  (default `home`), and its header says the signing identity must be that
-  crew's operator as well as the board's supervisor.
 
 ## [0.4.0] - 2026-10-17
 
