@@ -1,10 +1,19 @@
 defmodule ProjectBoards.AgentEnlistedV1ToCrew do
   # Projects agent_enlisted_v1 into crew.
+  #
+  # The insert writes roles 'agent' and then recomputes them (#28): the row
+  # must agree with the crews table whatever order the handlers ran in. The
+  # owner's one-step "enlist as operator" emits agent_enlisted_v1 and then
+  # operator_appointed_v1 through two handlers, and the operator one may land
+  # first — it would find no row to recompute, and the insert would then write
+  # roles without ',operator' until the next appointment.
   @moduledoc false
 
   @behaviour :evoq_event_handler
 
   import ProjectBoards.Projection, only: [project: 3]
+
+  alias ProjectBoards.Projection
 
   @impl true
   def interested_in, do: ["agent_enlisted_v1"]
@@ -23,7 +32,8 @@ defmodule ProjectBoards.AgentEnlistedV1ToCrew do
   defp statements(data, _version) do
     [
       {"INSERT OR REPLACE INTO crew (node_id, name, supervisor, prioritiser, crew, roles, enlisted_at) VALUES (?, ?, 0, 0, ?, 'agent', ?)",
-       [data.node_id, data.name, crew_in(data), data.at]}
+       [data.node_id, data.name, crew_in(data), data.at]},
+      Projection.roles_sql()
     ]
   end
 

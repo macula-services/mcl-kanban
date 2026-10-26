@@ -240,6 +240,28 @@ defmodule ProjectBoards.ProjectionsTest do
     assert [[nil]] = ReadModel.q("SELECT operator_node_id FROM crews WHERE name = ?", [crew])
   end
 
+  test "an operator appointment that lands before its enlistment still leaves the role (#28)" do
+    name = "late" <> uniq()
+    node = String.pad_leading(uniq(), 64, "c")
+    crew = "late" <> uniq()
+
+    # The owner's one-step "enlist as operator" emits both events; the two are
+    # projected by separate handlers, so the operator one may arrive first.
+    deliver(
+      %{event_type: "operator_appointed_v1", crew: crew, node_id: node, name: name, at: 1},
+      0
+    )
+
+    deliver(%{event_type: "agent_enlisted_v1", node_id: node, name: name, crew: crew, at: 2}, 1)
+
+    assert [[^node]] = ReadModel.q("SELECT operator_node_id FROM crews WHERE name = ?", [crew])
+
+    assert [[^name, "agent,operator"]] =
+             ReadModel.q("SELECT name, roles FROM crew WHERE node_id = ?", [node])
+
+    deliver(%{event_type: "agent_discharged_v1", node_id: node, name: name, at: 3}, 2)
+  end
+
   test "an agent enlisted before #28 lands in the home crew" do
     name = "old" <> uniq()
     node = String.pad_leading(uniq(), 64, "d")

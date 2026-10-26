@@ -178,10 +178,15 @@ defmodule GuideCardLifecycle.CrewTest do
       assert {:error, :not_enlisted} = Actor.from_crew(after_, node_id("eve"))
     end
 
-    test "an unknown name is refused, and a plain agent may not discharge" do
-      {:ok, unknown} = DischargeAgentV1.new(%{name: "zed", by: Actor.owner()})
-      assert {:error, :unknown_agent} = MaybeDischargeAgent.handle(crew(), unknown)
+    test "an unknown name is refused as unknown whoever asks" do
+      {:ok, by_owner} = DischargeAgentV1.new(%{name: "zed", by: Actor.owner()})
+      assert {:error, :unknown_agent} = MaybeDischargeAgent.handle(crew(), by_owner)
 
+      {:ok, by_operator} = DischargeAgentV1.new(%{name: "zed", by: operator_actor("bob")})
+      assert {:error, :unknown_agent} = MaybeDischargeAgent.handle(crews(), by_operator)
+    end
+
+    test "a plain agent may not discharge" do
       {:ok, by_bob} = DischargeAgentV1.new(%{name: "cyd", by: actor("bob")})
       assert {:error, :not_permitted} = MaybeDischargeAgent.handle(crew(), by_bob)
     end

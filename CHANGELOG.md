@@ -40,6 +40,10 @@ Versioning: [SemVer](https://semver.org/).
   capabilities pointed at modules that do not exist.
 - **A discharged operator runs no crew.** `crews.operator_node_id` kept the
   node id of an agent no longer in the crew.
+- **An operator enlisted in one step keeps its role.** The enlistment
+  projection recomputes the roles after it writes the row, so the owner's
+  "enlist as operator" is right whatever order the two handlers ran in, and
+  discharging an unknown name answers `unknown_agent` whoever asks.
 - **`mix test` boots as an ordinary user again.** The test run took the image's
   `/health` socket path under `/run`, which belongs to root; a test run now
   takes a socket in its own data dir, and the release keeps

@@ -16,11 +16,13 @@ defmodule GuideCardLifecycle.DischargeAgent.MaybeDischargeAgent do
     node_id = CrewState.node_id_of(crew, cmd.name)
 
     cond do
-      not Actor.commands_crew?(cmd.by, CrewState.crew_of(crew, node_id)) ->
-        {:error, :not_permitted}
-
+      # An unknown name is refused as such whoever asks: there is no crew to
+      # command, so commands_crew?/2 would be handed a nil.
       node_id == nil ->
         {:error, :unknown_agent}
+
+      not Actor.commands_crew?(cmd.by, CrewState.crew_of(crew, node_id)) ->
+        {:error, :not_permitted}
 
       node_id == crew.supervisor ->
         {:error, :supervisor_required}
