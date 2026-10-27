@@ -31,6 +31,12 @@ defmodule GuideCardLifecycle.Actor do
   # No function here turns a mesh caller into the owner, and the crew refuses
   # an agent named "owner" (EnlistAgentV1), so a record's `by` cannot be
   # confused with it either.
+  #
+  # THE REALM is the second such actor, and for the same reason: it is the
+  # authority that admits a crew (mcl-kanban#40, threat model R4), so it can
+  # never be something a payload says. Only the consumer that verified a fact
+  # against the pinned realm key dispatches as it (CrewFacts), `of_caller/1`
+  # cannot produce it, and no agent may take its name.
   @moduledoc false
 
   alias GuideCardLifecycle.CrewAggregate
@@ -39,9 +45,9 @@ defmodule GuideCardLifecycle.Actor do
   @enforce_keys [:kind, :name, :roles]
   defstruct [:kind, :name, :node_id, :crew, :roles]
 
-  @type role :: :owner | :agent | :supervisor | :prioritiser | :operator
+  @type role :: :owner | :realm | :agent | :supervisor | :prioritiser | :operator
   @type t :: %__MODULE__{
-          kind: :owner | :agent,
+          kind: :owner | :realm | :agent,
           name: String.t(),
           node_id: String.t() | nil,
           crew: String.t() | nil,
@@ -51,6 +57,14 @@ defmodule GuideCardLifecycle.Actor do
   @doc "The owner, acting through the web UI."
   @spec owner() :: t()
   def owner, do: %__MODULE__{kind: :owner, name: "owner", node_id: nil, roles: [:owner]}
+
+  @doc """
+  The realm, acting through a crew fact it signed (#40). Constructed by
+  CrewFacts alone, after the signature verified against the pinned key: it is
+  never derived from a payload (`of_caller/1` cannot return it).
+  """
+  @spec realm() :: t()
+  def realm, do: %__MODULE__{kind: :realm, name: "realm", node_id: nil, roles: [:realm]}
 
   @doc "The caller of a mesh call, as the live crew knows it."
   @spec of_caller(map()) :: {:ok, t()} | {:error, :no_caller | :not_enlisted}
@@ -87,13 +101,14 @@ defmodule GuideCardLifecycle.Actor do
   defp appointed(false, _role), do: []
 
   @doc """
-  Whether the actor may act on the named crew: the owner for every crew, an
-  operator only for the one it runs. This is the whole rule for who enlists
-  and discharges (#28).
+  Whether the actor may act on the named crew: the owner for every crew, the
+  realm for every crew it admits (#40), an operator only for the one it runs.
+  This is the whole rule for who enlists and discharges (#28).
   """
   @spec commands_crew?(t(), String.t()) :: boolean()
   def commands_crew?(%__MODULE__{} = actor, crew) do
-    allowed?(actor, [:owner]) or (allowed?(actor, [:operator]) and actor.crew == crew)
+    allowed?(actor, [:owner]) or allowed?(actor, [:realm]) or
+      (allowed?(actor, [:operator]) and actor.crew == crew)
   end
 
   @doc """

@@ -3,6 +3,10 @@ defmodule GuideCardLifecycle.AppointOperator.MaybeAppointOperator do
   # that very crew. Appointing the one already sitting is refused. The owner
   # keeps this one because an operator appoints its own successor: that would
   # let a crew hand itself on without anyone outside it agreeing (#28).
+  #
+  # The realm appoints too, since it is the outside agreement: it admitted the
+  # crew and named its operator (#40). That actor is only ever constructed by
+  # the consumer that verified the realm's signature, never from a caller.
   @moduledoc false
 
   alias GuideCardLifecycle.Actor
@@ -10,7 +14,7 @@ defmodule GuideCardLifecycle.AppointOperator.MaybeAppointOperator do
   alias GuideCardLifecycle.CrewAggregate
   alias GuideCardLifecycle.CrewState
 
-  @who [:owner]
+  @who [:owner, :realm]
 
   def handle_payload(state, payload), do: handle(state, struct(AppointOperatorV1, payload))
 

@@ -7,7 +7,9 @@ without reading it.*
 reckon-db store and the sqlite read model, advertises 39 sealed procedures of its own and serves
 the owner's one LiveView on `:4010` -- loopback by default, and on the LAN where the
 box sets `MCL_HTTP_IP=0.0.0.0`. It calls nothing outside the mesh, and it
-publishes no topics.
+publishes no topics. It subscribes to the realm's five crew facts, one topic
+each, and once a minute calls the realm's `identity/crew_standing_v1` for every
+crew it knows (#40); both are off while `MCL_REALM_KEY` is unset.
 
 ## Level 1: system context
 
@@ -36,14 +38,16 @@ signed `v*` release by digest (`edge/gitops/release-targets`:99-100), and a push
 | Component | Technology | Responsibility |
 | --- | --- | --- |
 | `MclKanban.Application` | OTP application | `start/2` opens this service's store, then calls `mcl_om:boot(MclKanban.Service)`. The departments start before it, so their projections are registered when the subscription delivers |
-| `MclKanban.Service` | the `:mcl_om_service` behaviour | `info/0`, `start/1`, `stop/1`, `health/0`, `capabilities/0`, `identity_spec/0`. The `mcl-kanban/*` names are its own procedures and `capabilities/0` is the list of them; `mcl-om` adds `mcl-kanban/info` and `mcl-kanban/get_limits` to every service, both open. `identity_spec/0` asks for scope `mcl-kanban`, 30 days, no actions and no resources |
+| `MclKanban.Service` | the `:mcl_om_service` behaviour | `info/0`, `start/1`, `stop/1`, `health/0`, `capabilities/0`, `identity_spec/0`, `subscriptions/0` (the realm's crew-fact topics, and none while no realm key is set). The `mcl-kanban/*` names are its own procedures and `capabilities/0` is the list of them; `mcl-om` adds `mcl-kanban/info` and `mcl-kanban/get_limits` to every service, both open. `identity_spec/0` asks for scope `mcl-kanban`, 30 days, no actions and no resources |
 | `MclKanban.EventStore` | Elixir module | Opens `:mcl_kanban_store` under `MCL_DATA_DIR` through `reckon_db_sup`, waits until `reckon_db` lists it, then starts `evoq`'s per-store subscription. The id is named here, in `Service.event_store/0` and in `config/runtime.exs`, and a test compares them |
 | `ClaimNextCardResponder` | `macula_response`, one of its 39 | The card commands share `MclKanban.CardProcedure`: `Actor.of_caller/1`, build, dispatch, reply. `claim_next_card` claims down the rank ladder, skipping a card another agent took in between |
 | `MclKanban.Wire` | Elixir module | Arguments in through `mcl_om_wire.field/3`; replies out as CBOR text with no booleans and no nulls, so a refusal is `%{reason: "already_claimed"}` and an agent reads it as plain text |
 | `GuideCardLifecycle` | CMD app, umbrella | The `board`, `card`, `package` and `crew` aggregates, one desk per command (command, event, `maybe_*` handler), and `Actor` as the role gate. Status is bit flags |
+| `GuideCardLifecycle.CrewFacts` | `macula_subscriber` + one PM per fact | The realm's crew facts: read the shape, verify the ML-DSA signature against the pinned `MCL_REALM_KEY`, keep the highest `seq` per crew id (`crew_fact_observed_v1`), then act as `Actor.realm()` through `on_crew_admitted_appoint_operator`, `on_crew_operator_replaced_appoint_operator` or one of the three drop PMs. The role gate refuses the realm's name to agents, and only `CrewFacts` ever builds that actor |
+| `CrewStandingReconciler` | GenServer, one tick a minute | The board's revocation bound (#40): asks `identity/crew_standing_v1` for every crew the board knows at start and every 60 s, and puts the answer -- the realm's latest signed fact -- through the same verifier and seq rule. An error, a lost answer or `unknown_crew` changes nothing; only a signed fact ends a crew |
 | `ProjectBoards` | PRJ app, `ecto_sqlite3` | 36 `{event}_to_{table}` projections into one sqlite file, `kanban.sqlite3`, schema in `priv/repo/migrations`. Each write is announced on `MclKanbanWeb.PubSub` as `BoardsChanged` |
 | `QueryBoards` | QRY app, umbrella | 9 read desks, one directory each: `get_ladder`, `get_boards`, `get_board_by_repo`, `get_card_by_id`, `get_cards_by_holder`, `get_crew`, `get_goal`, `get_next_card_for_agent`, `get_ranked_cards` |
-| `MclKanban.Supervisor` | supervisor, `one_for_one` | `start_link/0`, called by `Service.start/1`. No children: each department supervises its own processes and macula spawns a process per call |
+| `MclKanban.Supervisor` | supervisor, `one_for_one` | `start_link/0`, called by `Service.start/1`. One child, `CrewStandingReconciler`; everything else supervises itself and macula spawns a process per call |
 | `MclKanbanWeb.Endpoint` | Phoenix 1.8, Bandit | Listens on `127.0.0.1:4010` by default; the box sets `MCL_HTTP_IP=0.0.0.0`, so it also serves the LAN at `:4010`, with no login. Serves one LiveView, `LadderLive`; `OwnerActions` acts as `Actor.owner()` through the same desks the mesh uses |
 | `mcl_om` | library, `~> 1.4` | `boot/1`: loads the identity key, joins the realm, opens the QUIC pool through the stations, advertises the declared capabilities, serves `/health` on a Unix socket |
 | macula SDK | library, `~> 16.0`, wire 1.0 | QUIC transport, RPC dispatch to a responder that answers by name, and the sealed call path: its own calls are `confidential: :required`, so one in the clear is refused before a responder sees it |

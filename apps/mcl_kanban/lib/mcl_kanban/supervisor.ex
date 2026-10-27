@@ -1,6 +1,8 @@
 defmodule MclKanban.Supervisor do
-  # NO CHILDREN. Each department supervises its own processes, evoq starts
-  # aggregates on demand, and macula spawns a responder per call.
+  # One child, and it is the crew department's own: the reconcile that keeps a
+  # dropped crew from keeping the board (#40). Everything else supervises
+  # itself: evoq starts aggregates on demand, and macula spawns a responder per
+  # call.
   @moduledoc false
 
   use Supervisor
@@ -8,5 +10,9 @@ defmodule MclKanban.Supervisor do
   def start_link, do: Supervisor.start_link(__MODULE__, [], name: __MODULE__)
 
   @impl true
-  def init([]), do: Supervisor.init([], strategy: :one_for_one)
+  def init([]) do
+    children = [GuideCardLifecycle.CrewFacts.CrewStandingReconciler]
+
+    Supervisor.init(children, strategy: :one_for_one)
+  end
 end

@@ -57,8 +57,8 @@
 <text class="t-code" x="552" y="98">MclKanban.Service</text>
 <text class="t-type" x="552" y="116">[:mcl_om_service behaviour]</text>
 <text class="t-desc" x="552" y="140">info and get_limits (both open); start, stop,</text>
-<text class="t-desc" x="552" y="156">health, capabilities, identity_spec. capabilities/0</text>
-<text class="t-desc" x="552" y="172">is the list of its own procedures; 30-day scope.</text>
+<text class="t-desc" x="552" y="156">health, capabilities, identity_spec, subscriptions.</text>
+<text class="t-desc" x="552" y="172">capabilities/0 is the list of its own procedures.</text>
 <rect class="b-cmp" x="56" y="230" width="456" height="120" rx="10"/>
 <text class="t-code" x="72" y="258">MclKanban.EventStore</text>
 <text class="t-type" x="72" y="276">[Elixir module]</text>
@@ -75,8 +75,8 @@
 <text class="t-code" x="72" y="418">GuideCardLifecycle</text>
 <text class="t-type" x="72" y="436">[CMD app, umbrella]</text>
 <text class="t-desc" x="72" y="460">board, card, package and crew aggregates;</text>
-<text class="t-desc" x="72" y="476">one desk per command (command, event,</text>
-<text class="t-desc" x="72" y="492">maybe_* handler); Actor is the role gate.</text>
+<text class="t-desc" x="72" y="476">one desk per command; Actor is the role gate.</text>
+<text class="t-desc" x="72" y="492">Realm crew facts land here: CrewFacts (#40).</text>
 <rect class="b-cmp" x="536" y="390" width="456" height="120" rx="10"/>
 <text class="t-code" x="552" y="418">MclKanban.Wire</text>
 <text class="t-type" x="552" y="436">[Elixir module]</text>
@@ -92,9 +92,9 @@
 <rect class="b-cmp" x="536" y="550" width="456" height="120" rx="10"/>
 <text class="t-code" x="552" y="578">MclKanban.Supervisor</text>
 <text class="t-type" x="552" y="596">[supervisor, one_for_one]</text>
-<text class="t-desc" x="552" y="620">start_link/0, called by Service.start/1.</text>
-<text class="t-desc" x="552" y="636">No children: each department supervises its</text>
-<text class="t-desc" x="552" y="652">own processes and macula spawns responders.</text>
+<text class="t-desc" x="552" y="620">start_link/0, called by Service.start/1. One</text>
+<text class="t-desc" x="552" y="636">child: crew facts' reconcile (#40). Everything</text>
+<text class="t-desc" x="552" y="652">else supervises itself, and macula spawns responders.</text>
 <rect class="b-cmp" x="56" y="710" width="456" height="120" rx="10"/>
 <text class="t-code" x="72" y="738">QueryBoards</text>
 <text class="t-type" x="72" y="756">[QRY app, umbrella]</text>

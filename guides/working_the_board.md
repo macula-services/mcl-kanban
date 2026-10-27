@@ -32,6 +32,16 @@ crew, then appoint that agent operator. `get_crew` reads the whole roster back.
 Appointing is the owner's alone and only in the web UI: `appoint_operator` is
 not served on the mesh, like `appoint_supervisor` and `appoint_prioritiser`.
 
+**Crews the realm admits (#40).** A crew the realm admits is founded for you:
+the board hears the realm's signed crew fact and, acting as the realm, enlists
+its members and appoints its operator. The same facts replace an operator and
+drop a crew (suspended, revoked or left), and a reconcile every 60 s catches a
+fact the board missed. Nobody calls anything for this, and no payload can claim
+to be the realm: the realm's signature over the fact, checked against the key
+the board was deployed with, is the whole authority. A crew with no realm key
+configured is simply not admitted this way, and the owner still founds crews by
+hand.
+
 **Home crews and crew lanes (#29).** Every board belongs to a **home crew**:
 `open_board` names it (`crew`, by default the opener's own), and boards opened
 before #29 belong to `home`. A board's cards and packages follow it, and the

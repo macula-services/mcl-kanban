@@ -48,6 +48,10 @@ config :mcl_om,
   # The wire namespace: every procedure of its own is mcl-kanban/<name>.
   org: "mcl-kanban",
   realm: realm,
+  # The realm's own name, which is what the crew facts' topics and the
+  # crew_standing procedure are addressed with (#40). Kept beside the tag so
+  # the two are read from the one input.
+  realm_name: realm_name,
   # The realm's public signing key, hex. Unset in a local dev or test boot,
   # which then runs with no mesh pool.
   realm_key: System.get_env("MCL_REALM_KEY", "")

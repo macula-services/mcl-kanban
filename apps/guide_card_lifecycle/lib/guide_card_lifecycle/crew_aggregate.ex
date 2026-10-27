@@ -14,6 +14,7 @@ defmodule GuideCardLifecycle.CrewAggregate do
   alias GuideCardLifecycle.DischargeAgent.MaybeDischargeAgent
   alias GuideCardLifecycle.EnlistAgent.MaybeEnlistAgent
   alias GuideCardLifecycle.LiveState
+  alias GuideCardLifecycle.ObserveCrewFact.MaybeObserveCrewFact
 
   # A user stream id: the prefix, a dash and 32 hex digits. The suffix is the
   # first half of sha256("mcl-kanban crew"), fixed forever.
@@ -56,6 +57,9 @@ defmodule GuideCardLifecycle.CrewAggregate do
 
   def execute(state, %{command_type: :adopt_goal} = p),
     do: MaybeAdoptGoal.handle_payload(state, p)
+
+  def execute(state, %{command_type: :observe_crew_fact} = p),
+    do: MaybeObserveCrewFact.handle_payload(state, p)
 
   def execute(_state, _payload), do: {:error, :unknown_command}
 end

@@ -184,6 +184,12 @@ defmodule MclKanban.Service do
   @impl true
   def identity_spec, do: %{scope: "mcl-kanban", actions: [], resources: [], ttl_days: 30}
 
+  # The realm's crew facts (#40): the board hears that a crew was admitted,
+  # changed its operator or was dropped, and acts as the realm. None of them
+  # while no realm key is configured, since nothing heard could be verified.
+  @impl true
+  def subscriptions, do: GuideCardLifecycle.CrewFacts.subscriptions()
+
   @doc """
   The reckon-db store this service owns. The id is named twice, here and in
   the evoq block of config/runtime.exs; a test compares them. The directory

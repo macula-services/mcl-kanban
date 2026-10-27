@@ -173,8 +173,8 @@ def components():
           ["start/2 opens this service's store, then calls", "mcl_om:boot(MclKanban.Service) to wire the mesh.",
            "The departments are started before it."], code=True)
     d.box("b-sys", 536, 70, 456, 120, "MclKanban.Service", "[:mcl_om_service behaviour]",
-          ["info and get_limits (both open); start, stop,", "health, capabilities, identity_spec. capabilities/0",
-           "is the list of its own procedures; 30-day scope."], code=True)
+          ["info and get_limits (both open); start, stop,", "health, capabilities, identity_spec, subscriptions.",
+           "capabilities/0 is the list of its own procedures."], code=True)
     d.box("b-cmp", 56, 230, 456, 120, "MclKanban.EventStore", "[Elixir module]",
           ["Opens :mcl_kanban_store under MCL_DATA_DIR via", "reckon_db_sup, waits until reckon_db lists it,",
            "then starts evoq's per-store subscription."], code=True)
@@ -182,8 +182,8 @@ def components():
           ["Card commands share MclKanban.CardProcedure:", "Actor.of_caller/1, build, dispatch, reply.",
            "This one claims down the rank ladder."], code=True)
     d.box("b-cmp", 56, 390, 456, 120, "GuideCardLifecycle", "[CMD app, umbrella]",
-          ["board, card, package and crew aggregates;", "one desk per command (command, event,",
-           "maybe_* handler); Actor is the role gate."], code=True)
+          ["board, card, package and crew aggregates;", "one desk per command; Actor is the role gate.",
+           "Realm crew facts land here: CrewFacts (#40)."], code=True)
     d.box("b-cmp", 536, 390, 456, 120, "MclKanban.Wire", "[Elixir module]",
           ["Arguments in through mcl_om_wire.field/3.", "Replies out as CBOR text, no booleans and no",
            "nulls; a refusal is %{reason: \"...\"}."], code=True)
@@ -191,8 +191,8 @@ def components():
           ["36 {event}_to_{table} projections into one", "sqlite file, kanban.sqlite3, schema in",
            "priv/repo/migrations; PubSub on write."], code=True)
     d.box("b-cmp", 536, 550, 456, 120, "MclKanban.Supervisor", "[supervisor, one_for_one]",
-          ["start_link/0, called by Service.start/1.", "No children: each department supervises its",
-           "own processes and macula spawns responders."], code=True)
+          ["start_link/0, called by Service.start/1. One", "child: crew facts' reconcile (#40). Everything",
+           "else supervises itself, and macula spawns responders."], code=True)
     d.box("b-cmp", 56, 710, 456, 120, "QueryBoards", "[QRY app, umbrella]",
           ["9 read desks, one directory each:", "get_ladder, get_boards, get_card_by_id,",
            "get_next_card_for_agent and five more."], code=True)

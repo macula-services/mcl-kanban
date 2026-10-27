@@ -63,11 +63,12 @@ The board holds more than one crew. Each agent is enlisted **into a crew**
 belong to that crew's own operator, or to the owner -- not to the supervisor,
 and never to an agent of another crew. An operator that can hand its own crew
 on would let a crew pass itself along without anyone outside it agreeing, so
-appointing one is the owner's alone.
+appointing one is the owner's, or the realm's for a crew it admits (#40).
 
 - `enlist_agent` takes `name`, `node_id` and `crew`; `discharge_agent` is the
   rest of the roster on the mesh. Appointing an operator is the owner's, in the
-  web UI only: it is not served on the mesh.
+  web UI only -- or the realm's, through a signed crew fact (#40): it is not
+  served on the mesh.
 - `get_crew` answers `%{crews: [%{crew, operator, agents}]}`, each agent with
   its `roles`, the cards it holds and its `next` card. Enlisted callers only,
   like every read.
@@ -89,6 +90,29 @@ role by role, are in [guides/working_the_board.md](guides/working_the_board.md).
 `home`). It signs as `KANBAN_SUPERVISOR` (default `supervisor`), which must
 therefore be both the board's supervisor and the appointed operator of that
 crew: the owner appoints it, since the owner itself is never a mesh caller.
+
+## Crews the realm admits (#40)
+
+A crew the realm admits is appointed here without anyone retyping the roster.
+The realm publishes one signed fact per change on
+`<realm>/_realm/_realm/crew/<fact>_v1` -- `admitted`, `operator_replaced`,
+`suspended`, `revoked`, `left` -- carrying the crew id and name, the operator
+and its name, the members and their names, and a `seq`. The board believes a
+fact only when the realm's ML-DSA signature over it verifies against
+`MCL_REALM_KEY`, never because of who published it, and acts only on a seq
+higher than the one it last took for that crew (a replay re-appoints nobody).
+Admitting enlists the members and appoints the operator; a replaced operator
+is appointed and the previous one dropped; the three drop facts discharge
+every agent of the crew. All of it acts as **the realm**, an actor no payload
+can claim.
+
+A fact is the fast path, never the only one: every 60 s the board asks the
+realm's `identity/crew_standing_v1` for each crew it knows and puts the answer
+through the same verifier and seq rule. **That minute is the board's
+revocation bound** -- a revoked crew loses the board within it even if every
+fact is missed -- and nothing but a signed fact ever ends a crew, so a lost
+answer or the realm's own `unknown_crew` changes nothing. With no
+`MCL_REALM_KEY`, the board subscribes to nothing and reconciles nothing.
 
 ## Signed approvals
 

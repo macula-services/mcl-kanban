@@ -1,16 +1,24 @@
 defmodule GuideCardLifecycle.CrewState do
   # The crew as the crew aggregate holds it: enlisted agents by node id (hex)
   # with the crew each belongs to (#28), the operator of each crew, the node
-  # ids of the supervisor and the prioritiser, and its goal (#18).
+  # ids of the supervisor and the prioritiser, its goal (#18), and the crews
+  # the realm has admitted, by crew id, at the last fact seq the board
+  # accepted (#40).
   @moduledoc false
 
   alias GuideCardLifecycle.CrewName
 
-  defstruct agents: %{}, operators: %{}, supervisor: nil, prioritiser: nil, goal: nil
+  defstruct agents: %{},
+            operators: %{},
+            crews: %{},
+            supervisor: nil,
+            prioritiser: nil,
+            goal: nil
 
   @type t :: %__MODULE__{
           agents: %{String.t() => %{name: String.t(), crew: String.t()}},
           operators: %{String.t() => String.t()},
+          crews: %{String.t() => %{name: String.t(), seq: non_neg_integer()}},
           supervisor: String.t() | nil,
           prioritiser: String.t() | nil,
           goal: map() | nil
@@ -50,6 +58,28 @@ defmodule GuideCardLifecycle.CrewState do
     |> Enum.sort()
   end
 
+  @doc """
+  The seq of the last crew fact this board accepted for a crew, or 0 for one
+  it has never heard from (#40).
+  """
+  @spec crew_seq(t(), String.t()) :: non_neg_integer()
+  def crew_seq(%__MODULE__{crews: crews}, crew_id) do
+    crews |> Map.get(crew_id, %{seq: 0}) |> Map.fetch!(:seq)
+  end
+
+  @doc """
+  The crews the realm has told this board about, each with the id it must be
+  asked about at: the reconcile's work list (#40).
+  """
+  @spec admitted_crews(t()) :: [{String.t(), String.t()}]
+  def admitted_crews(%__MODULE__{crews: crews}),
+    do: Enum.map(crews, fn {crew_id, %{name: name}} -> {crew_id, name} end)
+
+  @doc "The node ids enlisted in one crew, as the roster holds them (#40)."
+  @spec agents_of(t(), String.t()) :: [String.t()]
+  def agents_of(%__MODULE__{agents: agents}, crew),
+    do: for({node_id, %{crew: ^crew}} <- agents, do: node_id)
+
   @spec apply_event(t(), map()) :: t()
   def apply_event(state, %{data: data, event_type: type}),
     do: apply_event(state, Map.put(data, :event_type, type))
@@ -81,6 +111,11 @@ defmodule GuideCardLifecycle.CrewState do
 
   def apply_event(state, %{event_type: "goal_adopted_v1"} = e),
     do: %{state | goal: %{goal: e.goal, packages: e.packages, by: e.by, at: e.at}}
+
+  # The board accepted the realm's fact at this seq: the highest one wins, and
+  # the handler refuses anything that is not higher, so this is never lowered.
+  def apply_event(state, %{event_type: "crew_fact_observed_v1"} = e),
+    do: %{state | crews: Map.put(state.crews, e.crew_id, %{name: e.crew_name, seq: e.seq})}
 
   def apply_event(state, _other), do: state
 
