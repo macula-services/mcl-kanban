@@ -34,7 +34,7 @@ defmodule GuideCardLifecycle.ReserveCard.ReserveCardV1 do
 
   def new(%{card_id: id, crew: crew, by: %Actor{} = by}) when crew != nil do
     with {:ok, id} <- IssueRef.valid_card_id(id),
-         {:ok, crew} <- CrewName.name(crew),
+         {:ok, crew} <- CrewName.key(crew),
          do: {:ok, %__MODULE__{card_id: id, crew: crew, by: by}}
   end
 

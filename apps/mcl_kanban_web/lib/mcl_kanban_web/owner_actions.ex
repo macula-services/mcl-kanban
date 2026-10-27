@@ -76,10 +76,8 @@ defmodule MclKanbanWeb.OwnerActions do
     invalid_issue_ref:
       {"An issue reads owner/repo#number", "Pick the repo, then type the issue number."},
     invalid_crew:
-      {"A crew name starts with a letter", "Use letters, digits, - and _, at most 40."},
-    crew_name_ambiguous:
-      {"Two crews answer to that name",
-       "Type the crew's id instead: each realm crew's id is under its name in the rail."},
+      {"That is not a crew",
+       "A crew is a name starting with a letter, up to 40 characters, or the 64-character id shown under a realm crew's name in the rail."},
     invalid_kind: {"A card is a bug, a slice or ui", "Pick one of the three."},
     invalid_link: {"A link blocks, relates to or follows up", "Pick one of the three."},
     invalid_name: {"A name starts with a letter", "Use letters, digits, - and _, at most 40."},
@@ -105,7 +103,9 @@ defmodule MclKanbanWeb.OwnerActions do
     not_holder: {"Only the holder can do that", "Release the card from its holder instead."},
     not_in_lane: {"The card is reserved for another agent", "Lift the reservation first."},
     other_crew_lane: {"The card is reserved for another crew", "Lift the reservation first."},
-    unknown_crew: {"No crew by that name", "Enlist an agent into it first."},
+    unknown_crew:
+      {"No crew by that key",
+       "Enlist an agent into it first: the rail lists each crew and the key it is acted on by."},
     one_lane: {"A card is reserved to an agent or a crew", "Pick one of the two."},
     not_linked: {"Those cards are not linked", "Nothing to do."},
     not_permitted: {"The owner may not do that", "Agents do this over the mesh."},

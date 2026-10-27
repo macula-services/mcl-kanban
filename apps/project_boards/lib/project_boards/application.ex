@@ -50,6 +50,7 @@ defmodule ProjectBoards.Application do
     ProjectBoards.PackageUnpinnedV1ToPackages,
     ProjectBoards.PrioritiserAppointedV1ToCrew,
     ProjectBoards.OperatorAppointedV1ToCrews,
+    ProjectBoards.OperatorSeatVacatedV1ToCrews,
     ProjectBoards.SupervisorAppointedV1ToCrew
   ]
 

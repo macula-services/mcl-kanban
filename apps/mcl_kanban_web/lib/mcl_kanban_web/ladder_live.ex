@@ -271,7 +271,7 @@ defmodule MclKanbanWeb.LadderLive do
   def handle_event("enlist", params, socket) do
     socket
     |> assign(dialog: nil)
-    |> outcome(OwnerActions.enlist_as(params), fn -> enlisted(params) end)
+    |> outcome(OwnerActions.enlist_as(params), fn -> enlisted(params, socket.assigns.crew) end)
   end
 
   def handle_event("appoint", %{"name" => name, "role" => "supervisor"}, socket),
@@ -556,21 +556,26 @@ defmodule MclKanbanWeb.LadderLive do
     end
   end
 
-  defp enlisted(%{"name" => name, "role" => role, "crew" => crew})
+  defp enlisted(%{"name" => name, "role" => role, "crew" => crew}, crews)
        when role in ["supervisor", "prioritiser"],
        do:
-         "<b>#{esc(name)}</b> enlisted in <b>#{esc(crew)}</b> and appointed #{role}. Ask it to call <b>claim_next_card</b>."
+         "<b>#{esc(name)}</b> enlisted in <b>#{esc(crew_label(crews, crew))}</b> and appointed #{role}. Ask it to call <b>claim_next_card</b>."
 
-  defp enlisted(%{"name" => name, "role" => "operator", "crew" => crew}),
+  defp enlisted(%{"name" => name, "role" => "operator", "crew" => crew}, crews),
     do:
-      "<b>#{esc(name)}</b> enlisted in <b>#{esc(crew)}</b> and runs it: it enlists and discharges there."
+      "<b>#{esc(name)}</b> enlisted in <b>#{esc(crew_label(crews, crew))}</b> and runs it: it enlists and discharges there."
 
-  defp enlisted(%{"name" => name, "crew" => crew}),
+  defp enlisted(%{"name" => name, "crew" => crew}, crews),
     do:
-      "<b>#{esc(name)}</b> enlisted in <b>#{esc(crew)}</b>. Ask it to call <b>claim_next_card</b>."
+      "<b>#{esc(name)}</b> enlisted in <b>#{esc(crew_label(crews, crew))}</b>. Ask it to call <b>claim_next_card</b>."
 
-  defp enlisted(%{"name" => name}),
+  defp enlisted(%{"name" => name}, _crews),
     do: "<b>#{esc(name)}</b> enlisted. Ask it to call <b>claim_next_card</b>."
+
+  # The name a person reads a crew key under (#40): the name the realm admitted
+  # it as, and the key itself for a crew the owner has just named, which the
+  # rail cannot hold yet.
+  defp crew_label(crews, key), do: Enum.find_value(crews, key, &(&1.crew_id == key && &1.crew))
 
   # The crews as get_crew returns them (#28), and their agents as one list:
   # the hints and the lane pickers read agents, the rail reads the crews.

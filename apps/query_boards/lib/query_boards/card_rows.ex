@@ -2,6 +2,9 @@ defmodule QueryBoards.CardRows do
   # How a card reads out of the read model, the same for every query: the
   # row, its tags, its links in both directions, and the derived words (state,
   # colour, pinned 0/1).
+  #
+  # The last column is the name a person reads a crew lane under (#40): a crew
+  # the realm admitted is held by its id, and the rail above shows the name.
   @moduledoc false
 
   alias GuideCardLifecycle.CardKind
@@ -12,7 +15,8 @@ defmodule QueryBoards.CardRows do
              "c.story_value, c.kind, c.rank, c.rationale, c.ranked_by, c.lane, c.lane_node_id, " <>
              "c.holder, c.holder_node_id, c.status, c.comment_count, c.note, c.queued_by, " <>
              "c.queued_at, c.claimed_at, c.changed_at, c.version, c.ranked_at, c.work_package, " <>
-             "c.package_rank, c.package_card, c.deferred, c.lane_crew"
+             "c.package_rank, c.package_card, c.deferred, c.lane_crew, " <>
+             "(SELECT crew_name FROM crew_names WHERE crew_id = c.lane_crew)"
 
   @doc "The order of the ladder inside a group: rank (unranked last), then when ranked, then age."
   def ladder_order, do: "c.rank IS NULL, c.rank, c.ranked_at, c.queued_at"
@@ -107,7 +111,8 @@ defmodule QueryBoards.CardRows do
            package_rank,
            package_card,
            deferred,
-           lane_crew
+           lane_crew,
+           lane_crew_name
          ],
          related
        ) do
@@ -127,6 +132,7 @@ defmodule QueryBoards.CardRows do
       lane: lane,
       lane_node_id: lane_node_id,
       lane_crew: lane_crew,
+      lane_crew_name: lane_crew_name || lane_crew,
       holder: holder,
       holder_node_id: holder_node_id,
       status: status,

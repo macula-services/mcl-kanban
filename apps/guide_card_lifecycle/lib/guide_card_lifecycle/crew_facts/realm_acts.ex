@@ -20,6 +20,7 @@ defmodule GuideCardLifecycle.CrewFacts.RealmActs do
   alias GuideCardLifecycle.CrewState
   alias GuideCardLifecycle.DischargeAgent.{DischargeAgentV1, MaybeDischargeAgent}
   alias GuideCardLifecycle.EnlistAgent.{EnlistAgentV1, MaybeEnlistAgent}
+  alias GuideCardLifecycle.VacateOperatorSeat.{MaybeVacateOperatorSeat, VacateOperatorSeatV1}
 
   @type refusal :: {:error, term()}
   @type act :: :ok | refusal()
@@ -91,6 +92,24 @@ defmodule GuideCardLifecycle.CrewFacts.RealmActs do
   end
 
   @doc """
+  Empties the crew's operator seat (#40). The discharge above leaves it
+  standing whenever the operator is one the board's own rules refuse to
+  discharge -- the supervisor, or a prioritiser the owner appointed -- and a
+  dropped crew must not keep an operator: that agent could go on enlisting
+  into a crew the realm revoked, left or suspended. A crew with no seat is
+  left alone.
+  """
+  @spec vacate_operator_seat(String.t()) :: act()
+  def vacate_operator_seat(crew) do
+    if CrewState.operator_of(CrewAggregate.current(), crew) == nil do
+      :ok
+    else
+      VacateOperatorSeatV1.new(%{crew: crew, by: Actor.realm()})
+      |> run(MaybeVacateOperatorSeat)
+    end
+  end
+
+  @doc """
   Drops every agent of `crew` the realm did not keep. A crew fact carries the
   whole roster, so a node this board holds in that crew and the fact does not
   name was dropped by the realm's own record -- a replaced operator, or a
@@ -120,7 +139,7 @@ defmodule GuideCardLifecycle.CrewFacts.RealmActs do
   # fact stays unrecorded and the next reconcile pass asks again.
   @answers ~w(not_permitted already_enlisted name_taken unknown_agent
               agent_in_another_crew already_appointed supervisor_required
-              appointed_by_owner held_in_another_crew)a
+              appointed_by_owner held_in_another_crew no_operator)a
 
   defp outcome({:ok, _version, _events}), do: :ok
   defp outcome({:error, reason}) when is_atom(reason) and reason in @answers, do: {:error, reason}

@@ -43,15 +43,15 @@ defmodule GuideCardLifecycle.ReserveCard.MaybeReserveCard do
     end
   end
 
-  @doc "Resolves the lane's node id, or the crew, from the live crew, then dispatches."
+  @doc "Checks the crew is one the roster knows, then dispatches."
   def dispatch(%ReserveCardV1{crew: crew} = cmd) when is_binary(crew) do
     live = CrewAggregate.current()
 
-    # The crew a person names is resolved to its KEY (#40 option b), as
-    # enlisting resolves one, so a lane can be reserved for a crew the realm
-    # admitted: its agents claim by the key they are held under.
-    with {:ok, key} <- CrewState.crew_key_for(live, crew),
-         do: crew_reserved(key in CrewState.crew_keys(live), %{cmd | crew: key})
+    # The crew a person picks is a KEY (#40 option b), as enlisting's is: a
+    # bare name for a crew the board's owner made, a 64-hex `crew_id` for one
+    # the realm admitted, so a lane can be reserved for a realm crew too. It is
+    # never resolved from a name.
+    crew_reserved(crew in CrewState.crew_keys(live), cmd)
   end
 
   def dispatch(%ReserveCardV1{} = cmd) do

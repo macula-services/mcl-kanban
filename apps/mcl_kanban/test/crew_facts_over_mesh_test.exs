@@ -14,7 +14,9 @@ defmodule MclKanban.CrewFactsOverMeshTest do
   alias GuideCardLifecycle.CrewFacts
   alias GuideCardLifecycle.CrewFacts.{CrewFact, CrewStandingReconciler}
   alias GuideCardLifecycle.{CrewName, CrewState}
+  alias GuideCardLifecycle.AppointSupervisor.{AppointSupervisorV1, MaybeAppointSupervisor}
   alias GuideCardLifecycle.EnlistAgent.{EnlistAgentV1, MaybeEnlistAgent}
+  alias GuideCardLifecycle.ReserveCard.{MaybeReserveCard, ReserveCardV1}
 
   @key {__MODULE__, :realm_key}
   @at 1_790_000_000_000
@@ -391,9 +393,11 @@ defmodule MclKanban.CrewFactsOverMeshTest do
   end
 
   test "a realm crew may take the name of a crew the owner made, and the two stay apart" do
-    # A name is no longer a key, so nothing is reserved for the board's own
-    # crews: the owner's crew is held by its name, the realm's by its id, and
-    # enlisting by that name is refused as ambiguous rather than guessed.
+    # A KEY IS NEVER RESOLVED FROM A NAME (#40): a bare name is always the
+    # board crew of that name, a 64-hex id is always the realm crew of that id.
+    # So an admitted crew that takes a board crew's name is reached only by its
+    # id, and the bare name keeps founding and reaching the board's own crew --
+    # neither crew is ever reached by a spelling that names the other.
     home_agent = enlist("home_hand", CrewName.home())
     handmade_agent = enlist("handmade_hand", "handmade_room")
 
@@ -408,17 +412,19 @@ defmodule MclKanban.CrewFactsOverMeshTest do
     assert CrewState.crew_of(state, hex("handmade_room_one")) == key
     assert CrewState.crew_seq(state, key) == 1
 
-    {:ok, ambiguous} =
+    # the bare name lands in the crew the owner made, never in the realm's
+    {:ok, by_name} =
       EnlistAgentV1.new(%{
-        name: "ambiguous_hand",
-        node_id: hex("ambiguous_hand"),
+        name: "named_hand",
+        node_id: hex("named_hand"),
         crew: "handmade_room",
         by: Actor.owner()
       })
 
-    assert {:error, :crew_name_ambiguous} = MaybeEnlistAgent.dispatch(ambiguous)
+    assert {:ok, _version, _events} = MaybeEnlistAgent.dispatch(by_name)
+    assert CrewState.crew_of(crew(), hex("named_hand")) == "handmade_room"
 
-    # the id names the one crew, and the agent lands in it
+    # the id names the realm's crew, and the agent lands in it
     {:ok, by_id} =
       EnlistAgentV1.new(%{
         name: "id_hand",
@@ -442,6 +448,72 @@ defmodule MclKanban.CrewFactsOverMeshTest do
 
     assert {:ok, _version, _events} = MaybeEnlistAgent.dispatch(home)
     assert CrewState.crew_of(crew(), hex("home_second")) == CrewName.home()
+  end
+
+  test "a drop empties the operator seat even when the operator is the board's supervisor" do
+    # The three drop PMs discharge every agent, and the board refuses to
+    # discharge its own supervisor (#29). So an operator that is also the
+    # supervisor stayed in the seat and could go on enlisting into the crew
+    # the realm had dropped (#40 r2): the seat is emptied on its own.
+    name = "seat_room"
+    id = crew_id(name)
+    operator = hex(name <> "_op")
+
+    assert {:ok, _outcome} =
+             CrewFacts.received("admitted", signed("admitted", name, %{"seq" => 1}))
+
+    {:ok, appoint} = AppointSupervisorV1.new(%{name: name <> "_op", by: Actor.owner()})
+    assert {:ok, _version, _events} = MaybeAppointSupervisor.dispatch(appoint)
+    assert CrewState.operator_of(crew(), id) == operator
+
+    assert {:ok, %{discharged: discharged, seat: :ok}} =
+             CrewFacts.received(
+               "revoked",
+               signed("revoked", name, %{"seq" => 2, "reason" => "revoked"})
+             )
+
+    # the supervisor stays enlisted -- a board always keeps one -- and it no
+    # longer operates the crew
+    assert {operator, {:error, :supervisor_required}} in discharged
+    assert CrewState.crew_of(crew(), operator) == id
+    assert CrewState.operator_of(crew(), id) == nil
+
+    # so it cannot enlist into the crew it no longer runs
+    {:ok, by_supervisor} = Actor.from_crew(crew(), node_id(name <> "_op"))
+
+    {:ok, late} =
+      EnlistAgentV1.new(%{
+        name: "late_hand",
+        node_id: hex("late_hand"),
+        crew: id,
+        by: by_supervisor
+      })
+
+    assert {:error, :not_permitted} = MaybeEnlistAgent.dispatch(late)
+  end
+
+  test "a realm crew's lane is reserved by its 64-hex key" do
+    # ReserveCardV1 checked a crew with CrewName.name/1, so a 64-hex crew id
+    # was refused as invalid_crew before the desk that knows the roster saw it:
+    # a realm crew's lane could not be reserved at all (#40 r2).
+    name = "lane_room"
+    id = crew_id(name)
+
+    card =
+      "card-" <> (node_id("lane_room card") |> Base.encode16(case: :lower) |> binary_part(0, 32))
+
+    assert {:ok, _outcome} =
+             CrewFacts.received("admitted", signed("admitted", name, %{"seq" => 1}))
+
+    assert {:ok, command} = ReserveCardV1.new(%{card_id: card, crew: id, by: Actor.owner()})
+    assert command.crew == id
+
+    # the crew passes the desk's roster check, so the only refusal left is the
+    # card itself, which this store never queued
+    assert {:error, :unknown_card} = MaybeReserveCard.dispatch(command)
+
+    # a bare name is a board crew, so the realm's crew is not reached by one
+    assert {:error, :unknown_crew} = MaybeReserveCard.dispatch(%{command | crew: name})
   end
 
   test "an act the board will never do is recorded, and said out loud" do

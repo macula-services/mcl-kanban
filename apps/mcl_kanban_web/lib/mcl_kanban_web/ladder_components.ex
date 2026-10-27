@@ -478,7 +478,7 @@ defmodule MclKanbanWeb.LadderComponents do
 
   defp card_state(%{card: %{lane_crew: crew}} = assigns) when is_binary(crew) do
     ~H"""
-    <span class="lane">for crew <b>{@card.lane_crew}</b></span>
+    <span class="lane">for crew <b>{@card.lane_crew_name}</b></span>
     """
   end
 
@@ -601,13 +601,6 @@ defmodule MclKanbanWeb.LadderComponents do
   defp op(nil), do: nil
   defp op(operator), do: operator.node_id
 
-  # Whether two crews answer to one name (#40 option b): only then does the
-  # enlist dialog offer crew ids too, since an id is what tells them apart.
-  defp two_named?(crews) do
-    names = Enum.map(crews, & &1.crew)
-    length(names) != length(Enum.uniq(names))
-  end
-
   # ---------- drawer ----------
 
   attr(:card, :map, default: nil)
@@ -682,7 +675,7 @@ defmodule MclKanbanWeb.LadderComponents do
           <dd>{@card.state}<span :if={@card.holder}> by <b>{@card.holder}</b></span><span :if={@card.note} class={@card.state == "blocked" && "blk"}>: {@card.note}</span></dd>
           <dt>Lane</dt>
           <dd :if={@card.lane}>reserved for <b>{@card.lane}</b></dd>
-          <dd :if={@card[:lane_crew]}>reserved for crew <b>{@card[:lane_crew]}</b></dd>
+          <dd :if={@card[:lane_crew]}>reserved for crew <b>{@card[:lane_crew_name]}</b></dd>
           <dd :if={!@card.lane and !@card[:lane_crew]}>open to any agent</dd>
           <dt>Repo</dt><dd>{@card.board}</dd>
           <dt>Kind</dt>
@@ -844,8 +837,8 @@ defmodule MclKanbanWeb.LadderComponents do
         <div class="field">
           <label for="e-crew">Crew</label>
           <input id="e-crew" name="crew" value={@values["crew"] || "home"} list="crew-names" required autocomplete="off" pattern="[A-Za-z][A-Za-z0-9_-]{0,39}|[0-9a-f]{64}" phx-debounce="150" />
-          <datalist id="crew-names"><option :for={c <- @crews} value={c.crew} /><option :if={two_named?(@crews)} :for={c <- @crews} value={c.crew_id} /></datalist>
-          <span class="hint">An existing crew, or a new name to found one: a crew's operator enlists into its own crew only. Two crews may share a name, so a crew the realm admitted is also listed by its id.</span>
+          <datalist id="crew-names"><option :for={c <- @crews} value={c.crew_id}>{c.crew}</option></datalist>
+          <span class="hint">An existing crew, or a new name to found one: a crew's operator enlists into its own crew only. Each crew is listed by the name it is read under and enlists by its key: the name for a crew you made, and the id shown beneath the name for one the realm admitted.</span>
         </div>
         <div class="field">
           <label for="e-role">Role</label>

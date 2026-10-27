@@ -26,6 +26,16 @@ System.put_env("MCL_DATA_DIR", data_dir)
 realm_name = System.get_env("MCL_REALM_NAME", "io.macula")
 realm = :crypto.hash(:sha256, realm_name) |> Base.encode16(case: :lower)
 
+# How many reconciles in a row the realm may answer unknown_crew for a crew
+# before the board discharges it (#40). Three minutes by default. Below 1 the
+# board would drop a crew on the FIRST answer, so a value that is not a count of
+# at least one is refused here, at boot, rather than left to empty boards.
+crew_unknown_limit =
+  case Integer.parse(System.get_env("MCL_CREW_UNKNOWN_LIMIT", "3")) do
+    {count, ""} when count >= 1 -> count
+    _not_a_count -> raise "MCL_CREW_UNKNOWN_LIMIT must be a whole number of 1 or more"
+  end
+
 config :mcl_om,
   # Charlists: the dets/ra layer under reckon-db rejects a binary path.
   identity_key_path:
@@ -55,9 +65,7 @@ config :mcl_om,
   # The realm's public signing key, hex. Unset in a local dev or test boot,
   # which then runs with no mesh pool.
   realm_key: System.get_env("MCL_REALM_KEY", ""),
-  # How many reconciles in a row the realm may answer unknown_crew for a crew
-  # before the board discharges it (#40). Three minutes by default.
-  crew_unknown_limit: System.get_env("MCL_CREW_UNKNOWN_LIMIT", "3") |> String.to_integer()
+  crew_unknown_limit: crew_unknown_limit
 
 # THE READ MODEL: one sqlite file beside the store. WAL lets the queries read
 # while a projection writes; IMMEDIATE transactions take the write lock up
