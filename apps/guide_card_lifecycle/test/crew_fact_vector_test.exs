@@ -9,11 +9,11 @@ defmodule GuideCardLifecycle.CrewFacts.CrewFactVectorTest do
 
   @vector Path.join(__DIR__, "fixtures/crew_fact_vector.json") |> File.read!() |> JSON.decode!()
 
-  # The same fact as a subscriber receives it: text keys and text values
-  # wrapped, integers bare.
+  # The same payload as a subscriber receives it: text keys and text values
+  # wrapped, integers bare, the signature beside them -- and no "fact", which
+  # the topic names (macula-realm's CrewFact.signed/3 writes exactly this).
   defp wire do
     @vector["payload"]
-    |> Map.put("fact", @vector["fact"])
     |> Map.put("signature", @vector["signature_hex"])
     |> Map.new(fn {k, v} -> {{:text, k}, wrapped(v)} end)
   end
@@ -31,7 +31,7 @@ defmodule GuideCardLifecycle.CrewFacts.CrewFactVectorTest do
 
   test "the reader takes the fact the realm wrote, names and all" do
     assert {:ok, %{fact: "admitted", payload: payload, signature: signature}} =
-             CrewFact.read(wire())
+             CrewFact.read(@vector["fact"], wire())
 
     assert payload == @vector["payload"]
     assert signature == @vector["signature_hex"]
@@ -48,13 +48,17 @@ defmodule GuideCardLifecycle.CrewFacts.CrewFactVectorTest do
     assert {:ok, key} = RealmSignature.realm_key(@vector["public_key_hex"])
     assert key.profile == :pq_pure
 
-    assert {:ok, %{fact: fact, payload: payload, signature: signature}} = CrewFact.read(wire())
+    assert {:ok, %{fact: fact, payload: payload, signature: signature}} =
+             CrewFact.read(@vector["fact"], wire())
+
     assert :ok = RealmSignature.verify(CrewFact.signed_bytes(fact, payload), signature, key)
   end
 
   test "a field changed after the realm signed it is refused" do
     {:ok, key} = RealmSignature.realm_key(@vector["public_key_hex"])
-    assert {:ok, %{fact: fact, payload: payload, signature: signature}} = CrewFact.read(wire())
+
+    assert {:ok, %{fact: fact, payload: payload, signature: signature}} =
+             CrewFact.read(@vector["fact"], wire())
 
     names = payload["member_names"]
     [one, two] = payload["member_nodes"]

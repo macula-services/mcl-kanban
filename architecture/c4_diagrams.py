@@ -191,8 +191,8 @@ def components():
           ["36 {event}_to_{table} projections into one", "sqlite file, kanban.sqlite3, schema in",
            "priv/repo/migrations; PubSub on write."], code=True)
     d.box("b-cmp", 536, 550, 456, 120, "MclKanban.Supervisor", "[supervisor, one_for_one]",
-          ["start_link/0, called by Service.start/1. One", "child: crew facts' reconcile (#40). Everything",
-           "else supervises itself, and macula spawns responders."], code=True)
+          ["start_link/0, called by Service.start/1. Two children:", "the crew-fact gate every fact is believed through, and",
+           "the reconcile (#40). The rest supervises itself."], code=True)
     d.box("b-cmp", 56, 710, 456, 120, "QueryBoards", "[QRY app, umbrella]",
           ["9 read desks, one directory each:", "get_ladder, get_boards, get_card_by_id,",
            "get_next_card_for_agent and five more."], code=True)

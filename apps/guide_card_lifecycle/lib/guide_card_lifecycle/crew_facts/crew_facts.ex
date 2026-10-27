@@ -15,7 +15,7 @@ defmodule GuideCardLifecycle.CrewFacts do
 
   alias GuideCardLifecycle.Actor
   alias GuideCardLifecycle.CrewAggregate
-  alias GuideCardLifecycle.CrewFacts.{CrewFact, CrewFactSubscriber, RealmSignature}
+  alias GuideCardLifecycle.CrewFacts.{CrewFact, CrewFactGate, CrewFactSubscriber, RealmSignature}
   alias GuideCardLifecycle.CrewState
   alias GuideCardLifecycle.ObserveCrewFact.{MaybeObserveCrewFact, ObserveCrewFactV1}
 
@@ -57,23 +57,32 @@ defmodule GuideCardLifecycle.CrewFacts do
   end
 
   @doc """
-  A crew fact off the wire, on the topic that names its `topic_fact`. Returns
+  A crew fact off the wire, on the topic that names it. Returns
   `{:ok, outcome}` when the board acted on it and `{:error, reason}` when it
   did not; `:already_observed` is the ordinary answer to a fact at a seq the
   board has already taken, from a replay or from the reconcile.
+
+  It is believed one at a time (CrewFactGate): the read, the act and the
+  record are one step, so two facts for one crew cannot both read the seq
+  they are replacing.
   """
-  @spec received(String.t(), map()) :: {:ok, map()} | {:error, term()}
-  def received(topic_fact, wire) do
-    with {:ok, %{fact: fact} = read} <- CrewFact.read(wire),
-         :ok <- named_on_its_topic(fact, topic_fact),
+  @spec received(CrewFact.fact(), map()) :: {:ok, map()} | {:error, term()}
+  def received(fact, wire), do: CrewFactGate.take(fact, wire)
+
+  @doc """
+  The path itself, already inside the gate: read, verify against the pinned
+  realm key, compare the seq, act, record. Public only because the gate is
+  its own module -- nothing else may call it, or the seq rule has a second
+  racer.
+  """
+  @spec believe(CrewFact.fact(), map()) :: {:ok, map()} | {:error, term()}
+  def believe(fact, wire) do
+    with {:ok, read} <- CrewFact.read(fact, wire),
          :ok <- signed(read),
          :ok <- fresh(read) do
       act(read)
     end
   end
-
-  defp named_on_its_topic(fact, fact), do: :ok
-  defp named_on_its_topic(_fact, _topic_fact), do: {:error, :wrong_topic}
 
   defp signed(%{fact: fact, payload: payload, signature: signature}) do
     with {:ok, key} <- RealmSignature.configured_key(),
@@ -92,14 +101,52 @@ defmodule GuideCardLifecycle.CrewFacts do
   # Act, then record: a crash between the two replays the fact, and every act
   # here refuses what it has already done. Recording first would lose the act
   # instead, and the reconcile would have to notice.
+  #
+  # What was left undone decides whether the seq is recorded at all, because
+  # the record is what stops the reconcile asking about this crew again. A
+  # refusal the board's own rule named -- an atom: :name_taken,
+  # :held_in_another_crew -- is the board's answer and will not change by
+  # asking, so the fact is recorded and the refusal is reported with it.
+  # Anything else (a store that was not there, a timeout) is the board
+  # failing rather than the board deciding: nothing is recorded, and the next
+  # reconcile pass asks again.
   defp act(%{fact: fact, payload: payload}) do
-    with {:ok, outcome} <- Map.fetch!(@handlers, fact).handle(payload),
-         {:ok, _version, _events} <- observed(fact, payload) do
-      {:ok, outcome}
+    case Map.fetch!(@handlers, fact).handle(payload) do
+      {:ok, outcome} -> settle(fact, payload, outcome, undone(outcome))
+      {:error, reason} -> {:error, reason}
     end
   end
 
-  defp observed(fact, payload) do
+  defp settle(fact, payload, outcome, []), do: observed(fact, payload, outcome)
+
+  defp settle(fact, payload, outcome, refusals) do
+    if Enum.all?(refusals, fn {_what, why} -> final?(why) end),
+      do: observed(fact, payload, outcome),
+      else: {:error, {:left_undone, refusals}}
+  end
+
+  # An act the desk would not do, and the reason it gave: a single act's
+  # result, or one per agent for the acts that walk a crew.
+  defp undone(outcome),
+    do: Enum.flat_map(outcome, fn {what, value} -> refused(what, value) end)
+
+  defp refused(what, {:error, reason}), do: [{what, reason}]
+
+  defp refused(what, acts) when is_list(acts),
+    do: for({node, {:error, why}} <- acts, do: {{what, node}, why})
+
+  defp refused(_what, _done), do: []
+
+  # The desk names its refusals; the store does not. That is the whole
+  # distinction between an answer worth recording and a failure worth retrying.
+  defp final?(reason) when is_atom(reason), do: true
+  defp final?(_reason), do: false
+
+  defp observed(fact, payload, outcome) do
+    with {:ok, _version, _events} <- dispatch(fact, payload), do: {:ok, outcome}
+  end
+
+  defp dispatch(fact, payload) do
     with {:ok, command} <-
            ObserveCrewFactV1.new(%{
              crew_id: payload["crew_id"],

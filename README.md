@@ -102,9 +102,14 @@ fact only when the realm's ML-DSA signature over it verifies against
 `MCL_REALM_KEY`, never because of who published it, and acts only on a seq
 higher than the one it last took for that crew (a replay re-appoints nobody).
 Admitting enlists the members and appoints the operator; a replaced operator
-is appointed and the previous one dropped; the three drop facts discharge
-every agent of the crew. All of it acts as **the realm**, an actor no payload
-can claim.
+is appointed, and every agent the fact no longer names -- the previous
+operator, a member the realm dropped -- is discharged, so a re-sent admission
+with a smaller roster drops whoever left; the three drop facts discharge every
+agent of the crew. The fact is named by the topic it arrives on and never
+carried in the payload, where a `fact` field would be a field nobody signed.
+All of it acts as **the realm**, an actor no payload can claim, and the board
+believes one fact at a time: the highest-seq rule is only true if nothing can
+slip between reading the seq and recording it.
 
 A fact is the fast path, never the only one: every 60 s the board asks the
 realm's `identity/crew_standing_v1` for each crew it knows and puts the answer

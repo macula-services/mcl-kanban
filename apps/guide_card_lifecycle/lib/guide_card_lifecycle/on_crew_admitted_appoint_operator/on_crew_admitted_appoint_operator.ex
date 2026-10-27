@@ -7,6 +7,10 @@ defmodule GuideCardLifecycle.OnCrewAdmittedAppointOperator do
   # The operator is enlisted too when the realm did not list it among the
   # members: appointing names an agent of the crew, and a board can only
   # appoint one it holds.
+  #
+  # The fact carries the whole roster, so an agent this board holds in the
+  # crew and the fact does not name is dropped: a re-sent admission with a
+  # smaller roster is the realm saying that member is gone (#40).
   @moduledoc false
 
   alias GuideCardLifecycle.CrewFacts.RealmActs
@@ -16,9 +20,15 @@ defmodule GuideCardLifecycle.OnCrewAdmittedAppointOperator do
     crew = payload["crew_name"]
 
     enlisted = for member <- members(payload), do: {member, RealmActs.enlist(crew, member)}
+    operator = RealmActs.appoint(crew, payload["operator_name"])
+    dropped = RealmActs.drop_not_kept(crew, kept(payload))
 
-    {:ok, %{enlisted: enlisted, operator: RealmActs.appoint(crew, payload["operator_name"])}}
+    {:ok, %{enlisted: enlisted, operator: operator, dropped: dropped}}
   end
+
+  # The nodes the fact keeps: every member the realm attested, plus the
+  # operator when it is not among them.
+  defp kept(payload), do: payload["member_nodes"] ++ [payload["operator_node"]]
 
   # Every member with the name the realm attested, plus the operator when it
   # is not among them.

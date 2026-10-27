@@ -7,9 +7,9 @@ defmodule GuideCardLifecycle.CrewFacts.CrewFact do
   # subscriber still in wire form: keys and text values wrapped as {:text, _},
   # integers bare. Every fact carries crew_id, crew_name, operator_node,
   # operator_name, member_nodes, member_names, seq, at and by, plus one of
-  # previous_operator_node (operator_replaced) or reason (suspended, revoked);
-  # the signature is a lowercase hex ML-DSA signature by the realm's signing
-  # key, over the canonical encoding of
+  # previous_operator_node (operator_replaced) or reason (suspended, revoked,
+  # and left when the realm says it); the signature is a lowercase hex ML-DSA
+  # signature by the realm's signing key, over the canonical encoding of
   #
   #   %{tag: "macula.realm.crew_fact", v: 1, fact: fact, payload: fields}
   #
@@ -24,7 +24,14 @@ defmodule GuideCardLifecycle.CrewFacts.CrewFact do
   # member node and operator_name the operator's, all of them names the board
   # can hold (AgentName, which reserves "owner" and "realm").
   #
-  # read/1 is the shape half of the reader and nothing else: what a verifier
+  # The FACT ITSELF is not in the payload: the topic names it (and the
+  # reconcile's answer says it beside the payload), so a payload carrying one
+  # is carrying a field nobody reads, which read/2 refuses. That is also why
+  # the topic is the fact's proof of itself: the signed bytes are rebuilt with
+  # the name the caller was told, so a fact published on another fact's topic
+  # verifies as nothing at all.
+  #
+  # read/2 is the shape half of the reader and nothing else: what a verifier
   # acts on is exactly the fields it read here, so a field this refuses can
   # never be part of what was signed. The signature is checked next, by
   # RealmSignature, and only then does anything act on the fact.
@@ -47,11 +54,18 @@ defmodule GuideCardLifecycle.CrewFacts.CrewFact do
   }
 
   # The reasons each drop fact may carry (R3, and the operator's departure
-  # paths in the threat model's section 5).
+  # paths in the threat model's section 5). `left` is the realm's own
+  # crew_left_v1, which records `reason: "left"`; it may arrive with it or
+  # without, and a `left` that says anything else is refused.
   @reasons %{
     "suspended" => ~w(operator_resigned operator_ended),
-    "revoked" => ~w(revoked operator_revoked)
+    "revoked" => ~w(revoked operator_revoked),
+    "left" => ~w(left)
   }
+
+  # The one fact whose reason is optional: a drop off the board must never be
+  # lost for the sake of a field that changes nothing about it.
+  @optional %{"left" => ~w(reason)}
 
   @type fact() :: String.t()
   @type reason() :: :crew_fact_malformed | :unknown_crew_fact
@@ -66,21 +80,24 @@ defmodule GuideCardLifecycle.CrewFacts.CrewFact do
     do: :macula_topic.realm_fact(realm, "crew", fact, @version)
 
   @doc """
-  Reads a fact as it came off the wire: its fact, its fields as plain strings,
-  integers and a plain map of member names, and its signature as carried. Shape
-  only; nothing is verified.
+  Reads `fact` as it came off its topic: the wire is its fields with its
+  signature, and the fact itself is named by that topic -- or by the
+  reconcile's answer beside it. Shape only; nothing is verified.
   """
-  @spec read(map()) ::
+  @spec read(fact(), map()) ::
           {:ok, %{fact: fact(), payload: map(), signature: binary()}} | {:error, reason()}
-  def read(%{} = raw) do
-    with {:ok, plain} <- plain(raw),
-         {:ok, fact} <- fact_of(plain),
-         {:ok, payload} <- payload_of(fact, plain),
+  def read(fact, wire) when is_binary(fact) and is_map(wire) do
+    with :ok <- known(fact),
+         {:ok, plain} <- plain(wire),
          {:ok, signature} <- signature_of(plain),
+         {:ok, payload} <- payload_of(fact, plain),
          do: {:ok, %{fact: fact, payload: payload, signature: signature}}
   end
 
-  def read(_), do: {:error, :crew_fact_malformed}
+  def read(_fact, _wire), do: {:error, :crew_fact_malformed}
+
+  defp known(fact) when fact in @facts, do: :ok
+  defp known(_fact), do: {:error, :unknown_crew_fact}
 
   @doc """
   The bytes the realm's signature covers, rebuilt from the fields. The
@@ -140,22 +157,23 @@ defmodule GuideCardLifecycle.CrewFacts.CrewFact do
     end
   end
 
-  defp fact_of(%{"fact" => fact}) when fact in @facts, do: {:ok, fact}
-  defp fact_of(%{"fact" => _other}), do: {:error, :unknown_crew_fact}
-  defp fact_of(_plain), do: {:error, :crew_fact_malformed}
-
   # The fields the fact allows and no others: a fact carrying a field nobody
   # reads is refused rather than signed off, since a verifier cannot tell an
-  # extra field from a changed one.
+  # extra field from a changed one. A "fact" in the payload is one of those:
+  # the topic names the fact, so nothing puts it in the signed payload.
   defp payload_of(fact, plain) do
-    allowed = Map.fetch!(@allowed, fact)
-    fields = Map.drop(plain, ["fact", "signature"])
+    required = Map.fetch!(@allowed, fact)
+    optional = Map.get(@optional, fact, [])
+    fields = Map.delete(plain, "signature")
 
-    well_formed(exact?(fields, allowed) and fields_of(fact, fields), fields)
+    well_formed(keys?(fields, required, optional) and fields_of(fact, fields), fields)
   end
 
-  defp exact?(fields, allowed),
-    do: Map.keys(fields) -- allowed == [] and allowed -- Map.keys(fields) == []
+  defp keys?(fields, required, optional) do
+    keys = Map.keys(fields)
+
+    required -- keys == [] and keys -- (required ++ optional) == []
+  end
 
   defp well_formed(true, fields), do: {:ok, fields}
   defp well_formed(false, _fields), do: {:error, :crew_fact_malformed}
@@ -182,8 +200,12 @@ defmodule GuideCardLifecycle.CrewFacts.CrewFact do
 
   defp extras_of("operator_replaced", f), do: hex?(f["previous_operator_node"])
 
-  defp extras_of(fact, f) when is_map_key(@reasons, fact),
-    do: f["reason"] in Map.fetch!(@reasons, fact)
+  defp extras_of(fact, f) when is_map_key(@reasons, fact) do
+    case Map.fetch(f, "reason") do
+      {:ok, reason} -> reason in Map.fetch!(@reasons, fact)
+      :error -> "reason" in Map.get(@optional, fact, [])
+    end
+  end
 
   defp extras_of(_fact, _fields), do: true
 

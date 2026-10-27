@@ -86,6 +86,21 @@ defmodule GuideCardLifecycle.CrewFacts.RealmActs do
     |> Enum.map(&{&1, discharge(&1)})
   end
 
+  @doc """
+  Drops every agent of `crew` the realm did not keep. A crew fact carries the
+  whole roster, so a node this board holds in that crew and the fact does not
+  name was dropped by the realm's own record -- a replaced operator, or a
+  member who left between two admissions (#40). Keeping it would leave an
+  agent on the board acting for a crew that no longer holds it.
+  """
+  @spec drop_not_kept(String.t(), [String.t()]) :: [{String.t(), act()}]
+  def drop_not_kept(crew, kept) do
+    CrewAggregate.current()
+    |> CrewState.agents_of(crew)
+    |> Enum.reject(&(&1 in kept))
+    |> Enum.map(&{&1, discharge(&1)})
+  end
+
   defp ours?(state, crew, node, name) do
     CrewState.crew_of(state, node) == crew and
       String.downcase(CrewState.name_of(state, node)) == String.downcase(name)

@@ -42,10 +42,9 @@ defmodule MclKanban.CrewFactsOverMeshTest do
 
   # A crew named `name`, its operator and one other member. The operator is
   # NOT among the members, which the realm allows: the board enlists it too.
-  defp payload(fact, name, over) do
+  defp payload(name, over) do
     Map.merge(
       %{
-        "fact" => fact,
         "crew_id" => crew_id(name),
         "crew_name" => name,
         "operator_node" => hex(name <> "_op"),
@@ -60,14 +59,12 @@ defmodule MclKanban.CrewFactsOverMeshTest do
     )
   end
 
-  # The fact as the realm signs and publishes it, and as a subscriber holds it.
-  # The signed bytes cover the payload, which is every field but `fact` and
-  # `signature`.
+  # The fact as the realm signs and publishes it, and as a subscriber holds
+  # it: the payload's own fields with the signature, and no `fact` -- the
+  # topic names that. The signed bytes cover every field but the signature.
   defp signed(fact, name, over \\ %{}) do
-    fields = payload(fact, name, over)
-
-    signature =
-      :macula_node_keys.sign(CrewFact.signed_bytes(fact, Map.delete(fields, "fact")), key())
+    fields = payload(name, over)
+    signature = :macula_node_keys.sign(CrewFact.signed_bytes(fact, fields), key())
 
     fields
     |> Map.put("signature", Base.encode16(signature, case: :lower))
@@ -106,10 +103,9 @@ defmodule MclKanban.CrewFactsOverMeshTest do
   test "a fact signed by another key is refused, and nothing is enlisted" do
     name = "forged_room"
     {:ok, other} = :macula_node_keys.generate(:realm, :pq_pure)
-    fields = payload("admitted", name, %{"seq" => 9})
+    fields = payload(name, %{"seq" => 9})
 
-    signature =
-      :macula_node_keys.sign(CrewFact.signed_bytes("admitted", Map.delete(fields, "fact")), other)
+    signature = :macula_node_keys.sign(CrewFact.signed_bytes("admitted", fields), other)
 
     wire =
       fields
@@ -155,9 +151,12 @@ defmodule MclKanban.CrewFactsOverMeshTest do
     assert CrewState.crew_seq(state, crew_id(second)) == 1
   end
 
-  test "a fact on another fact's topic is refused" do
-    assert {:error, :wrong_topic} =
-             CrewFacts.received("revoked", signed("admitted", "topic_room"))
+  test "a fact published on another fact's topic is refused" do
+    # The topic names the fact and the signed bytes are rebuilt with that
+    # name: a `left` read as an `admitted` names the same fields, so only the
+    # name it was signed under can tell them apart, and it is not the one.
+    assert {:error, :signature_invalid} =
+             CrewFacts.received("admitted", signed("left", "topic_room"))
   end
 
   test "every drop fact drops the crew, whichever reason it carries" do
@@ -166,7 +165,8 @@ defmodule MclKanban.CrewFactsOverMeshTest do
           {"suspended", "operator_ended", "suspended_room_b"},
           {"revoked", "revoked", "revoked_room_a"},
           {"revoked", "operator_revoked", "revoked_room_b"},
-          {"left", nil, "left_room"}
+          {"left", nil, "left_room_a"},
+          {"left", "left", "left_room_b"}
         ] do
       extra = if reason, do: %{"reason" => reason}, else: %{}
 
@@ -224,13 +224,143 @@ defmodule MclKanban.CrewFactsOverMeshTest do
         }
       })
 
-    assert {:ok, %{operator: :ok, previous: :ok}} =
+    # the replaced operator is not in the roster the fact carries, so the
+    # roster rule is what drops it
+    assert {:ok, %{operator: :ok, dropped: [{previous, :ok}]}} =
              CrewFacts.received("operator_replaced", replaced)
 
     state = crew()
+    assert previous == hex(name <> "_op")
     assert CrewState.operator_of(state, name) == hex(name <> "_two")
     assert CrewState.crew_of(state, hex(name <> "_op")) == nil
     assert CrewState.crew_of(state, hex(name <> "_two")) == name
+  end
+
+  test "a member the replacing fact does not name loses the board with the old operator" do
+    name = "shrunk_room"
+    keep = hex(name <> "_one")
+    drop = hex(name <> "_three")
+
+    assert {:ok, _outcome} =
+             CrewFacts.received(
+               "admitted",
+               signed("admitted", name, %{
+                 "seq" => 1,
+                 "member_nodes" => [keep, drop],
+                 "member_names" => %{keep => name <> "_one", drop => name <> "_three"}
+               })
+             )
+
+    # the realm's own record of the crew: one member left, and a new operator
+    replaced =
+      signed("operator_replaced", name, %{
+        "seq" => 2,
+        "operator_node" => hex(name <> "_two"),
+        "operator_name" => name <> "_two",
+        "previous_operator_node" => hex(name <> "_op"),
+        "member_nodes" => [keep],
+        "member_names" => %{keep => name <> "_one"}
+      })
+
+    assert {:ok, %{dropped: dropped}} = CrewFacts.received("operator_replaced", replaced)
+
+    state = crew()
+    assert Enum.sort(dropped) == Enum.sort([{drop, :ok}, {hex(name <> "_op"), :ok}])
+    assert CrewState.crew_of(state, drop) == nil
+    assert CrewState.crew_of(state, hex(name <> "_op")) == nil
+    assert CrewState.crew_of(state, keep) == name
+  end
+
+  test "a re-sent admission with a smaller roster drops the member it no longer names" do
+    name = "resized_room"
+    keep = hex(name <> "_one")
+    drop = hex(name <> "_three")
+
+    assert {:ok, _outcome} =
+             CrewFacts.received(
+               "admitted",
+               signed("admitted", name, %{
+                 "seq" => 1,
+                 "member_nodes" => [keep, drop],
+                 "member_names" => %{keep => name <> "_one", drop => name <> "_three"}
+               })
+             )
+
+    assert {:ok, %{dropped: [{^drop, :ok}]}} =
+             CrewFacts.received(
+               "admitted",
+               signed("admitted", name, %{"seq" => 2, "member_nodes" => [keep]})
+             )
+
+    assert CrewState.crew_of(crew(), drop) == nil
+    assert CrewState.crew_of(crew(), keep) == name
+  end
+
+  test "an admission and its revocation arriving together never leave the crew holding the board" do
+    # Read, act, record is one step: whichever of the two lands first, the
+    # higher seq is the one the board keeps. Without that, admitted@5 can act
+    # after revoked@6 recorded and its record is then refused as already
+    # observed -- a revoked crew keeping the board for good.
+    for round <- 1..5 do
+      name = "race_room_#{round}"
+      admitted = signed("admitted", name, %{"seq" => 5})
+
+      revoked =
+        signed("revoked", name, %{"seq" => 6, "reason" => "revoked"})
+
+      both = [
+        {"admitted", signed("admitted", name, %{"seq" => 5})},
+        {"revoked", signed("revoked", name, %{"seq" => 6, "reason" => "revoked"})}
+      ]
+
+      _ =
+        both
+        |> Enum.map(fn {fact, wire} -> Task.async(fn -> CrewFacts.received(fact, wire) end) end)
+        |> Enum.map(&Task.await/1)
+
+      state = crew()
+
+      assert CrewState.operator_of(state, name) == nil,
+             "round #{round}: a revoked crew kept its operator"
+
+      assert CrewState.crew_of(state, hex(name <> "_one")) == nil,
+             "round #{round}: a revoked crew kept a member"
+
+      assert CrewState.crew_seq(state, crew_id(name)) == 6
+    end
+  end
+
+  test "an act the board will never do is recorded, and said out loud" do
+    # The board holds a name once, board-wide, so the second crew's member
+    # cannot be enlisted: a refusal that asking again will not change. The
+    # fact is recorded so the reconcile stops asking, and the refusal travels
+    # back with it for the subscriber to say out loud.
+    holder = "name_holder_room"
+    name = "collided_room"
+    shared = "clash_name"
+
+    assert {:ok, _outcome} =
+             CrewFacts.received(
+               "admitted",
+               signed("admitted", holder, %{
+                 "seq" => 1,
+                 "member_nodes" => [hex("holder_one")],
+                 "member_names" => %{hex("holder_one") => shared}
+               })
+             )
+
+    assert {:ok, %{enlisted: collided}} =
+             CrewFacts.received(
+               "admitted",
+               signed("admitted", name, %{
+                 "seq" => 1,
+                 "member_nodes" => [hex("collided_one")],
+                 "member_names" => %{hex("collided_one") => shared}
+               })
+             )
+
+    assert {{hex("collided_one"), shared}, {:error, :name_taken}} in collided
+    assert CrewState.crew_seq(crew(), crew_id(name)) == 1
   end
 
   test "a replayed lower seq after a drop re-appoints nobody" do
@@ -257,7 +387,10 @@ defmodule MclKanban.CrewFactsOverMeshTest do
     id = crew_id(name)
 
     revoked = signed("revoked", name, %{"seq" => 2, "reason" => "revoked"})
-    answered = %{"fact" => "revoked", "payload" => Map.delete(revoked, {:text, "fact"})}
+
+    # the fact's name beside the payload it signed, which is what a topic
+    # gives a subscriber too
+    answered = %{"fact" => "revoked", "payload" => revoked}
 
     # every other crew this board knows is answered as one the realm never
     # heard of, which must change nothing

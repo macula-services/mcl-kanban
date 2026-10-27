@@ -25,7 +25,6 @@ defmodule GuideCardLifecycle.CrewFacts.CrewFactTest do
   defp fields(over \\ %{}) do
     Map.merge(
       %{
-        "fact" => "admitted",
         "crew_id" => @crew_id,
         "crew_name" => "night",
         "operator_node" => @operator,
@@ -41,7 +40,9 @@ defmodule GuideCardLifecycle.CrewFacts.CrewFactTest do
     )
   end
 
-  defp read(over), do: CrewFact.read(wire(fields(over)))
+  # The fact is named by the topic it arrived on, never carried in the
+  # payload: that is the wire the realm's own producer writes.
+  defp read(over, fact \\ "admitted"), do: CrewFact.read(fact, wire(fields(over)))
 
   test "reads an admitted crew, with its fields as plain strings and integers" do
     assert {:ok, %{fact: "admitted", payload: payload, signature: @signature}} = read(%{})
@@ -60,45 +61,46 @@ defmodule GuideCardLifecycle.CrewFacts.CrewFactTest do
   end
 
   test "reads each fact with the field only it carries" do
-    for {fact, extra, reason} <- [
-          {"operator_replaced", %{"previous_operator_node" => @previous}, nil},
-          {"suspended", %{}, "operator_resigned"},
-          {"suspended", %{}, "operator_ended"},
-          {"revoked", %{}, "revoked"},
-          {"revoked", %{}, "operator_revoked"},
-          {"left", %{}, nil}
+    for {fact, over} <- [
+          {"admitted", %{}},
+          {"operator_replaced", %{"previous_operator_node" => @previous}},
+          {"suspended", %{"reason" => "operator_resigned"}},
+          {"suspended", %{"reason" => "operator_ended"}},
+          {"revoked", %{"reason" => "revoked"}},
+          {"revoked", %{"reason" => "operator_revoked"}},
+          {"left", %{}},
+          {"left", %{"reason" => "left"}}
         ] do
-      over =
-        case reason do
-          nil -> Map.merge(%{"fact" => fact}, extra)
-          reason -> Map.merge(%{"fact" => fact, "reason" => reason}, extra)
-        end
-
-      assert {:ok, %{fact: read_fact}} = read(over), "read refused #{fact} #{inspect(reason)}"
+      assert {:ok, %{fact: read_fact}} = read(over, fact), "read refused #{fact} #{inspect(over)}"
       assert read_fact == fact
     end
   end
 
   test "a fact it does not know is refused as such, never acted on" do
-    assert {:error, :unknown_crew_fact} = read(%{"fact" => "promoted"})
+    assert {:error, :unknown_crew_fact} = read(%{}, "promoted")
   end
 
   test "a missing field and an extra field are both refused" do
-    assert {:error, :crew_fact_malformed} = CrewFact.read(wire(Map.delete(fields(), "by")))
+    assert {:error, :crew_fact_malformed} =
+             CrewFact.read("admitted", wire(Map.delete(fields(), "by")))
+
     assert {:error, :crew_fact_malformed} = read(%{"nickname" => "eve"})
+  end
+
+  test "a fact in the payload is an extra field: the topic names the fact" do
+    assert {:error, :crew_fact_malformed} = read(%{"fact" => "admitted"})
   end
 
   test "a drop reason is refused where the fact does not take one, and outside its own set" do
     assert {:error, :crew_fact_malformed} = read(%{"reason" => "revoked"})
 
-    assert {:error, :crew_fact_malformed} =
-             read(%{"fact" => "suspended", "reason" => "operator_revoked"})
+    assert {:error, :crew_fact_malformed} = read(%{"reason" => "operator_revoked"}, "suspended")
 
-    assert {:error, :crew_fact_malformed} =
-             read(%{"fact" => "revoked", "reason" => "operator_resigned"})
+    assert {:error, :crew_fact_malformed} = read(%{"reason" => "operator_resigned"}, "revoked")
 
-    assert {:error, :crew_fact_malformed} = read(%{"fact" => "left", "reason" => "revoked"})
-    assert {:error, :crew_fact_malformed} = read(%{"fact" => "operator_replaced"})
+    assert {:error, :crew_fact_malformed} = read(%{"reason" => "revoked"}, "left")
+    assert {:error, :crew_fact_malformed} = read(%{"reason" => "left"}, "suspended")
+    assert {:error, :crew_fact_malformed} = read(%{}, "operator_replaced")
   end
 
   test "a boolean is refused: the wire never carries one" do
@@ -145,17 +147,19 @@ defmodule GuideCardLifecycle.CrewFacts.CrewFactTest do
   end
 
   test "a signature must be there, and lowercase hex" do
-    assert {:error, :crew_fact_malformed} = CrewFact.read(wire(Map.delete(fields(), "signature")))
+    assert {:error, :crew_fact_malformed} =
+             CrewFact.read("admitted", wire(Map.delete(fields(), "signature")))
+
     assert {:error, :crew_fact_malformed} = read(%{"signature" => String.upcase(@signature)})
     assert {:error, :crew_fact_malformed} = read(%{"signature" => "not-hex"})
     assert {:error, :crew_fact_malformed} = read(%{"signature" => 12})
   end
 
   test "a map that is not a map is refused, not raised on" do
-    assert {:error, :crew_fact_malformed} = CrewFact.read("nope")
+    assert {:error, :crew_fact_malformed} = CrewFact.read("admitted", "nope")
 
     assert {:error, :crew_fact_malformed} =
-             CrewFact.read(%{{:bytes, "fact"} => {:text, "admitted"}})
+             CrewFact.read("admitted", %{{:bytes, "by"} => {:text, "eve"}})
   end
 
   test "the signed bytes are the same every time, and change with any field" do

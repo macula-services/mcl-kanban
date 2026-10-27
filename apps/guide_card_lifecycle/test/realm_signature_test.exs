@@ -20,12 +20,12 @@ defmodule GuideCardLifecycle.CrewFacts.RealmSignatureTest do
   defp wrapped(v) when is_list(v), do: Enum.map(v, &wrapped/1)
   defp wrapped(v) when is_map(v), do: Map.new(v, fn {k, val} -> {{:text, k}, wrapped(val)} end)
 
-  # A fact as the realm publishes one, with the stub signature a shape reader
-  # takes: the real one is made below, over the bytes this fact reads to.
+  # A fact payload as the realm publishes one -- the fact itself is named by
+  # the topic, never carried -- with the stub signature a shape reader takes:
+  # the real one is made below, over the bytes this payload reads to.
   defp fact(over) do
     Map.merge(
       %{
-        "fact" => "admitted",
         "crew_id" => @crew_id,
         "crew_name" => "night",
         "operator_node" => @operator,
@@ -54,7 +54,7 @@ defmodule GuideCardLifecycle.CrewFacts.RealmSignatureTest do
   # fields as read, then carried as lowercase hex.
   defp signed(profile, over \\ %{}) do
     key = realm_key(profile)
-    {:ok, %{fact: fact, payload: payload}} = CrewFact.read(wire(fact(over)))
+    {:ok, %{fact: fact, payload: payload}} = CrewFact.read("admitted", wire(fact(over)))
     signature = :macula_node_keys.sign(CrewFact.signed_bytes(fact, payload), key)
 
     {wire(fact(Map.put(over, "signature", Base.encode16(signature, case: :lower)))), hex_key(key),
@@ -100,7 +100,9 @@ defmodule GuideCardLifecycle.CrewFacts.RealmSignatureTest do
     {wire_fact, key_hex, _profile} = signed(:pq_pure)
     {:ok, key} = RealmSignature.realm_key(key_hex)
 
-    {:ok, %{fact: fact, payload: payload, signature: signature}} = CrewFact.read(wire_fact)
+    {:ok, %{fact: fact, payload: payload, signature: signature}} =
+      CrewFact.read("admitted", wire_fact)
+
     assert :ok = RealmSignature.verify(CrewFact.signed_bytes(fact, payload), signature, key)
 
     # a field changed after signing is refused
@@ -137,7 +139,9 @@ defmodule GuideCardLifecycle.CrewFacts.RealmSignatureTest do
   test "a hybrid realm verifies the same way: the profile follows the key" do
     {wire_fact, key_hex, :pq_hybrid} = signed(:pq_hybrid)
     {:ok, key} = RealmSignature.realm_key(key_hex)
-    {:ok, %{fact: fact, payload: payload, signature: signature}} = CrewFact.read(wire_fact)
+
+    {:ok, %{fact: fact, payload: payload, signature: signature}} =
+      CrewFact.read("admitted", wire_fact)
 
     assert :ok = RealmSignature.verify(CrewFact.signed_bytes(fact, payload), signature, key)
 
@@ -151,7 +155,10 @@ defmodule GuideCardLifecycle.CrewFacts.RealmSignatureTest do
 
   test "a key that is half a profile is not used to verify anything" do
     {wire_fact, _key_hex, _profile} = signed(:pq_pure)
-    {:ok, %{fact: fact, payload: payload, signature: signature}} = CrewFact.read(wire_fact)
+
+    {:ok, %{fact: fact, payload: payload, signature: signature}} =
+      CrewFact.read("admitted", wire_fact)
+
     bytes = CrewFact.signed_bytes(fact, payload)
 
     for key <- [

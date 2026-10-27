@@ -9,6 +9,7 @@ defmodule GuideCardLifecycle.CrewFactActorTest do
   alias GuideCardLifecycle.Actor
   alias GuideCardLifecycle.AgentName
   alias GuideCardLifecycle.AppointOperator.{AppointOperatorV1, MaybeAppointOperator}
+  alias GuideCardLifecycle.AppointSupervisor.{AppointSupervisorV1, MaybeAppointSupervisor}
   alias GuideCardLifecycle.CrewState
   alias GuideCardLifecycle.DischargeAgent.{DischargeAgentV1, MaybeDischargeAgent}
   alias GuideCardLifecycle.EnlistAgent.{EnlistAgentV1, MaybeEnlistAgent}
@@ -97,6 +98,27 @@ defmodule GuideCardLifecycle.CrewFactActorTest do
     # the same acts by an operator of another crew are refused
     assert {:error, :not_permitted} =
              MaybeDischargeAgent.handle(crews(), %DischargeAgentV1{name: "eve", by: actor("bob")})
+  end
+
+  test "the realm commands a crew, and orders no board's work for it" do
+    # @who as the board desks name it: the realm is not one of them, and
+    # holding every role a caller could have does not change that.
+    for who <- [[:operator], [:prioritiser], [:owner], [:operator, :prioritiser, :owner]],
+        crew <- ["home", "a-crew-the-board-never-saw"] do
+      assert Actor.refused(Actor.realm(), who, crew) == :not_permitted,
+             "the realm ordered #{crew}'s work as #{inspect(who)}"
+    end
+
+    # the owner still may, which is what makes the line above about the realm
+    assert Actor.refused(Actor.owner(), [:prioritiser], "home") == nil
+  end
+
+  test "the realm appoints an operator, never the supervisor" do
+    assert {:error, :not_permitted} =
+             MaybeAppointSupervisor.handle(crews(), %AppointSupervisorV1{
+               name: "ada",
+               by: Actor.realm()
+             })
   end
 
   test "a record of a realm act says so, and never reads as an agent's" do

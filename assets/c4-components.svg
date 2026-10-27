@@ -92,9 +92,9 @@
 <rect class="b-cmp" x="536" y="550" width="456" height="120" rx="10"/>
 <text class="t-code" x="552" y="578">MclKanban.Supervisor</text>
 <text class="t-type" x="552" y="596">[supervisor, one_for_one]</text>
-<text class="t-desc" x="552" y="620">start_link/0, called by Service.start/1. One</text>
-<text class="t-desc" x="552" y="636">child: crew facts' reconcile (#40). Everything</text>
-<text class="t-desc" x="552" y="652">else supervises itself, and macula spawns responders.</text>
+<text class="t-desc" x="552" y="620">start_link/0, called by Service.start/1. Two children:</text>
+<text class="t-desc" x="552" y="636">the crew-fact gate every fact is believed through, and</text>
+<text class="t-desc" x="552" y="652">the reconcile (#40). The rest supervises itself.</text>
 <rect class="b-cmp" x="56" y="710" width="456" height="120" rx="10"/>
 <text class="t-code" x="72" y="738">QueryBoards</text>
 <text class="t-type" x="72" y="756">[QRY app, umbrella]</text>
