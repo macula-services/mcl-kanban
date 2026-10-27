@@ -5,7 +5,10 @@ defmodule GuideCardLifecycle.CrewFacts.CrewStandingReconciler do
   # crew_standing_v1` -- and feeds the answer through the SAME verifier and
   # highest-seq rule as a published fact. 60 s is therefore the bound the
   # issue states: a revoked crew loses the board within a minute, even if
-  # every fact is missed.
+  # every fact is missed. The tick is armed before the pass runs, so a slow
+  # realm cannot stretch the period; it can only spend its own answers' time
+  # inside one, and an unanswered call is worth nothing to revoke with anyway
+  # (only a signed fact ends a crew).
   #
   # What it must never do is end a crew on anything but a signed fact. The
   # realm's errors (`unknown_crew`, `invalid_crew_id`) are unsigned, a lost
@@ -27,7 +30,7 @@ defmodule GuideCardLifecycle.CrewFacts.CrewStandingReconciler do
   alias GuideCardLifecycle.CrewState
 
   @period_ms 60_000
-  @timeout_ms 15_000
+  @timeout_ms 5_000
   @version 1
 
   @spec start_link(term()) :: GenServer.on_start()
@@ -47,8 +50,8 @@ defmodule GuideCardLifecycle.CrewFacts.CrewStandingReconciler do
 
   @impl true
   def handle_info(:reconcile, state) do
-    reconcile()
     Process.send_after(self(), :reconcile, @period_ms)
+    reconcile()
     {:noreply, state}
   end
 
