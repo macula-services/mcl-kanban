@@ -286,11 +286,18 @@ defmodule MclKanbanWeb.LadderLive do
         "<b>#{esc(name)}</b> is the prioritiser"
       end)
 
-  def handle_event("appoint", %{"name" => name, "role" => "operator", "crew" => crew}, socket),
-    do:
-      outcome(socket, OwnerActions.appoint_operator(crew, name), fn ->
-        "<b>#{esc(name)}</b> runs the <b>#{esc(crew)}</b> crew: it enlists and discharges there."
-      end)
+  # The rail hands over the crew's KEY (#40 option b) and the name it is read
+  # under: the key is what the appointment acts on, the name is what the reply
+  # says.
+  def handle_event(
+        "appoint",
+        %{"name" => name, "role" => "operator", "crew" => crew} = p,
+        socket
+      ),
+      do:
+        outcome(socket, OwnerActions.appoint_operator(crew, name), fn ->
+          "<b>#{esc(name)}</b> runs the <b>#{esc(p["crew_name"] || crew)}</b> crew: it enlists and discharges there."
+        end)
 
   def handle_event("discharge", %{"name" => name}, socket),
     do: outcome(socket, OwnerActions.discharge(name), fn -> "<b>#{esc(name)}</b> discharged" end)

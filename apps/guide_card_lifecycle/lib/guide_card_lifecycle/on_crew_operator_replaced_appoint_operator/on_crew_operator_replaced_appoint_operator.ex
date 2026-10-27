@@ -10,7 +10,7 @@ defmodule GuideCardLifecycle.OnCrewOperatorReplacedAppointOperator do
 
   @spec handle(map()) :: {:ok, map()}
   def handle(payload) do
-    crew = payload["crew_name"]
+    crew = payload["crew_id"]
     node = payload["operator_node"]
 
     enlisted = RealmActs.enlist(crew, {node, payload["operator_name"]})

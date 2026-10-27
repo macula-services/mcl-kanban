@@ -77,6 +77,9 @@ defmodule MclKanbanWeb.OwnerActions do
       {"An issue reads owner/repo#number", "Pick the repo, then type the issue number."},
     invalid_crew:
       {"A crew name starts with a letter", "Use letters, digits, - and _, at most 40."},
+    crew_name_ambiguous:
+      {"Two crews answer to that name",
+       "Type the crew's id instead: each realm crew's id is under its name in the rail."},
     invalid_kind: {"A card is a bug, a slice or ui", "Pick one of the three."},
     invalid_link: {"A link blocks, relates to or follows up", "Pick one of the three."},
     invalid_name: {"A name starts with a letter", "Use letters, digits, - and _, at most 40."},

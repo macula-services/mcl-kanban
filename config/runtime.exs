@@ -54,7 +54,10 @@ config :mcl_om,
   realm_name: realm_name,
   # The realm's public signing key, hex. Unset in a local dev or test boot,
   # which then runs with no mesh pool.
-  realm_key: System.get_env("MCL_REALM_KEY", "")
+  realm_key: System.get_env("MCL_REALM_KEY", ""),
+  # How many reconciles in a row the realm may answer unknown_crew for a crew
+  # before the board discharges it (#40). Three minutes by default.
+  crew_unknown_limit: System.get_env("MCL_CREW_UNKNOWN_LIMIT", "3") |> String.to_integer()
 
 # THE READ MODEL: one sqlite file beside the store. WAL lets the queries read
 # while a projection writes; IMMEDIATE transactions take the write lock up

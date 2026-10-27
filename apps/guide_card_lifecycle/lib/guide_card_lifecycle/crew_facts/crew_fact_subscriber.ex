@@ -37,18 +37,6 @@ defmodule GuideCardLifecycle.CrewFacts.CrewFactSubscriber do
   defp report(fact, {:ok, outcome}), do: refusal(fact, outcome)
   defp report(_fact, {:error, :already_observed}), do: :ok
 
-  # The realm lets two crews share one name; this board cannot, because a crew
-  # is held by its agents' name -- and a name the board's own crews answer to
-  # is not a realm crew's to take at all. Say so in the terms the realm's
-  # admin can act on, and say what was done: nothing, and no seq recorded.
-  defp report(fact, {:error, {why, name}}) when why in [:crew_name_taken, :crew_name_reserved] do
-    Logger.warning(
-      "crew fact #{fact} was not acted on: the name #{inspect(name)} is not this crew's to " <>
-        "take on this board, which already has a crew of that name. Nothing was enlisted, " <>
-        "appointed or discharged for it. Invite this crew under another name."
-    )
-  end
-
   defp report(fact, {:error, reason}),
     do: Logger.warning("crew fact #{fact} left the board as it is: #{inspect(reason)}")
 

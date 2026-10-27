@@ -12,6 +12,7 @@ defmodule GuideCardLifecycle.CrewAggregate do
   alias GuideCardLifecycle.AppointSupervisor.MaybeAppointSupervisor
   alias GuideCardLifecycle.CrewState
   alias GuideCardLifecycle.DischargeAgent.MaybeDischargeAgent
+  alias GuideCardLifecycle.DischargeCrew.MaybeDischargeCrew
   alias GuideCardLifecycle.EnlistAgent.MaybeEnlistAgent
   alias GuideCardLifecycle.LiveState
   alias GuideCardLifecycle.ObserveCrewFact.MaybeObserveCrewFact
@@ -45,6 +46,9 @@ defmodule GuideCardLifecycle.CrewAggregate do
 
   def execute(state, %{command_type: :discharge_agent} = p),
     do: MaybeDischargeAgent.handle_payload(state, p)
+
+  def execute(state, %{command_type: :discharge_crew} = p),
+    do: MaybeDischargeCrew.handle_payload(state, p)
 
   def execute(state, %{command_type: :appoint_supervisor} = p),
     do: MaybeAppointSupervisor.handle_payload(state, p)

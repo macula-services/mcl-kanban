@@ -17,7 +17,7 @@ defmodule GuideCardLifecycle.AppointOperator.AppointOperatorV1 do
 
   @impl true
   def new(%{crew: crew, name: name, by: %Actor{} = by}) do
-    with {:ok, crew} <- CrewName.name(crew),
+    with {:ok, crew} <- CrewName.key(crew),
          {:ok, name} <- AgentName.name(name) do
       {:ok, %__MODULE__{crew: crew, name: name, by: by}}
     end

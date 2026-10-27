@@ -3,6 +3,12 @@ defmodule QueryBoards.GetCrew.GetCrew do
   # roles, the cards it holds now (claimed or blocked) and the next card
   # reserved to its lane (#28). One crew per entry, so a caller reads who runs
   # a crew and who is in it without joining two answers itself.
+  #
+  # A crew is held by its KEY (#40 option b): its crew_id for a crew the realm
+  # admitted, its name for one the owner made. The roster's `crew` column
+  # holds those keys, and each entry carries its `crew_id` beside the display
+  # name a person reads -- so two crews the realm admitted under one name stay
+  # two entries here, and a consumer that must act on one of them has its id.
   @moduledoc false
 
   alias QueryBoards.CardRows
@@ -12,13 +18,16 @@ defmodule QueryBoards.GetCrew.GetCrew do
   @spec get_crew() :: [map()]
   def get_crew do
     operators = operators()
+    names = crew_names()
 
     "SELECT node_id, name, crew, roles, enlisted_at FROM crew ORDER BY crew, name"
     |> ReadModel.q([])
     |> Enum.map(&agent/1)
     |> Enum.group_by(& &1.crew)
-    |> Enum.sort_by(fn {crew, _agents} -> crew end)
-    |> Enum.map(fn {crew, agents} -> crew_entry(crew, agents, Map.get(operators, crew)) end)
+    |> Enum.sort_by(fn {key, _agents} -> {Map.get(names, key, key), key} end)
+    |> Enum.map(fn {key, agents} ->
+      crew_entry(key, agents, Map.get(operators, key), Map.get(names, key, key))
+    end)
   end
 
   @doc """
@@ -51,8 +60,15 @@ defmodule QueryBoards.GetCrew.GetCrew do
         timeout_ms
       )
 
-  defp crew_entry(crew, agents, operator_node_id) do
-    %{crew: crew, operator: who(agents, operator_node_id), agents: agents}
+  # The key comes first, then the name a person reads: an agent's own `crew` is
+  # shown as the name too, since it is what the rail and the pickers print.
+  defp crew_entry(key, agents, operator_node_id, name) do
+    %{
+      crew_id: key,
+      crew: name,
+      operator: who(agents, operator_node_id),
+      agents: Enum.map(agents, &%{&1 | crew: name})
+    }
   end
 
   defp who(_agents, nil), do: nil
@@ -80,6 +96,14 @@ defmodule QueryBoards.GetCrew.GetCrew do
     "SELECT name, operator_node_id FROM crews"
     |> ReadModel.q([])
     |> Map.new(fn [crew, node_id] -> {crew, node_id} end)
+  end
+
+  # The names the realm admitted its crews under, keyed by crew id. A crew the
+  # owner made has no row, and its key is its name.
+  defp crew_names do
+    "SELECT crew_id, crew_name FROM crew_names"
+    |> ReadModel.q([])
+    |> Map.new(fn [crew_id, name] -> {crew_id, name} end)
   end
 
   defp next_in_lane(node_id) do

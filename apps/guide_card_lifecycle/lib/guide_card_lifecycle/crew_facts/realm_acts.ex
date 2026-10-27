@@ -8,6 +8,10 @@ defmodule GuideCardLifecycle.CrewFacts.RealmActs do
   #
   # Each act reads the live crew first: dispatching one act changes the roster,
   # and the next act must see that change.
+  #
+  # The `crew` every function takes is a crew KEY (#40 option b): for a crew
+  # the realm admitted, its `crew_id`. Nothing here resolves it from a name --
+  # the realm's own act names the crew it signed about, never one it guessed.
   @moduledoc false
 
   alias GuideCardLifecycle.Actor

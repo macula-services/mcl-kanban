@@ -1,14 +1,15 @@
 defmodule GuideCardLifecycle.AgentName do
   # What an agent's name and node id look like when a command names them.
-  # "owner" and "realm" are reserved: they are how an owner's and the realm's
-  # own actions are recorded (#40), so no agent may carry either. A record's
-  # `by_kind` still tells them apart from an agent; the reservation keeps the
-  # audit trail from reading as something it is not.
+  # "owner", "realm" and "board" are reserved: they are how an owner's, the
+  # realm's and the board's own actions are recorded (#40), so no agent may
+  # carry any of them. A record's `by_kind` still tells them apart from an
+  # agent; the reservation keeps the audit trail from reading as something it
+  # is not.
   @moduledoc false
 
   @name ~r/^[A-Za-z][A-Za-z0-9_-]{0,39}$/
   @node_id ~r/^[0-9a-fA-F]{64}$/
-  @reserved ~w(owner realm)
+  @reserved ~w(owner realm board)
 
   @spec name(term()) :: {:ok, String.t()} | {:error, :invalid_name | :name_reserved}
   def name(name) when is_binary(name), do: named(Regex.match?(@name, name), name)

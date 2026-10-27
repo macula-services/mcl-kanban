@@ -37,6 +37,12 @@ defmodule GuideCardLifecycle.Actor do
   # never be something a payload says. Only the consumer that verified a fact
   # against the pinned realm key dispatches as it (CrewFacts), `of_caller/1`
   # cannot produce it, and no agent may take its name.
+  #
+  # THE BOARD is the third: it acts on its OWN rule, with no signature behind
+  # it -- the reconcile discharging a crew the realm has stopped knowing
+  # (#40). It can do exactly one thing (`DischargeCrew`) and grants nobody
+  # power, so it is not a weaker realm: the two are separate roles, and a
+  # board rule can never stand in for the realm's agreement.
   @moduledoc false
 
   alias GuideCardLifecycle.CrewAggregate
@@ -45,9 +51,9 @@ defmodule GuideCardLifecycle.Actor do
   @enforce_keys [:kind, :name, :roles]
   defstruct [:kind, :name, :node_id, :crew, :roles]
 
-  @type role :: :owner | :realm | :agent | :supervisor | :prioritiser | :operator
+  @type role :: :owner | :realm | :board | :agent | :supervisor | :prioritiser | :operator
   @type t :: %__MODULE__{
-          kind: :owner | :realm | :agent,
+          kind: :owner | :realm | :board | :agent,
           name: String.t(),
           node_id: String.t() | nil,
           crew: String.t() | nil,
@@ -65,6 +71,16 @@ defmodule GuideCardLifecycle.Actor do
   """
   @spec realm() :: t()
   def realm, do: %__MODULE__{kind: :realm, name: "realm", node_id: nil, roles: [:realm]}
+
+  @doc """
+  The board itself, acting on its own rule (#40): the reconcile discharging a
+  crew the realm has stopped knowing. It is the one actor no signature backs,
+  so it may do exactly one thing -- `DischargeCrew` -- and nothing that grants
+  anyone power. Constructed by the reconciler alone; `of_caller/1` cannot
+  return it, and no agent may take its name (AgentName).
+  """
+  @spec board() :: t()
+  def board, do: %__MODULE__{kind: :board, name: "board", node_id: nil, roles: [:board]}
 
   @doc "The caller of a mesh call, as the live crew knows it."
   @spec of_caller(map()) :: {:ok, t()} | {:error, :no_caller | :not_enlisted}

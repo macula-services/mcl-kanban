@@ -20,7 +20,7 @@ defmodule GuideCardLifecycle.EnlistAgent.EnlistAgentV1 do
   def new(%{name: name, node_id: node_id, crew: crew, by: %Actor{} = by}) do
     with {:ok, name} <- AgentName.name(name),
          {:ok, node_id} <- AgentName.node_id(node_id),
-         {:ok, crew} <- CrewName.name(crew) do
+         {:ok, crew} <- CrewName.key(crew) do
       {:ok, %__MODULE__{name: name, node_id: node_id, crew: crew, by: by}}
     end
   end

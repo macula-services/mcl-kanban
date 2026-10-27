@@ -9,5 +9,5 @@ defmodule GuideCardLifecycle.OnCrewSuspendedDischargeCrew do
   alias GuideCardLifecycle.CrewFacts.RealmActs
 
   @spec handle(map()) :: {:ok, map()}
-  def handle(payload), do: {:ok, %{discharged: RealmActs.discharge_crew(payload["crew_name"])}}
+  def handle(payload), do: {:ok, %{discharged: RealmActs.discharge_crew(payload["crew_id"])}}
 end

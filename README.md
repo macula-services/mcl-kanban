@@ -107,12 +107,19 @@ operator, a member the realm dropped -- is discharged, so a re-sent admission
 with a smaller roster drops whoever left; the three drop facts discharge every
 agent of the crew. The fact is named by the topic it arrives on and never
 carried in the payload, where a `fact` field would be a field nobody signed.
-A board keys a crew by its NAME, so a fact about a crew id whose name is
-already answered to on the board -- by another realm crew, by a crew the owner
-made by hand, or by the home crew an un-crewed agent lands in -- is refused by
-that name and changes nothing: the realm lets two crews share one name, a
-board cannot, and the refusal says to invite the crew under another name. The
-home crew's name is never a realm crew's, whatever it holds.
+A board acts on a crew by its KEY: the crew id for a crew the realm admitted,
+its name for a crew the owner made. The two cannot collide (a name is at most
+40 characters and an id is 64 hex), so one field carries both and nothing has
+to ask which kind it holds. Two crews the realm admits under one name are
+therefore two crews here, and a drop for one never touches the other's agents.
+Enlisting, appointing an operator and reserving a card for a crew are the
+places a person names one: exactly one admitted crew with that name binds to
+its id, none means a crew the owner made, and a name that is not one crew's --
+two admitted crews share it, or an admitted crew shares it with a crew the
+board's own roster already answers to -- is refused as `crew_name_ambiguous`
+rather than guessed, with the id to say which one. The home crew is the
+board's own whatever the realm invites, since it is where an agent enlisted
+without a crew lands.
 All of it acts as **the realm**, an actor no payload can claim, and the board
 believes one fact at a time: the highest-seq rule is only true if nothing can
 slip between reading the seq and recording it.
@@ -121,9 +128,16 @@ A fact is the fast path, never the only one: every 60 s the board asks the
 realm's `identity/crew_standing_v1` for each crew it knows and puts the answer
 through the same verifier and seq rule. **That minute is the board's
 revocation bound** -- a revoked crew loses the board within it even if every
-fact is missed -- and nothing but a signed fact ever ends a crew, so a lost
-answer or the realm's own `unknown_crew` changes nothing. With no
-`MCL_REALM_KEY`, the board subscribes to nothing and reconciles nothing.
+fact is missed -- and no error ever ends a crew: a lost answer, a timeout and
+the realm's own `invalid_crew_id` change nothing. An explicit `unknown_crew`
+is the one answer that counts against a crew, and the board acts on it only
+when it comes `MCL_CREW_UNKNOWN_LIMIT` times in a row (three by default): then
+the crew is discharged as **the board** -- `crew_discharged_v1`, reason
+`unknown_crew_after_n` -- its agents lose the board, and it is asked about no
+more. A signed fact between two answers restarts that count, since the realm
+knows the crew after all, and the crew's seq is kept, so a replay of an old
+admission re-enlists nobody. With no `MCL_REALM_KEY`, the board subscribes to
+nothing and reconciles nothing.
 
 ## Signed approvals
 

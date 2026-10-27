@@ -18,7 +18,14 @@ defmodule GuideCardLifecycle.AppointOperator.MaybeAppointOperator do
 
   def handle_payload(state, payload), do: handle(state, struct(AppointOperatorV1, payload))
 
+  # The crew the appointment names is resolved to its KEY (#40 option b), as
+  # enlisting resolves one: the owner appoints from the UI, by the name it
+  # reads, and a crew the realm admitted is held by its id.
   def handle(%CrewState{} = crew, %AppointOperatorV1{} = cmd) do
+    with {:ok, key} <- CrewState.crew_key_for(crew, cmd.crew), do: seat(crew, %{cmd | crew: key})
+  end
+
+  defp seat(crew, cmd) do
     node_id = CrewState.node_id_of(crew, cmd.name)
 
     cond do

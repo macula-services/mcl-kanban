@@ -98,9 +98,9 @@ defmodule MclKanban.CrewFactsOverMeshTest do
 
     state = crew()
     assert CrewState.crew_seq(state, crew_id(name)) == 4
-    assert CrewState.operator_of(state, name) == hex(name <> "_op")
-    assert CrewState.crew_of(state, hex(name <> "_one")) == name
-    assert CrewState.crew_of(state, hex(name <> "_op")) == name
+    assert CrewState.operator_of(state, crew_id(name)) == hex(name <> "_op")
+    assert CrewState.crew_of(state, hex(name <> "_one")) == crew_id(name)
+    assert CrewState.crew_of(state, hex(name <> "_op")) == crew_id(name)
   end
 
   test "the same fact twice acts once" do
@@ -158,8 +158,8 @@ defmodule MclKanban.CrewFactsOverMeshTest do
     assert {{shared, "shared_agent_two"}, {:error, :held_in_another_crew}} in second_enlisted
 
     state = crew()
-    assert CrewState.crew_of(state, shared) == first
-    assert CrewState.operator_of(state, second) == hex(second <> "_op")
+    assert CrewState.crew_of(state, shared) == crew_id(first)
+    assert CrewState.operator_of(state, crew_id(second)) == hex(second <> "_op")
     assert CrewState.crew_seq(state, crew_id(second)) == 1
   end
 
@@ -213,7 +213,7 @@ defmodule MclKanban.CrewFactsOverMeshTest do
 
     state = crew()
     assert CrewState.crew_of(state, hex(name <> "_one")) == nil
-    assert CrewState.operator_of(state, name) == nil
+    assert CrewState.operator_of(state, crew_id(name)) == nil
     assert CrewState.crew_seq(state, crew_id(name)) == 2
   end
 
@@ -243,9 +243,9 @@ defmodule MclKanban.CrewFactsOverMeshTest do
 
     state = crew()
     assert previous == hex(name <> "_op")
-    assert CrewState.operator_of(state, name) == hex(name <> "_two")
+    assert CrewState.operator_of(state, crew_id(name)) == hex(name <> "_two")
     assert CrewState.crew_of(state, hex(name <> "_op")) == nil
-    assert CrewState.crew_of(state, hex(name <> "_two")) == name
+    assert CrewState.crew_of(state, hex(name <> "_two")) == crew_id(name)
   end
 
   test "a member the replacing fact does not name loses the board with the old operator" do
@@ -280,7 +280,7 @@ defmodule MclKanban.CrewFactsOverMeshTest do
     assert Enum.sort(dropped) == Enum.sort([{drop, :ok}, {hex(name <> "_op"), :ok}])
     assert CrewState.crew_of(state, drop) == nil
     assert CrewState.crew_of(state, hex(name <> "_op")) == nil
-    assert CrewState.crew_of(state, keep) == name
+    assert CrewState.crew_of(state, keep) == crew_id(name)
   end
 
   test "a re-sent admission with a smaller roster drops the member it no longer names" do
@@ -305,7 +305,7 @@ defmodule MclKanban.CrewFactsOverMeshTest do
              )
 
     assert CrewState.crew_of(crew(), drop) == nil
-    assert CrewState.crew_of(crew(), keep) == name
+    assert CrewState.crew_of(crew(), keep) == crew_id(name)
   end
 
   test "an admission and its revocation arriving together never leave the crew holding the board" do
@@ -328,7 +328,7 @@ defmodule MclKanban.CrewFactsOverMeshTest do
 
       state = crew()
 
-      assert CrewState.operator_of(state, name) == nil,
+      assert CrewState.operator_of(state, crew_id(name)) == nil,
              "round #{round}: a revoked crew kept its operator"
 
       assert CrewState.crew_of(state, hex(name <> "_one")) == nil,
@@ -338,68 +338,110 @@ defmodule MclKanban.CrewFactsOverMeshTest do
     end
   end
 
-  test "a second crew id under a name the board already holds is refused, and the first crew is untouched" do
-    # The realm keys a crew by id and lets two ids share a name; this board
-    # keys one by name, because that is what an agent's record carries. So the
-    # second admission is refused by name rather than acted on, and neither
-    # its admission nor its revocation may touch the crew already holding it.
+  test "two crews the realm admitted under one name are two crews, each acted on by its own id" do
+    # Option (b): the board acts a crew by its crew_id, so the realm's two
+    # crews that share a name are two crews here. Neither can enlist,
+    # appoint, discharge or record the other -- which is what a name key made
+    # impossible, and why a fact used to be refused by name instead.
     name = "twin_room"
     first = crew_id(name)
     second = crew_id(name <> "_invited_again")
 
+    twin = fn id, member, operator ->
+      signed("admitted", name, %{
+        "seq" => 1,
+        "crew_id" => id,
+        "operator_node" => hex(operator),
+        "operator_name" => operator,
+        "member_nodes" => [hex(member)],
+        "member_names" => %{hex(member) => member}
+      })
+    end
+
+    assert {:ok, _outcome} = CrewFacts.received("admitted", twin.(first, "twin_one", "twin_op_a"))
+
     assert {:ok, _outcome} =
-             CrewFacts.received(
-               "admitted",
-               signed("admitted", name, %{"seq" => 1, "crew_id" => first})
-             )
-
-    assert {:error, {:crew_name_taken, ^name}} =
-             CrewFacts.received(
-               "admitted",
-               signed("admitted", name, %{"seq" => 1, "crew_id" => second})
-             )
-
-    # nothing of the second crew was applied, and its seq was not recorded
-    assert CrewState.crew_seq(crew(), second) == 0
-    assert CrewState.operator_of(crew(), name) == hex(name <> "_op")
-    assert CrewState.crew_of(crew(), hex(name <> "_one")) == name
-
-    # and the drop that follows it may not discharge the first crew either
-    assert {:error, {:crew_name_taken, ^name}} =
-             CrewFacts.received(
-               "revoked",
-               signed("revoked", name, %{
-                 "seq" => 2,
-                 "crew_id" => second,
-                 "reason" => "revoked"
-               })
-             )
+             CrewFacts.received("admitted", twin.(second, "twin_two", "twin_op_b"))
 
     state = crew()
-    assert CrewState.operator_of(state, name) == hex(name <> "_op")
-    assert CrewState.crew_of(state, hex(name <> "_one")) == name
+    assert CrewState.crew_of(state, hex("twin_one")) == first
+    assert CrewState.crew_of(state, hex("twin_two")) == second
+    assert CrewState.operator_of(state, first) == hex("twin_op_a")
+    assert CrewState.operator_of(state, second) == hex("twin_op_b")
     assert CrewState.crew_seq(state, first) == 1
+    assert CrewState.crew_seq(state, second) == 1
+
+    # The drop names one id: the other crew keeps every agent, its operator
+    # and its seq, which is the whole point of keying by id.
+    assert {:ok, %{discharged: discharged}} =
+             CrewFacts.received(
+               "revoked",
+               signed("revoked", name, %{"seq" => 2, "crew_id" => first, "reason" => "revoked"})
+             )
+
+    assert Enum.sort(discharged) ==
+             Enum.sort([{hex("twin_one"), :ok}, {hex("twin_op_a"), :ok}])
+
+    state = crew()
+    assert CrewState.crew_of(state, hex("twin_one")) == nil
+    assert CrewState.operator_of(state, first) == nil
+    assert CrewState.crew_of(state, hex("twin_two")) == second
+    assert CrewState.operator_of(state, second) == hex("twin_op_b")
+    assert CrewState.crew_seq(state, second) == 1
   end
 
-  test "a realm crew may not take a name this board's own crews answer to" do
-    # The home crew and any crew made by hand hold agents the realm never
-    # named and has no entry for. A realm crew admitted under one of those
-    # names would enlist into it, and a smaller roster would then discharge
-    # every agent it did not name.
+  test "a realm crew may take the name of a crew the owner made, and the two stay apart" do
+    # A name is no longer a key, so nothing is reserved for the board's own
+    # crews: the owner's crew is held by its name, the realm's by its id, and
+    # enlisting by that name is refused as ambiguous rather than guessed.
     home_agent = enlist("home_hand", CrewName.home())
     handmade_agent = enlist("handmade_hand", "handmade_room")
 
-    assert {:error, {:crew_name_reserved, "home"}} =
-             CrewFacts.received("admitted", signed("admitted", CrewName.home(), %{"seq" => 1}))
-
-    assert {:error, {:crew_name_taken, "handmade_room"}} =
+    assert {:ok, _outcome} =
              CrewFacts.received("admitted", signed("admitted", "handmade_room", %{"seq" => 1}))
 
+    key = crew_id("handmade_room")
     state = crew()
+
     assert CrewState.crew_of(state, home_agent) == CrewName.home()
     assert CrewState.crew_of(state, handmade_agent) == "handmade_room"
-    assert CrewState.crew_seq(state, crew_id("home")) == 0
-    assert CrewState.crew_seq(state, crew_id("handmade_room")) == 0
+    assert CrewState.crew_of(state, hex("handmade_room_one")) == key
+    assert CrewState.crew_seq(state, key) == 1
+
+    {:ok, ambiguous} =
+      EnlistAgentV1.new(%{
+        name: "ambiguous_hand",
+        node_id: hex("ambiguous_hand"),
+        crew: "handmade_room",
+        by: Actor.owner()
+      })
+
+    assert {:error, :crew_name_ambiguous} = MaybeEnlistAgent.dispatch(ambiguous)
+
+    # the id names the one crew, and the agent lands in it
+    {:ok, by_id} =
+      EnlistAgentV1.new(%{
+        name: "id_hand",
+        node_id: hex("id_hand"),
+        crew: key,
+        by: Actor.owner()
+      })
+
+    assert {:ok, _version, _events} = MaybeEnlistAgent.dispatch(by_id)
+    assert CrewState.crew_of(crew(), hex("id_hand")) == key
+
+    # the board's home crew keeps answering to its own name, whatever the
+    # realm invited: an agent enlisted with no crew still lands in it
+    assert {:ok, home} =
+             EnlistAgentV1.new(%{
+               name: "home_second",
+               node_id: hex("home_second"),
+               crew: CrewName.home(),
+               by: Actor.owner()
+             })
+
+    assert {:ok, _version, _events} = MaybeEnlistAgent.dispatch(home)
+    assert CrewState.crew_of(crew(), hex("home_second")) == CrewName.home()
   end
 
   test "an act the board will never do is recorded, and said out loud" do
@@ -447,7 +489,7 @@ defmodule MclKanban.CrewFactsOverMeshTest do
              )
 
     assert {:error, :already_observed} = CrewFacts.received("admitted", admitted)
-    assert CrewState.operator_of(crew(), name) == nil
+    assert CrewState.operator_of(crew(), crew_id(name)) == nil
   end
 
   test "the reconcile applies the realm's latest fact, and keeps the crew on its errors" do
@@ -471,13 +513,13 @@ defmodule MclKanban.CrewFactsOverMeshTest do
       _other -> {:error, "unknown_crew"}
     end
 
-    assert :ok = CrewStandingReconciler.reconcile(fetch)
+    assert %{} = CrewStandingReconciler.reconcile(fetch)
     state = crew()
-    assert CrewState.operator_of(state, name) == nil
+    assert CrewState.operator_of(state, crew_id(name)) == nil
     assert CrewState.crew_seq(state, id) == 2
 
     # the same answer again is the ordinary replay path, not a failure
-    assert :ok = CrewStandingReconciler.reconcile(fetch)
+    assert %{} = CrewStandingReconciler.reconcile(fetch)
     assert CrewState.crew_seq(crew(), id) == 2
   end
 
@@ -495,8 +537,80 @@ defmodule MclKanban.CrewFactsOverMeshTest do
       _other -> {:error, "unknown_crew"}
     end
 
-    assert :ok = CrewStandingReconciler.reconcile(fetch)
-    assert CrewState.operator_of(crew(), name) == nil
+    assert %{} = CrewStandingReconciler.reconcile(fetch)
+    assert CrewState.operator_of(crew(), crew_id(name)) == nil
     assert CrewState.crew_seq(crew(), id) == 2
+  end
+
+  test "a crew the realm stops knowing is discharged after three reconciles in a row" do
+    # Raf's rule (2026-10-27): the realm saying unknown_crew three times in a
+    # row is the realm saying it no longer knows this crew, so the board drops
+    # it. A signed fact in between is the realm knowing it after all, and the
+    # run of answers starts again -- which is what keeps one bad answer, or a
+    # crew admitted a minute ago, from emptying a board.
+    name = "forgotten_room"
+    admitted = signed("admitted", name, %{"seq" => 1})
+
+    assert {:ok, _outcome} = CrewFacts.received("admitted", admitted)
+
+    id = crew_id(name)
+
+    # every other crew this board knows is unreachable, never answered about
+    fetch = fn
+      ^id -> {:error, "unknown_crew"}
+      _other -> {:error, :timeout}
+    end
+
+    counts = passes(fetch, 2, %{})
+
+    assert CrewState.operator_of(crew(), id) == hex(name <> "_op"),
+           "two answers dropped the crew"
+
+    # a signed fact between the answers restarts the run
+    assert {:ok, _outcome} =
+             CrewFacts.received("admitted", signed("admitted", name, %{"seq" => 2}))
+
+    counts = passes(fetch, 2, counts)
+    assert CrewState.operator_of(crew(), id) == hex(name <> "_op"), "the run did not restart"
+
+    _counts = passes(fetch, 1, counts)
+
+    state = crew()
+    assert CrewState.crew_of(state, hex(name <> "_one")) == nil
+    assert CrewState.crew_of(state, hex(name <> "_op")) == nil
+    assert CrewState.operator_of(state, id) == nil
+    refute Enum.any?(CrewState.live_crews(state), fn {live, _name} -> live == id end)
+
+    # the seq it reached is kept: a replay of an old admission re-enlists nobody
+    assert CrewState.crew_seq(state, id) == 2
+    assert {:error, :already_observed} = CrewFacts.received("admitted", admitted)
+    assert CrewState.operator_of(crew(), id) == nil
+  end
+
+  test "a realm this board cannot reach never loses a crew" do
+    # A timeout, a missing provider, a lost answer and the realm's own
+    # `invalid_crew_id` are not the realm saying it does not know the crew.
+    # None of them may count against it, however often they happen.
+    name = "unreachable_room"
+
+    assert {:ok, _outcome} =
+             CrewFacts.received("admitted", signed("admitted", name, %{"seq" => 1}))
+
+    id = crew_id(name)
+
+    for why <- [:timeout, "invalid_crew_id", :no_provider, {:error, :closed}],
+        round <- 1..3 do
+      fetch = fn _crew -> {:error, why} end
+
+      assert %{} = passes(fetch, 4, %{}), "#{inspect(why)} round #{round} counted an answer"
+      assert CrewState.crew_of(crew(), hex(name <> "_one")) == id
+      assert CrewState.operator_of(crew(), id) == hex(name <> "_op")
+    end
+  end
+
+  defp passes(fetch, times, counts) do
+    Enum.reduce(1..times, counts, fn _, counts ->
+      CrewStandingReconciler.reconcile(fetch, counts)
+    end)
   end
 end

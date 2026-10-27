@@ -11,13 +11,17 @@ defmodule GuideCardLifecycle.OnCrewAdmittedAppointOperator do
   # The fact carries the whole roster, so an agent this board holds in the
   # crew and the fact does not name is dropped: a re-sent admission with a
   # smaller roster is the realm saying that member is gone (#40).
+  #
+  # The crew every act here names is the fact's `crew_id` (#40 option b): the
+  # realm's id for the crew, which is what the board holds that crew's agents,
+  # its operator and its seq under.
   @moduledoc false
 
   alias GuideCardLifecycle.CrewFacts.RealmActs
 
   @spec handle(map()) :: {:ok, map()}
   def handle(payload) do
-    crew = payload["crew_name"]
+    crew = payload["crew_id"]
 
     enlisted = for member <- members(payload), do: {member, RealmActs.enlist(crew, member)}
     operator = RealmActs.appoint(crew, payload["operator_name"])

@@ -42,6 +42,20 @@ the board was deployed with, is the whole authority. A crew with no realm key
 configured is simply not admitted this way, and the owner still founds crews by
 hand.
 
+**A crew's key (#40).** A crew is acted on by its KEY: the crew id for a crew
+the realm admitted, its name for a crew the owner made -- the two cannot
+collide, so `crew`, `crew_id` and `lane_crew` accept either. Enlisting,
+appointing an operator and reserving a card for a crew are where a person
+names one, and a name binds to exactly one crew: one admitted crew answers to
+it, or none does and it is a crew the owner made. A name that is not one
+crew's -- two admitted crews sharing it, or one sharing it with a crew the
+board already has -- is refused as `crew_name_ambiguous`: say which crew by its
+id, which `get_crew` carries beside each name. The home crew is always the
+board's own, since it is where an agent enlisted without a crew lands. A crew
+the realm stops knowing -- `unknown_crew` three reconciles in a row -- is
+discharged by the board itself and loses its agents; a fact from the realm in
+between restarts that count.
+
 **Home crews and crew lanes (#29).** Every board belongs to a **home crew**:
 `open_board` names it (`crew`, by default the opener's own), and boards opened
 before #29 belong to `home`. A board's cards and packages follow it, and the
@@ -155,7 +169,7 @@ callers' arguments. macula-mcp reports `sealed: 1` on each answer.
 | `get_my_cards` | none | `cards` you hold | agent |
 | `enlist_agent` | `name`, `node_id` (64 hex), `crew` | `agent` (`name`, `node_id`, `crew`) | the operator of that crew, owner |
 | `discharge_agent` | `name` | `agent` | the operator of its crew, owner |
-| `get_crew` | none | `crews`: each `crew`, its `operator` (`node_id`, `name`, or absent), and its `agents`, each with `roles`, `held`, `next` | agent |
+| `get_crew` | none | `crews`: each `crew_id` (its key) and `crew` (the name a person reads), its `operator` (`node_id`, `name`, or absent), and its `agents`, each with `roles`, `held`, `next` | agent |
 | `open_board` | `repo`, optional `crew` (its home crew; by default yours) | `board` with `home_crew` | supervisor or operator, for its own crew |
 | `archive_board` | `repo` | `board` | home crew's supervisor or operator |
 | `open_package` | `issue_ref` (the work-package issue), `title` | `package` | home crew's supervisor or operator (the repo's board must be open, not archived) |
@@ -192,7 +206,7 @@ A command's reply is the card as its own event left it.
 A refusal is a normal reply naming its reason, `{reason: "already_claimed"}`:
 
 `not_enlisted`, `not_permitted`, `not_home_crew`, `already_on_board`, `already_claimed`,
-`not_holder`, `not_in_lane`, `other_crew_lane`, `appointed_by_owner`, `unknown_crew`, `already_home_crew`, `package_card`, `pinned_by_owner`, `not_pinned`, `finished`,
+`not_holder`, `not_in_lane`, `other_crew_lane`, `appointed_by_owner`, `unknown_crew`, `crew_name_ambiguous`, `already_home_crew`, `package_card`, `pinned_by_owner`, `not_pinned`, `finished`,
 `withdrawn`, `blocked`, `deferred`, `goal_required`, `invalid_goal_packages`, `already_deferred`, `not_deferred`, `already_blocked`, `not_blocked`, `not_claimed`,
 `not_reserved`, `unknown_card`, `unknown_board`, `board_archived`,
 `unknown_agent`, `already_enlisted`, `name_taken`, `name_reserved`,

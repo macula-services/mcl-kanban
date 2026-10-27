@@ -16,7 +16,7 @@ defmodule GuideCardLifecycle.CrewFacts do
   alias GuideCardLifecycle.Actor
   alias GuideCardLifecycle.CrewAggregate
   alias GuideCardLifecycle.CrewFacts.{CrewFact, CrewFactGate, CrewFactSubscriber, RealmSignature}
-  alias GuideCardLifecycle.{CrewName, CrewState}
+  alias GuideCardLifecycle.CrewState
   alias GuideCardLifecycle.ObserveCrewFact.{MaybeObserveCrewFact, ObserveCrewFactV1}
 
   alias GuideCardLifecycle.{
@@ -79,52 +79,21 @@ defmodule GuideCardLifecycle.CrewFacts do
   def believe(fact, wire) do
     with {:ok, read} <- CrewFact.read(fact, wire),
          :ok <- signed(read),
-         :ok <- named_for_its_id(read),
          :ok <- fresh(read) do
       act(read)
     end
   end
 
-  # A crew is keyed by ID in the realm and by NAME on this board: its agents
-  # and its operator are held under the name, because that is what an agent's
-  # record carries. The realm lets two crew ids share one name (its invite
-  # does not check the realm's names against each other), so a fact for the
-  # second id would enlist, appoint and discharge the first crew's agents --
-  # and a later drop for it would discharge them again, leaving the crew that
-  # really ended still acting. This board cannot tell those two crews apart,
-  # so it refuses the fact instead of acting on the wrong one: by name, so the
-  # realm's admin is told to invite under another name, and without recording
-  # the seq, because nothing here was applied.
+  # A crew is acted on by its ID (#40 option b): its agents, its operator and
+  # its seq are held under the `crew_id` the realm signed, so two crews the
+  # realm admitted under one name are two crews here too, and a drop for one
+  # can no longer discharge the other's agents.
   #
-  # The name is not free merely because no realm crew holds it. A crew the
-  # OWNER made has no entry in `crews` at all -- the home crew an enlistment
-  # with no crew lands in, and any crew enlisted by hand -- so a realm crew
-  # invited under that name would enlist into it, and its next smaller roster
-  # would discharge every hand-made agent the realm never named. Hence: the
-  # name is taken when agents answer to it, and the home crew's name is not a
-  # realm crew's to take at all.
-  defp named_for_its_id(%{payload: %{"crew_id" => crew_id, "crew_name" => name}}) do
-    crew = CrewAggregate.current()
-
-    if name == CrewName.home(),
-      do: {:error, {:crew_name_reserved, name}},
-      else: held_by_id(crew, crew_id, name)
-  end
-
-  defp held_by_id(crew, crew_id, name) do
-    case CrewState.crew_name(crew, crew_id) do
-      ^name -> :ok
-      nil -> unnamed_elsewhere?(crew, name)
-      other -> {:error, {:crew_name_changed, other, name}}
-    end
-  end
-
-  defp unnamed_elsewhere?(crew, name) do
-    held = CrewState.crew_ids_named(crew, name) != [] or CrewState.agents_of(crew, name) != []
-
-    if held, do: {:error, {:crew_name_taken, name}}, else: :ok
-  end
-
+  # The NAME the fact carries is what a person reads, and it is recorded with
+  # the seq (crew_fact_observed_v1) so the board can show it and the reconcile
+  # can say which crew it kept. It is not a key and nothing is refused for it:
+  # the realm's invite does not check its names against each other, and the
+  # board no longer has to.
   defp signed(%{fact: fact, payload: payload, signature: signature}) do
     with {:ok, key} <- RealmSignature.configured_key(),
          do: RealmSignature.verify(CrewFact.signed_bytes(fact, payload), signature, key)

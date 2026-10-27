@@ -75,9 +75,15 @@ defmodule MclKanban.Wire do
   A crew as the wire carries it (#28): its operator, and its agents each with
   their roles and the cards they hold now and next. An absent operator or next
   card is an absent key, never a null.
+
+  `crew` is the name a person reads; `crew_id` is the key the crew is acted on
+  by (#40 option b) -- its crew_id for a crew the realm admitted, its name for
+  one the owner made. Two crews the realm admitted under one name are two
+  entries that differ here.
   """
   def crew(entry) do
     %{
+      crew_id: entry.crew_id,
       crew: entry.crew,
       operator: operator(entry.operator),
       agents: Enum.map(entry.agents, &agent/1)

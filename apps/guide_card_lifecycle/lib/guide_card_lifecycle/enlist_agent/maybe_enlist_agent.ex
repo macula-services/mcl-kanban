@@ -1,7 +1,11 @@
 defmodule GuideCardLifecycle.EnlistAgent.MaybeEnlistAgent do
   # Handler: the owner, or the operator of the crew being enlisted into (#28).
   # A node id is enlisted once, a name is taken once (case-insensitive).
-  @moduledoc false
+  #
+  # The crew a command names is resolved to its KEY here (#40 option b): the
+  # owner and an operator both name a crew, and a crew the realm admitted is
+  # held by its id. The event carries the key, so the roster holds one.
+  # @moduledoc false
 
   alias GuideCardLifecycle.Actor
   alias GuideCardLifecycle.CrewAggregate
@@ -11,6 +15,12 @@ defmodule GuideCardLifecycle.EnlistAgent.MaybeEnlistAgent do
   def handle_payload(state, payload), do: handle(state, struct(EnlistAgentV1, payload))
 
   def handle(%CrewState{} = crew, %EnlistAgentV1{} = cmd) do
+    with {:ok, key} <- CrewState.crew_key_for(crew, cmd.crew) do
+      listed(crew, %{cmd | crew: key})
+    end
+  end
+
+  defp listed(crew, cmd) do
     cond do
       not Actor.commands_crew?(cmd.by, cmd.crew) -> {:error, :not_permitted}
       Map.has_key?(crew.agents, cmd.node_id) -> {:error, :already_enlisted}

@@ -546,9 +546,10 @@ defmodule MclKanbanWeb.LadderComponents do
     <aside class="rail" aria-label="Crew on duty">
       <h2>Crew on duty</h2>
       <p :if={@crews == []} class="doing idle">Nobody is enlisted yet. Enlist an agent by the node id its MACULA_MCP_AGENT key signs with, then appoint a supervisor.</p>
-      <section :for={c <- @crews} class="crewgroup" data-crew={c.crew}>
+      <section :for={c <- @crews} class="crewgroup" data-crew={c.crew_id}>
         <h3>
           {c.crew}
+          <code :if={c.crew_id != c.crew} class="crew-id" title="the crew's id: enlist into it by this when two crews share a name">{c.crew_id}</code>
           <span :if={c.operator} class="whoop">operator {c.operator.name}</span>
           <span :if={c.operator == nil and c.agents != []} class="doing idle">no operator</span>
         </h3>
@@ -563,7 +564,7 @@ defmodule MclKanbanWeb.LadderComponents do
                 <div class="menu-list" role="menu">
                   <button :if={"supervisor" not in a.roles} type="button" role="menuitem" phx-click="appoint" phx-value-name={a.name} phx-value-role="supervisor">Appoint supervisor</button>
                   <button :if={"prioritiser" not in a.roles} type="button" role="menuitem" phx-click="appoint" phx-value-name={a.name} phx-value-role="prioritiser">Appoint prioritiser</button>
-                  <button :if={op(c.operator) != a.node_id} type="button" role="menuitem" phx-click="appoint" phx-value-name={a.name} phx-value-role="operator" phx-value-crew={c.crew}>Appoint operator of {c.crew}</button>
+                  <button :if={op(c.operator) != a.node_id} type="button" role="menuitem" phx-click="appoint" phx-value-name={a.name} phx-value-role="operator" phx-value-crew={c.crew_id} phx-value-crew-name={c.crew}>Appoint operator of {c.crew}</button>
                   <button type="button" role="menuitem" phx-click="open_dialog" phx-value-dialog="reserve_for" phx-value-name={a.name}>Reserve a card</button>
                   <button :if={"supervisor" not in a.roles} type="button" role="menuitem" class="danger" data-discharge={a.name}
                     phx-click="discharge" phx-value-name={a.name} data-confirm={"Discharge #{a.name}? Its cards stay where they are."}>Discharge</button>
@@ -599,6 +600,13 @@ defmodule MclKanbanWeb.LadderComponents do
 
   defp op(nil), do: nil
   defp op(operator), do: operator.node_id
+
+  # Whether two crews answer to one name (#40 option b): only then does the
+  # enlist dialog offer crew ids too, since an id is what tells them apart.
+  defp two_named?(crews) do
+    names = Enum.map(crews, & &1.crew)
+    length(names) != length(Enum.uniq(names))
+  end
 
   # ---------- drawer ----------
 
@@ -835,9 +843,9 @@ defmodule MclKanbanWeb.LadderComponents do
         </div>
         <div class="field">
           <label for="e-crew">Crew</label>
-          <input id="e-crew" name="crew" value={@values["crew"] || "home"} list="crew-names" required autocomplete="off" pattern="[A-Za-z][A-Za-z0-9_-]{0,39}" phx-debounce="150" />
-          <datalist id="crew-names"><option :for={c <- @crews} value={c.crew} /></datalist>
-          <span class="hint">An existing crew, or a new name to found one: a crew's operator enlists into its own crew only.</span>
+          <input id="e-crew" name="crew" value={@values["crew"] || "home"} list="crew-names" required autocomplete="off" pattern="[A-Za-z][A-Za-z0-9_-]{0,39}|[0-9a-f]{64}" phx-debounce="150" />
+          <datalist id="crew-names"><option :for={c <- @crews} value={c.crew} /><option :if={two_named?(@crews)} :for={c <- @crews} value={c.crew_id} /></datalist>
+          <span class="hint">An existing crew, or a new name to found one: a crew's operator enlists into its own crew only. Two crews may share a name, so a crew the realm admitted is also listed by its id.</span>
         </div>
         <div class="field">
           <label for="e-role">Role</label>
