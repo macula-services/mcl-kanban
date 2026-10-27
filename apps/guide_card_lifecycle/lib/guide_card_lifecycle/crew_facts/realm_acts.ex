@@ -109,6 +109,16 @@ defmodule GuideCardLifecycle.CrewFacts.RealmActs do
   defp run({:ok, command}, module), do: module.dispatch(command) |> outcome()
   defp run({:error, reason}, _module), do: {:error, reason}
 
+  # Every refusal the three desks this path drives can name -- the board's own
+  # answer to the realm's fact. Anything else a dispatch returns
+  # (`too_many_attempts`, a consistency timeout, a store that was not there)
+  # is the board failing rather than deciding, and is wrapped as such so the
+  # fact stays unrecorded and the next reconcile pass asks again.
+  @answers ~w(not_permitted already_enlisted name_taken unknown_agent
+              agent_in_another_crew already_appointed supervisor_required
+              appointed_by_owner held_in_another_crew)a
+
   defp outcome({:ok, _version, _events}), do: :ok
-  defp outcome({:error, reason}), do: {:error, reason}
+  defp outcome({:error, reason}) when is_atom(reason) and reason in @answers, do: {:error, reason}
+  defp outcome({:error, reason}), do: {:error, {:not_an_answer, reason}}
 end

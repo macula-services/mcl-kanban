@@ -104,12 +104,12 @@ defmodule GuideCardLifecycle.CrewFacts do
   #
   # What was left undone decides whether the seq is recorded at all, because
   # the record is what stops the reconcile asking about this crew again. A
-  # refusal the board's own rule named -- an atom: :name_taken,
-  # :held_in_another_crew -- is the board's answer and will not change by
-  # asking, so the fact is recorded and the refusal is reported with it.
-  # Anything else (a store that was not there, a timeout) is the board
-  # failing rather than the board deciding: nothing is recorded, and the next
-  # reconcile pass asks again.
+  # refusal the board's own rule named -- :name_taken, :held_in_another_crew
+  # -- is the board's answer and will not change by asking, so the fact is
+  # recorded and the refusal is reported with it. Anything the desk did not
+  # name (RealmActs wraps those as :not_an_answer: a store that was not there,
+  # a timeout) is the board failing rather than the board deciding: nothing is
+  # recorded, and the next reconcile pass asks again.
   defp act(%{fact: fact, payload: payload}) do
     case Map.fetch!(@handlers, fact).handle(payload) do
       {:ok, outcome} -> settle(fact, payload, outcome, undone(outcome))
@@ -137,10 +137,9 @@ defmodule GuideCardLifecycle.CrewFacts do
 
   defp refused(_what, _done), do: []
 
-  # The desk names its refusals; the store does not. That is the whole
-  # distinction between an answer worth recording and a failure worth retrying.
-  defp final?(reason) when is_atom(reason), do: true
-  defp final?(_reason), do: false
+  # An answer from the board, whatever it says; a failure is not one.
+  defp final?({:not_an_answer, _reason}), do: false
+  defp final?(_answer), do: true
 
   defp observed(fact, payload, outcome) do
     with {:ok, _version, _events} <- dispatch(fact, payload), do: {:ok, outcome}
