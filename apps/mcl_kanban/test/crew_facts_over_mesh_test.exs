@@ -9,10 +9,12 @@ defmodule MclKanban.CrewFactsOverMeshTest do
   # board_over_mesh_test lives here.
   use ExUnit.Case, async: false
 
+  alias GuideCardLifecycle.Actor
   alias GuideCardLifecycle.CrewAggregate
   alias GuideCardLifecycle.CrewFacts
   alias GuideCardLifecycle.CrewFacts.{CrewFact, CrewStandingReconciler}
-  alias GuideCardLifecycle.CrewState
+  alias GuideCardLifecycle.{CrewName, CrewState}
+  alias GuideCardLifecycle.EnlistAgent.{EnlistAgentV1, MaybeEnlistAgent}
 
   @key {__MODULE__, :realm_key}
   @at 1_790_000_000_000
@@ -77,6 +79,16 @@ defmodule MclKanban.CrewFactsOverMeshTest do
   defp wrapped(v) when is_map(v), do: Map.new(v, fn {k, val} -> {{:text, k}, wrapped(val)} end)
 
   defp crew, do: CrewAggregate.current()
+
+  # An agent the board's own crews hold, enlisted as the owner: neither the
+  # home crew nor a crew made by hand has an entry among the realm's crews.
+  defp enlist(name, crew) do
+    {:ok, command} =
+      EnlistAgentV1.new(%{name: name, node_id: hex(name), crew: crew, by: Actor.owner()})
+
+    {:ok, _version, _events} = MaybeEnlistAgent.dispatch(command)
+    hex(name)
+  end
 
   test "an admitted crew is enlisted and its operator appointed, and the seq is recorded" do
     name = "radio_room"
@@ -367,6 +379,27 @@ defmodule MclKanban.CrewFactsOverMeshTest do
     assert CrewState.operator_of(state, name) == hex(name <> "_op")
     assert CrewState.crew_of(state, hex(name <> "_one")) == name
     assert CrewState.crew_seq(state, first) == 1
+  end
+
+  test "a realm crew may not take a name this board's own crews answer to" do
+    # The home crew and any crew made by hand hold agents the realm never
+    # named and has no entry for. A realm crew admitted under one of those
+    # names would enlist into it, and a smaller roster would then discharge
+    # every agent it did not name.
+    home_agent = enlist("home_hand", CrewName.home())
+    handmade_agent = enlist("handmade_hand", "handmade_room")
+
+    assert {:error, {:crew_name_reserved, "home"}} =
+             CrewFacts.received("admitted", signed("admitted", CrewName.home(), %{"seq" => 1}))
+
+    assert {:error, {:crew_name_taken, "handmade_room"}} =
+             CrewFacts.received("admitted", signed("admitted", "handmade_room", %{"seq" => 1}))
+
+    state = crew()
+    assert CrewState.crew_of(state, home_agent) == CrewName.home()
+    assert CrewState.crew_of(state, handmade_agent) == "handmade_room"
+    assert CrewState.crew_seq(state, crew_id("home")) == 0
+    assert CrewState.crew_seq(state, crew_id("handmade_room")) == 0
   end
 
   test "an act the board will never do is recorded, and said out loud" do

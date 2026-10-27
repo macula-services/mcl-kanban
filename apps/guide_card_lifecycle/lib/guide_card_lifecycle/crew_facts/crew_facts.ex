@@ -16,7 +16,7 @@ defmodule GuideCardLifecycle.CrewFacts do
   alias GuideCardLifecycle.Actor
   alias GuideCardLifecycle.CrewAggregate
   alias GuideCardLifecycle.CrewFacts.{CrewFact, CrewFactGate, CrewFactSubscriber, RealmSignature}
-  alias GuideCardLifecycle.CrewState
+  alias GuideCardLifecycle.{CrewName, CrewState}
   alias GuideCardLifecycle.ObserveCrewFact.{MaybeObserveCrewFact, ObserveCrewFactV1}
 
   alias GuideCardLifecycle.{
@@ -95,9 +95,23 @@ defmodule GuideCardLifecycle.CrewFacts do
   # so it refuses the fact instead of acting on the wrong one: by name, so the
   # realm's admin is told to invite under another name, and without recording
   # the seq, because nothing here was applied.
+  #
+  # The name is not free merely because no realm crew holds it. A crew the
+  # OWNER made has no entry in `crews` at all -- the home crew an enlistment
+  # with no crew lands in, and any crew enlisted by hand -- so a realm crew
+  # invited under that name would enlist into it, and its next smaller roster
+  # would discharge every hand-made agent the realm never named. Hence: the
+  # name is taken when agents answer to it, and the home crew's name is not a
+  # realm crew's to take at all.
   defp named_for_its_id(%{payload: %{"crew_id" => crew_id, "crew_name" => name}}) do
     crew = CrewAggregate.current()
 
+    if name == CrewName.home(),
+      do: {:error, {:crew_name_reserved, name}},
+      else: held_by_id(crew, crew_id, name)
+  end
+
+  defp held_by_id(crew, crew_id, name) do
     case CrewState.crew_name(crew, crew_id) do
       ^name -> :ok
       nil -> unnamed_elsewhere?(crew, name)
@@ -106,10 +120,9 @@ defmodule GuideCardLifecycle.CrewFacts do
   end
 
   defp unnamed_elsewhere?(crew, name) do
-    case CrewState.crew_ids_named(crew, name) do
-      [] -> :ok
-      _taken -> {:error, {:crew_name_taken, name}}
-    end
+    held = CrewState.crew_ids_named(crew, name) != [] or CrewState.agents_of(crew, name) != []
+
+    if held, do: {:error, {:crew_name_taken, name}}, else: :ok
   end
 
   defp signed(%{fact: fact, payload: payload, signature: signature}) do
