@@ -89,12 +89,13 @@ defmodule GuideCardLifecycle.CrewFacts.CrewStandingReconciler do
   # The realm's reply is its latest fact: the fact name beside the signed
   # payload it was published with. That is the same pair a topic gives a
   # subscriber -- the name outside the payload, the payload as it was signed --
-  # so it takes the one path, under the same gate. The envelope's own keys are
-  # read either way they may arrive (the realm's reply writes them as CBOR
-  # text, and a decoded reply may come back atom-keyed); the payload inside is
-  # the topic fact's wire shape, and is taken as it is.
+  # so it takes the one path, under the same gate. The envelope is read in
+  # every spelling it may arrive in (keys as CBOR text, atoms or strings, and
+  # a name that is itself text-wrapped), because a name this board cannot read
+  # is a revocation it never applies; the payload inside is the topic fact's
+  # wire shape, and is taken as it is.
   defp standing({:ok, reply}, name) when is_map(reply) do
-    fact = field(reply, "fact")
+    fact = reply |> field("fact") |> text()
     payload = field(reply, "payload")
 
     if is_binary(fact) and is_map(payload) do
@@ -112,6 +113,9 @@ defmodule GuideCardLifecycle.CrewFacts.CrewStandingReconciler do
   defp field(reply, "payload"),
     do:
       Map.get(reply, "payload") || Map.get(reply, {:text, "payload"}) || Map.get(reply, :payload)
+
+  defp text({:text, name}) when is_binary(name), do: name
+  defp text(name), do: name
 
   defp taken({:ok, outcome}, _name), do: outcome
   defp taken({:error, :already_observed}, _name), do: :current

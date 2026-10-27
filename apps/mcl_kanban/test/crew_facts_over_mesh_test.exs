@@ -408,4 +408,23 @@ defmodule MclKanban.CrewFactsOverMeshTest do
     assert :ok = CrewStandingReconciler.reconcile(fetch)
     assert CrewState.crew_seq(crew(), id) == 2
   end
+
+  test "a reconcile answer whose name arrives as CBOR text still drops the crew" do
+    name = "text_answered_room"
+
+    assert {:ok, _outcome} =
+             CrewFacts.received("admitted", signed("admitted", name, %{"seq" => 1}))
+
+    id = crew_id(name)
+    revoked = signed("revoked", name, %{"seq" => 2, "reason" => "revoked"})
+
+    fetch = fn
+      ^id -> {:ok, %{{:text, "fact"} => {:text, "revoked"}, {:text, "payload"} => revoked}}
+      _other -> {:error, "unknown_crew"}
+    end
+
+    assert :ok = CrewStandingReconciler.reconcile(fetch)
+    assert CrewState.operator_of(crew(), name) == nil
+    assert CrewState.crew_seq(crew(), id) == 2
+  end
 end
