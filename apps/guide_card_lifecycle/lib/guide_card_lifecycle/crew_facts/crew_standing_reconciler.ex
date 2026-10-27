@@ -182,26 +182,24 @@ defmodule GuideCardLifecycle.CrewFacts.CrewStandingReconciler do
   end
 
   defp discharge(crew_id, count, counts) do
-    with {:ok, cmd} <-
-           DischargeCrewV1.new(%{
-             crew: crew_id,
-             reason: "unknown_crew_after_n",
-             by: Actor.board()
-           }) do
-      Logger.warning(
-        "crew_standing for #{crew_id}: the realm answered unknown_crew #{count} times in a " <>
-          "row, so the board discharged the crew"
-      )
-
-      case MaybeDischargeCrew.dispatch(cmd) do
-        {:ok, _version, _events} -> :ok
-        {:error, reason} -> left(crew_id, reason)
-      end
-    else
+    case DischargeCrewV1.new(%{crew: crew_id, reason: "unknown_crew_after_n", by: Actor.board()}) do
+      {:ok, cmd} -> discharged(crew_id, count, cmd)
       {:error, reason} -> left(crew_id, reason)
     end
 
     Map.delete(counts, crew_id)
+  end
+
+  defp discharged(crew_id, count, cmd) do
+    Logger.warning(
+      "crew_standing for #{crew_id}: the realm answered unknown_crew #{count} times in a " <>
+        "row, so the board discharged the crew"
+    )
+
+    case MaybeDischargeCrew.dispatch(cmd) do
+      {:ok, _version, _events} -> :ok
+      {:error, reason} -> left(crew_id, reason)
+    end
   end
 
   defp left(crew_id, why) do

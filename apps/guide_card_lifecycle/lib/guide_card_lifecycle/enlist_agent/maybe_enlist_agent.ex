@@ -5,7 +5,7 @@ defmodule GuideCardLifecycle.EnlistAgent.MaybeEnlistAgent do
   # The crew a command names is resolved to its KEY here (#40 option b): the
   # owner and an operator both name a crew, and a crew the realm admitted is
   # held by its id. The event carries the key, so the roster holds one.
-  # @moduledoc false
+  @moduledoc false
 
   alias GuideCardLifecycle.Actor
   alias GuideCardLifecycle.CrewAggregate
