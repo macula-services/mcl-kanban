@@ -68,6 +68,20 @@ defmodule GuideCardLifecycle.CrewState do
   end
 
   @doc """
+  The name this board holds a crew id under, or nil for one it has never heard
+  from (#40). Note the two keys: the realm keys a crew by id and this board by
+  name, which is why a fact has to agree with the id it was recorded under.
+  """
+  @spec crew_name(t(), String.t()) :: String.t() | nil
+  def crew_name(%__MODULE__{crews: crews}, crew_id),
+    do: with(%{name: name} <- Map.get(crews, crew_id), do: name)
+
+  @doc "The crew ids this board holds under one name (#40)."
+  @spec crew_ids_named(t(), String.t()) :: [String.t()]
+  def crew_ids_named(%__MODULE__{crews: crews}, name),
+    do: for({id, %{name: ^name}} <- crews, do: id)
+
+  @doc """
   The crews the realm has told this board about, each with the id it must be
   asked about at: the reconcile's work list (#40).
   """

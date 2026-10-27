@@ -303,10 +303,6 @@ defmodule MclKanban.CrewFactsOverMeshTest do
     # observed -- a revoked crew keeping the board for good.
     for round <- 1..5 do
       name = "race_room_#{round}"
-      admitted = signed("admitted", name, %{"seq" => 5})
-
-      revoked =
-        signed("revoked", name, %{"seq" => 6, "reason" => "revoked"})
 
       both = [
         {"admitted", signed("admitted", name, %{"seq" => 5})},
@@ -328,6 +324,49 @@ defmodule MclKanban.CrewFactsOverMeshTest do
 
       assert CrewState.crew_seq(state, crew_id(name)) == 6
     end
+  end
+
+  test "a second crew id under a name the board already holds is refused, and the first crew is untouched" do
+    # The realm keys a crew by id and lets two ids share a name; this board
+    # keys one by name, because that is what an agent's record carries. So the
+    # second admission is refused by name rather than acted on, and neither
+    # its admission nor its revocation may touch the crew already holding it.
+    name = "twin_room"
+    first = crew_id(name)
+    second = crew_id(name <> "_invited_again")
+
+    assert {:ok, _outcome} =
+             CrewFacts.received(
+               "admitted",
+               signed("admitted", name, %{"seq" => 1, "crew_id" => first})
+             )
+
+    assert {:error, {:crew_name_taken, ^name}} =
+             CrewFacts.received(
+               "admitted",
+               signed("admitted", name, %{"seq" => 1, "crew_id" => second})
+             )
+
+    # nothing of the second crew was applied, and its seq was not recorded
+    assert CrewState.crew_seq(crew(), second) == 0
+    assert CrewState.operator_of(crew(), name) == hex(name <> "_op")
+    assert CrewState.crew_of(crew(), hex(name <> "_one")) == name
+
+    # and the drop that follows it may not discharge the first crew either
+    assert {:error, {:crew_name_taken, ^name}} =
+             CrewFacts.received(
+               "revoked",
+               signed("revoked", name, %{
+                 "seq" => 2,
+                 "crew_id" => second,
+                 "reason" => "revoked"
+               })
+             )
+
+    state = crew()
+    assert CrewState.operator_of(state, name) == hex(name <> "_op")
+    assert CrewState.crew_of(state, hex(name <> "_one")) == name
+    assert CrewState.crew_seq(state, first) == 1
   end
 
   test "an act the board will never do is recorded, and said out loud" do

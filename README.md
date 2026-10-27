@@ -107,6 +107,10 @@ operator, a member the realm dropped -- is discharged, so a re-sent admission
 with a smaller roster drops whoever left; the three drop facts discharge every
 agent of the crew. The fact is named by the topic it arrives on and never
 carried in the payload, where a `fact` field would be a field nobody signed.
+A board keys a crew by its NAME, so a fact about a crew id whose name the
+board already holds for a different id is refused by that name and changes
+nothing -- the realm lets two crews share one name, a board cannot, and the
+refusal says to invite the crew under another name.
 All of it acts as **the realm**, an actor no payload can claim, and the board
 believes one fact at a time: the highest-seq rule is only true if nothing can
 slip between reading the seq and recording it.

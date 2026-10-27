@@ -79,8 +79,36 @@ defmodule GuideCardLifecycle.CrewFacts do
   def believe(fact, wire) do
     with {:ok, read} <- CrewFact.read(fact, wire),
          :ok <- signed(read),
+         :ok <- named_for_its_id(read),
          :ok <- fresh(read) do
       act(read)
+    end
+  end
+
+  # A crew is keyed by ID in the realm and by NAME on this board: its agents
+  # and its operator are held under the name, because that is what an agent's
+  # record carries. The realm lets two crew ids share one name (its invite
+  # does not check the realm's names against each other), so a fact for the
+  # second id would enlist, appoint and discharge the first crew's agents --
+  # and a later drop for it would discharge them again, leaving the crew that
+  # really ended still acting. This board cannot tell those two crews apart,
+  # so it refuses the fact instead of acting on the wrong one: by name, so the
+  # realm's admin is told to invite under another name, and without recording
+  # the seq, because nothing here was applied.
+  defp named_for_its_id(%{payload: %{"crew_id" => crew_id, "crew_name" => name}}) do
+    crew = CrewAggregate.current()
+
+    case CrewState.crew_name(crew, crew_id) do
+      ^name -> :ok
+      nil -> unnamed_elsewhere?(crew, name)
+      other -> {:error, {:crew_name_changed, other, name}}
+    end
+  end
+
+  defp unnamed_elsewhere?(crew, name) do
+    case CrewState.crew_ids_named(crew, name) do
+      [] -> :ok
+      _taken -> {:error, {:crew_name_taken, name}}
     end
   end
 
