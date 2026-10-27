@@ -13,8 +13,6 @@ defmodule GuideCardLifecycle.CrewFacts do
   # colludes, so the signature is the whole authority (R4).
   @moduledoc false
 
-  require Logger
-
   alias GuideCardLifecycle.Actor
   alias GuideCardLifecycle.CrewAggregate
   alias GuideCardLifecycle.CrewFacts.{CrewFact, CrewFactSubscriber, RealmSignature}

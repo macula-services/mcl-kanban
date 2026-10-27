@@ -121,6 +121,40 @@ defmodule MclKanban.CrewFactsOverMeshTest do
     assert CrewState.crew_seq(crew(), crew_id(name)) == 0
   end
 
+  test "a member the board already holds in another crew is refused, and the fact is still recorded" do
+    shared = hex("shared_agent")
+    first = "first_room"
+    second = "second_room"
+
+    assert {:ok, %{enlisted: first_enlisted, operator: :ok}} =
+             CrewFacts.received(
+               "admitted",
+               signed("admitted", first, %{
+                 "seq" => 1,
+                 "member_nodes" => [shared],
+                 "member_names" => %{shared => "shared_agent"}
+               })
+             )
+
+    assert {:ok, %{enlisted: second_enlisted, operator: :ok}} =
+             CrewFacts.received(
+               "admitted",
+               signed("admitted", second, %{
+                 "seq" => 1,
+                 "member_nodes" => [shared],
+                 "member_names" => %{shared => "shared_agent_two"}
+               })
+             )
+
+    assert {{shared, "shared_agent"}, :ok} in first_enlisted
+    assert {{shared, "shared_agent_two"}, {:error, :held_in_another_crew}} in second_enlisted
+
+    state = crew()
+    assert CrewState.crew_of(state, shared) == first
+    assert CrewState.operator_of(state, second) == hex(second <> "_op")
+    assert CrewState.crew_seq(state, crew_id(second)) == 1
+  end
+
   test "a fact on another fact's topic is refused" do
     assert {:error, :wrong_topic} =
              CrewFacts.received("revoked", signed("admitted", "topic_room"))
