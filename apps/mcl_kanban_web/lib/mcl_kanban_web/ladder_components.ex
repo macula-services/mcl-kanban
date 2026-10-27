@@ -868,8 +868,8 @@ defmodule MclKanbanWeb.LadderComponents do
         </div>
         <div class="field">
           <label for="ob-crew">Crew</label>
-          <input id="ob-crew" name="crew" value={@values["crew"] || "home"} list="ob-crew-names" required autocomplete="off" pattern="[A-Za-z][A-Za-z0-9_-]{0,39}" />
-          <datalist id="ob-crew-names"><option :for={c <- @crews} value={c.crew} /></datalist>
+          <input id="ob-crew" name="crew" value={@values["crew"] || "home"} list="ob-crew-names" required autocomplete="off" pattern="[A-Za-z][A-Za-z0-9_-]{0,39}|[0-9a-f]{64}" />
+          <datalist id="ob-crew-names"><option :for={c <- @crews} value={c.crew_id}>{c.crew}</option></datalist>
           <span class="hint">The board's home crew: only it ranks, defers, reserves and withdraws its cards. Any crew may still queue work on it.</span>
         </div>
         <div class="row">
@@ -893,8 +893,8 @@ defmodule MclKanbanWeb.LadderComponents do
         </div>
         <div class="field">
           <label for="ho-crew">To crew</label>
-          <input id="ho-crew" name="crew" value={@values["crew"]} list="ho-crew-names" required autocomplete="off" pattern="[A-Za-z][A-Za-z0-9_-]{0,39}" />
-          <datalist id="ho-crew-names"><option :for={c <- @crews} value={c.crew} /></datalist>
+          <input id="ho-crew" name="crew" value={@values["crew"]} list="ho-crew-names" required autocomplete="off" pattern="[A-Za-z][A-Za-z0-9_-]{0,39}|[0-9a-f]{64}" />
+          <datalist id="ho-crew-names"><option :for={c <- @crews} value={c.crew_id}>{c.crew}</option></datalist>
         </div>
         <div class="row"><button class="btn" type="button" phx-click="close_dialog">Cancel</button><button class="btn primary" type="submit">Hand it over</button></div>
       </form>

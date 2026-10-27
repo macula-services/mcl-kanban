@@ -8,6 +8,7 @@ defmodule GuideCardLifecycle.BoardTest do
   alias GuideCardLifecycle.ArchiveBoard.{ArchiveBoardV1, MaybeArchiveBoard}
   alias GuideCardLifecycle.BoardState
   alias GuideCardLifecycle.DeferBoard.{DeferBoardV1, MaybeDeferBoard}
+  alias GuideCardLifecycle.HandOverBoard.HandOverBoardV1
   alias GuideCardLifecycle.IssueRef
   alias GuideCardLifecycle.OpenBoard.{MaybeOpenBoard, OpenBoardV1}
   alias GuideCardLifecycle.ResumeBoard.{MaybeResumeBoard, ResumeBoardV1}
@@ -47,6 +48,34 @@ defmodule GuideCardLifecycle.BoardTest do
     for bad <- ["widget", "a/b/c", "", "owner/", "/repo", "own er/repo"] do
       assert {:error, :invalid_repo} = OpenBoardV1.new(%{repo: bad, by: actor("ada")}), bad
     end
+  end
+
+  test "a board belongs to a realm crew as readily as to a named one (#40)" do
+    # open_board and hand_over_board used CrewName.name/1, so a realm crew's
+    # 64-hex key was refused as invalid_crew and a realm crew could never own
+    # a board or be handed one. The key is the same one every other crew
+    # command takes; the owner, who belongs to no crew, is who opens it.
+    realm = String.duplicate("a", 64)
+
+    {:ok, cmd} = OpenBoardV1.new(%{repo: @repo, crew: realm, by: Actor.owner()})
+    assert cmd.crew == realm
+
+    assert {:ok, [%{event_type: "board_opened_v1", home_crew: ^realm}]} =
+             MaybeOpenBoard.handle(BoardState.new(cmd.board_id), cmd)
+
+    {:ok, hand} = HandOverBoardV1.new(%{repo: @repo, crew: realm, by: Actor.owner()})
+    assert hand.crew == realm
+
+    # Another crew's supervisor still may not open a board for this one: the
+    # key is accepted as a key, not as a way past the home-crew rule.
+    assert {:error, :not_home_crew} =
+             OpenBoardV1.new(%{repo: @repo, crew: realm, by: actor("ada")})
+             |> elem(1)
+             |> then(&MaybeOpenBoard.handle(BoardState.new(&1.board_id), &1))
+
+    # A name is still a name, and anything else is still refused.
+    assert {:error, :invalid_crew} =
+             HandOverBoardV1.new(%{repo: @repo, crew: "not a crew", by: Actor.owner()})
   end
 
   test "archiving needs an open board, once, by the supervisor or the owner" do

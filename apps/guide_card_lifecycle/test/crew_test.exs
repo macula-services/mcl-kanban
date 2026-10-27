@@ -11,7 +11,9 @@ defmodule GuideCardLifecycle.CrewTest do
   alias GuideCardLifecycle.AppointOperator.{AppointOperatorV1, MaybeAppointOperator}
   alias GuideCardLifecycle.AppointPrioritiser.{AppointPrioritiserV1, MaybeAppointPrioritiser}
   alias GuideCardLifecycle.AppointSupervisor.{AppointSupervisorV1, MaybeAppointSupervisor}
+  alias GuideCardLifecycle.AgentName
   alias GuideCardLifecycle.CrewAggregate
+  alias GuideCardLifecycle.CrewName
   alias GuideCardLifecycle.CrewState
   alias GuideCardLifecycle.DischargeAgent.{DischargeAgentV1, MaybeDischargeAgent}
   alias GuideCardLifecycle.EnlistAgent.{EnlistAgentV1, MaybeEnlistAgent}
@@ -118,6 +120,46 @@ defmodule GuideCardLifecycle.CrewTest do
 
       assert {:error, :missing_required_fields} =
                EnlistAgentV1.new(%{name: "dan", node_id: hex("dan"), by: actor("ada")})
+    end
+
+    test "a name or key with a trailing newline is refused, not read as one (#40)" do
+      # `$` matches BEFORE a final newline, so `^...$` accepted a pasted line
+      # ending: "dan\n" passed and was stored beside "dan", and a 64-hex crew
+      # key with a newline was a second key for the same crew.
+      assert {:error, :invalid_name} =
+               EnlistAgentV1.new(%{
+                 name: "dan\n",
+                 node_id: hex("dan"),
+                 crew: "home",
+                 by: actor("ada")
+               })
+
+      assert {:error, :invalid_node_id} =
+               EnlistAgentV1.new(%{
+                 name: "dan",
+                 node_id: hex("dan") <> "\n",
+                 crew: "home",
+                 by: actor("ada")
+               })
+
+      assert {:error, :invalid_crew} =
+               EnlistAgentV1.new(%{
+                 name: "dan",
+                 node_id: hex("dan"),
+                 crew: "home\n",
+                 by: actor("ada")
+               })
+
+      assert {:error, :invalid_crew} = CrewName.name("home\n")
+      assert {:error, :invalid_name} = AgentName.name("dan\n")
+      assert {:error, :invalid_node_id} = AgentName.node_id(String.duplicate("a", 64) <> "\n")
+      assert {:error, :invalid_crew} = CrewName.key(String.duplicate("a", 64) <> "\n")
+
+      # The shapes themselves still pass: the fix tightens the anchor, not the rule.
+      assert {:ok, "home"} = CrewName.name("home")
+      assert {:ok, "dan-2"} = AgentName.name("dan-2")
+      assert {:ok, key} = CrewName.key(String.duplicate("a", 64))
+      assert {:ok, ^key} = CrewName.key(key)
     end
 
     test "an upper-case node id is stored lower-case" do

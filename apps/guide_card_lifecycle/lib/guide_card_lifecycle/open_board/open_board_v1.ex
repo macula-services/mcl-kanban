@@ -20,7 +20,7 @@ defmodule GuideCardLifecycle.OpenBoard.OpenBoardV1 do
   @impl true
   def new(%{repo: repo, by: %Actor{} = by} = params) do
     with {:ok, repo} <- IssueRef.repo(repo),
-         {:ok, crew} <- CrewName.name(Map.get(params, :crew) || by.crew || CrewName.home()),
+         {:ok, crew} <- CrewName.key(Map.get(params, :crew) || by.crew || CrewName.home()),
          do: {:ok, %__MODULE__{board_id: IssueRef.board_id(repo), repo: repo, crew: crew, by: by}}
   end
 

@@ -15,6 +15,14 @@ defmodule GuideCardLifecycle.IssueRefTest do
     end
   end
 
+  test "a reference or repo with a trailing newline is refused, not read as one (#40)" do
+    # `$` matches BEFORE a final newline: a pasted line ending parsed, and its
+    # stream id was derived from the newline-carrying text, so the same issue
+    # had a second card id.
+    assert {:error, :invalid_issue_ref} = IssueRef.parse("example-org/widget#12\n")
+    assert {:error, :invalid_repo} = IssueRef.repo("example-org/widget\n")
+  end
+
   test "the card and board ids are stream ids reckon-db accepts, derived, stable" do
     card = IssueRef.card_id("example-org/widget#12")
     board = IssueRef.board_id("example-org/widget")

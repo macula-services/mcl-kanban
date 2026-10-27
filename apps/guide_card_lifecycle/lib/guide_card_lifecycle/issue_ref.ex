@@ -9,8 +9,8 @@ defmodule GuideCardLifecycle.IssueRef do
   # half of the sha256 of the issue reference (or repo).
   @moduledoc false
 
-  @repo ~r/^[A-Za-z0-9][A-Za-z0-9_.-]*\/[A-Za-z0-9_.-]+$/
-  @ref ~r/^([A-Za-z0-9][A-Za-z0-9_.-]*\/[A-Za-z0-9_.-]+)#([1-9][0-9]{0,9})$/
+  @repo ~r/\A[A-Za-z0-9][A-Za-z0-9_.-]*\/[A-Za-z0-9_.-]+\z/
+  @ref ~r/\A([A-Za-z0-9][A-Za-z0-9_.-]*\/[A-Za-z0-9_.-]+)#([1-9][0-9]{0,9})\z/
 
   @spec parse(term()) ::
           {:ok, %{issue_ref: String.t(), repo: String.t(), number: pos_integer()}}

@@ -18,7 +18,7 @@ defmodule GuideCardLifecycle.HandOverBoard.HandOverBoardV1 do
   @impl true
   def new(%{repo: repo, crew: crew, by: %Actor{} = by}) do
     with {:ok, repo} <- IssueRef.repo(repo),
-         {:ok, crew} <- CrewName.name(crew),
+         {:ok, crew} <- CrewName.key(crew),
          do: {:ok, %__MODULE__{board_id: IssueRef.board_id(repo), repo: repo, crew: crew, by: by}}
   end
 

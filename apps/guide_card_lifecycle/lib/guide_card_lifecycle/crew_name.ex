@@ -12,7 +12,7 @@ defmodule GuideCardLifecycle.CrewName do
   # nobody has to learn two rules.
   @moduledoc false
 
-  @name ~r/^[A-Za-z][A-Za-z0-9_-]{0,39}$/
+  @name ~r/\A[A-Za-z][A-Za-z0-9_-]{0,39}\z/
   @key ~r/\A[0-9a-f]{64}\z/
   @home "home"
 

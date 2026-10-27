@@ -53,7 +53,8 @@ defmodule ProjectBoards.ProjectionsTest do
                    package_opened_v1 package_prioritised_v1 package_unpinned_v1
                    card_filed_v1 card_unfiled_v1 card_deferred_v1 card_resumed_v1
                    package_deferred_v1 package_resumed_v1 board_deferred_v1
-                   board_resumed_v1 goal_adopted_v1) do
+                   board_resumed_v1 goal_adopted_v1
+                   crew_discharged_v1 operator_seat_vacated_v1) do
       assert type in types, type
     end
   end
@@ -238,6 +239,35 @@ defmodule ProjectBoards.ProjectionsTest do
     # A discharged operator runs nothing: the crew is left with none, not
     # with the node id of an agent that is no longer in it.
     assert [[nil]] = ReadModel.q("SELECT operator_node_id FROM crews WHERE name = ?", [crew])
+  end
+
+  test "a crew that loses its seat, by a drop or a discharge, keeps no operator (#40)" do
+    # Two events empty the seat and only one of them had a projection: a crew
+    # the realm stopped knowing is dropped by the board and keeps answering
+    # `unknown_crew`, so the drop repeats while the stale seat would stay.
+    for {type, crew} <- [
+          {"operator_seat_vacated_v1", "seat" <> uniq()},
+          {"crew_discharged_v1", "gone" <> uniq()}
+        ] do
+      name = "op" <> uniq()
+      node = String.pad_leading(uniq(), 64, "c")
+
+      deliver(%{event_type: "agent_enlisted_v1", node_id: node, name: name, crew: crew, at: 1}, 0)
+
+      deliver(
+        %{event_type: "operator_appointed_v1", crew: crew, node_id: node, name: name, at: 2},
+        1
+      )
+
+      deliver(%{event_type: type, crew: crew, reason: "the realm stopped knowing it", at: 3}, 2)
+
+      assert [[nil]] = ReadModel.q("SELECT operator_node_id FROM crews WHERE name = ?", [crew])
+
+      assert [[roles]] = ReadModel.q("SELECT roles FROM crew WHERE node_id = ?", [node])
+      refute "operator" in String.split(roles, ",")
+
+      deliver(%{event_type: "agent_discharged_v1", node_id: node, name: name, at: 4}, 3)
+    end
   end
 
   test "an operator appointment that lands before its enlistment still leaves the role (#28)" do

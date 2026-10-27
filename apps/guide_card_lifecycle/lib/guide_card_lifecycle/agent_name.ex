@@ -7,8 +7,8 @@ defmodule GuideCardLifecycle.AgentName do
   # is not.
   @moduledoc false
 
-  @name ~r/^[A-Za-z][A-Za-z0-9_-]{0,39}$/
-  @node_id ~r/^[0-9a-fA-F]{64}$/
+  @name ~r/\A[A-Za-z][A-Za-z0-9_-]{0,39}\z/
+  @node_id ~r/\A[0-9a-fA-F]{64}\z/
   @reserved ~w(owner realm board)
 
   @spec name(term()) :: {:ok, String.t()} | {:error, :invalid_name | :name_reserved}

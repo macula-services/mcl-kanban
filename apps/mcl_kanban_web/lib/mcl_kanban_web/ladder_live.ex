@@ -296,7 +296,7 @@ defmodule MclKanbanWeb.LadderLive do
       ),
       do:
         outcome(socket, OwnerActions.appoint_operator(crew, name), fn ->
-          "<b>#{esc(name)}</b> runs the <b>#{esc(p["crew_name"] || crew)}</b> crew: it enlists and discharges there."
+          "<b>#{esc(name)}</b> runs the <b>#{esc(p["crew-name"] || crew)}</b> crew: it enlists and discharges there."
         end)
 
   def handle_event("discharge", %{"name" => name}, socket),

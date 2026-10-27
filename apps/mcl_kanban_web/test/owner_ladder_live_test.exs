@@ -135,6 +135,83 @@ defmodule MclKanbanWeb.OwnerLadderLiveTest do
     refute has_element?(view, button)
   end
 
+  test "the appointment's reply names the crew, not the key it is acted on by (#40)" do
+    # The rail sends the crew's KEY to act on and the NAME to read. The reply
+    # read "crew_name", which is never a parameter name: phx-value-crew-name
+    # arrives as "crew-name", so a realm crew's 64-hex key was printed where
+    # the crew's name belongs.
+    view = ladder()
+    crew = node_hex("realm crew " <> uniq())
+    name = "RealmCrew" <> uniq()
+    agent = "Rk" <> uniq()
+
+    # The fact the realm sends when it admits a crew: its projection is what
+    # gives a realm crew a name a person reads, keyed by the id the board acts
+    # on. This is the only way a crew's name and its key differ.
+    realm_crew_fact(crew, name)
+
+    view |> element("#enlist-btn") |> render_click()
+
+    view
+    |> form("#enlist-form", %{
+      "name" => agent,
+      "node_id" => node_hex(agent),
+      "crew" => crew,
+      "role" => "agent"
+    })
+    |> render_submit()
+
+    assert eventually(fn -> render(view) =~ "enlisted" end)
+
+    button =
+      ~s(button[phx-value-role="operator"][phx-value-name="#{agent}"][phx-value-crew="#{crew}"])
+
+    assert eventually(fn -> has_element?(view, button) end)
+    html = view |> element(button) |> render_click()
+
+    assert html =~ "runs the <b>#{name}</b> crew"
+    refute html =~ "runs the <b>#{crew}</b> crew"
+  end
+
+  # One crew fact, delivered exactly as the mesh's projector takes it: the
+  # crew id the board acts on, and the name the realm admitted it under.
+  defp realm_crew_fact(crew_id, crew_name) do
+    type = "crew_fact_observed_v1"
+
+    [module] =
+      Enum.filter(
+        ProjectBoards.Application.projections(),
+        &(type in &1.interested_in())
+      )
+
+    data = %{event_type: type, crew_id: crew_id, crew_name: crew_name}
+    envelope = %{event_type: type, event_id: "evt-" <> uniq(), version: 0, data: data}
+
+    assert {:ok, _} = module.handle_event(type, envelope, %{version: 0}, %{})
+
+    on_exit(fn ->
+      ProjectBoards.ReadModel.write([
+        {"DELETE FROM crews WHERE name = ?", [crew_id]},
+        {"DELETE FROM crew_names WHERE crew_id = ?", [crew_id]}
+      ])
+    end)
+  end
+
+  test "the board dialogs take a realm crew's key, as the enlist dialog does (#40)" do
+    view = ladder()
+    view |> element("#open-board-btn") |> render_click()
+    assert has_element?(view, ~s(#ob-crew[pattern="[A-Za-z][A-Za-z0-9_-]{0,39}|[0-9a-f]{64}"]))
+
+    view |> element("#close_dialog, button[phx-click='close_dialog']") |> render_click()
+    view |> element("#open-board-btn") |> render_click()
+    view |> element("#hand-over-btn") |> render_click()
+
+    assert has_element?(
+             view,
+             ~s(#ho-crew[pattern="[A-Za-z][A-Za-z0-9_-]{0,39}|[0-9a-f]{64}"])
+           )
+  end
+
   test "open a board and queue a card through dialogs; a duplicate says why and what to do" do
     view = ladder()
     repo = "example-org/ladder" <> uniq()
