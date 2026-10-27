@@ -17,6 +17,12 @@ defmodule GuideCardLifecycle.CrewFacts.CrewFactSubscriber do
   @impl true
   def init(fact) when is_binary(fact), do: {:ok, fact}
 
+  # A subscription that names no fact could never accept one: every event would
+  # be refused as another fact's. Stop here rather than run a subscriber that
+  # can only say no; CrewFacts.subscriptions/0 always names one, so this is a
+  # wiring mistake, and not one to leave running quietly.
+  def init(no_fact), do: {:stop, {:no_fact_named, no_fact}}
+
   @impl true
   def handle_event(_topic, payload, _meta, fact) when is_map(payload) do
     _ = report(fact, CrewFacts.received(fact, payload))

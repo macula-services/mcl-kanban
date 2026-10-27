@@ -62,7 +62,7 @@ defmodule GuideCardLifecycle.CrewFacts do
   did not; `:already_observed` is the ordinary answer to a fact at a seq the
   board has already taken, from a replay or from the reconcile.
   """
-  @spec received(String.t(), map()) :: {:ok, map()} | {:error, atom() | term()}
+  @spec received(String.t(), map()) :: {:ok, map()} | {:error, term()}
   def received(topic_fact, wire) do
     with {:ok, %{fact: fact} = read} <- CrewFact.read(wire),
          :ok <- named_on_its_topic(fact, topic_fact),
