@@ -131,11 +131,24 @@ jobs:
       - name: Dialyzer
         run: mix dialyzer
 
+  # A dependency with a known published advisory fails this repository's CI, and
+  # its release: `image` needs it. The check itself lives in the called workflow
+  # (macula-io/macula-codebase-checks#11), pinned by full commit sha as the guard
+  # and attest calls are. An advisory is fixed, or waived in
+  # .github/advisories-waivers.txt as one dated, owned row that expires.
+  advisories:
+    name: Dependency advisories
+    permissions:
+      contents: read
+    uses: macula-io/macula-ci-images/.github/workflows/dependency-advisories.yml@83a76a358456bf2f7d6c919ad5e8fe7fd2162ce3
+    with:
+      ecosystem: elixir
+
   image:
     outputs:
       digest: ${{ steps.push.outputs.digest }}
     name: image (amd64)
-    needs: [guard, test]
+    needs: [guard, test, advisories]
     if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
     runs-on: ubuntu-latest
     permissions:
