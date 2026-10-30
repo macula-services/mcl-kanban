@@ -111,13 +111,13 @@
 <text class="t-desc" x="552" y="844">Actor.owner() through the same desks.</text>
 <rect class="b-mac" x="56" y="870" width="456" height="120" rx="10"/>
 <text class="t-code" x="72" y="898">mcl_om</text>
-<text class="t-type" x="72" y="916">[library, ~&gt; 1.4]</text>
+<text class="t-type" x="72" y="916">[library, ~&gt; 1.6]</text>
 <text class="t-desc" x="72" y="940">boot/1: loads the identity key, joins the</text>
 <text class="t-desc" x="72" y="956">realm, opens the QUIC pool, advertises the</text>
 <text class="t-desc" x="72" y="972">capabilities, serves /health on a socket.</text>
 <rect class="b-mac" x="536" y="870" width="456" height="120" rx="10"/>
 <text class="t-code" x="552" y="898">macula SDK</text>
-<text class="t-type" x="552" y="916">[library, ~&gt; 16.0, wire 1.0]</text>
+<text class="t-type" x="552" y="916">[library, ~&gt; 18.0, wire 1.0]</text>
 <text class="t-desc" x="552" y="940">QUIC transport, RPC dispatch to a named</text>
 <text class="t-desc" x="552" y="956">responder, and the sealed call path: its own</text>
 <text class="t-desc" x="552" y="972">calls are confidential: :required (PQ).</text>

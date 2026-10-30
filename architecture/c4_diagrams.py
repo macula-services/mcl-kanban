@@ -200,10 +200,10 @@ def components():
           ["Listens on 127.0.0.1:4010 by default; the", "box sets MCL_HTTP_IP=0.0.0.0, so it serves the",
            "LAN at :4010, no login. One LiveView,", "LadderLive. OwnerActions acts as",
            "Actor.owner() through the same desks."], code=True)
-    d.box("b-mac", 56, 870, 456, 120, "mcl_om", "[library, ~> 1.4]",
+    d.box("b-mac", 56, 870, 456, 120, "mcl_om", "[library, ~> 1.6]",
           ["boot/1: loads the identity key, joins the", "realm, opens the QUIC pool, advertises the",
            "capabilities, serves /health on a socket."], code=True)
-    d.box("b-mac", 536, 870, 456, 120, "macula SDK", "[library, ~> 16.0, wire 1.0]",
+    d.box("b-mac", 536, 870, 456, 120, "macula SDK", "[library, ~> 18.0, wire 1.0]",
           ["QUIC transport, RPC dispatch to a named", "responder, and the sealed call path: its own",
            "calls are confidential: :required (PQ)."], code=True)
     d.edge("M56 130H16V930H56"); d.text("t-rel", 30, 530, "calls mcl_om:boot/1", anchor="middle", rotate=-90)

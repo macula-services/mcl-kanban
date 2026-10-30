@@ -44,15 +44,24 @@ defmodule GuideCardLifecycle.CrewFacts do
   def topic(fact), do: CrewFact.topic(realm_name(), fact)
 
   @doc """
-  What the service subscribes to: one topic per fact, a subscriber per topic.
+  What the service subscribes to: one topic per fact, a subscriber per topic,
+  each declaring `sources => members` -- macula 18 refuses a subscription that
+  names no source (macula#147), and the producer here is the realm itself,
+  which is a member of the realm it serves.
+
   Empty while no realm key is configured, since nothing this board heard could
-  be verified (and a boot with no key runs no mesh pool at all).
+  be verified (and a boot with no key runs no mesh pool at all); `members` is
+  also refused outright in a pool that pinned no realm key, so the two agree.
   """
-  @spec subscriptions() :: [{String.t(), module(), term()}]
+  @spec subscriptions() :: [map()]
   def subscriptions do
     case RealmSignature.configured_key() do
-      {:ok, _key} -> for(fact <- CrewFact.facts(), do: {topic(fact), CrewFactSubscriber, fact})
-      {:error, _unset} -> []
+      {:ok, _key} ->
+        for fact <- CrewFact.facts(),
+            do: %{topic: topic(fact), module: CrewFactSubscriber, args: fact, sources: :members}
+
+      {:error, _unset} ->
+        []
     end
   end
 

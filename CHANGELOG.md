@@ -5,6 +5,28 @@ Versioning: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **On `mcl_om` 1.6 and macula 18, and every crew-fact subscription now says
+  who may deliver to it.** The floors move from `mcl_om ~> 1.4` / `macula
+  ~> 16.0` to `~> 1.6` / `~> 18.0` (mcl-om#41). The wire stays 1.0.
+  `subscriptions/0` returns subscriptions in mcl_om 1.6's shape — a map of
+  `topic`, `module`, `args` and `sources` — because macula 18 refuses a
+  subscription that names no source (macula#147). Each of the five crew-fact
+  topics names `sources => members`: the producer is the realm itself, which
+  is a member of the realm it serves.
+
+  **This narrows the crew topics.** Before, the subscription ran no source
+  check at all, so any publisher reached the board. Nothing was accepted on
+  that basis — the ML-DSA signature against the pinned realm key is what is
+  believed, and it still is — but the SDK now also refuses a publisher the
+  realm never admitted, before the handler runs.
+
+  The procedures are unchanged and already satisfy macula 18's other rule:
+  each of the 39 names `auth => open` beside `confidential => required`, so
+  any identified caller may ask and every call still crosses a station as
+  ciphertext.
+
 ## [0.7.0] - 2026-10-26
 
 ### Added
