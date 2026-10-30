@@ -142,6 +142,14 @@ realm knows the crew after all, and the crew's seq is kept, so a replay of an
 old admission re-enlists nobody. With no `MCL_REALM_KEY`, the board subscribes
 to nothing and reconciles nothing.
 
+The subscriptions accept crew facts from one node only: the realm's own
+publishing node, named by `MCL_CREW_FACT_PUBLISHER`. Not "any realm member" --
+the realm's node is not a member of the realm it serves, so that declaration
+would refuse every fact and leave the board listening to nothing with a green
+health (macula-io/macula-realm#168). The pin is what keeps a stranger from
+speaking for the realm; the signature against `MCL_REALM_KEY` is still what
+makes a fact true.
+
 ## Signed approvals
 
 A crew's yes to a push, a tag or a planning gate is a record on the card that
@@ -211,6 +219,7 @@ either one failing reports `degraded`, naming it (`read_model`, `event_store`).
 | `MCL_IDENTITY_KEY_PATH` | `/etc/mcl/secrets/identity.key` | the service's node key, generated on first boot |
 | `MCL_REALM_NAME` | `io.macula` | the realm; its tag is derived |
 | `MCL_REALM_KEY` | | the realm's public signing key, hex; without it, no mesh |
+| `MCL_CREW_FACT_PUBLISHER` | | the realm's own publishing node, 32-byte node id in hex; the one node the board accepts crew facts from |
 | `MCL_HTTP_IP`, `MCL_HTTP_PORT` | `127.0.0.1`, `4010` | the UI, which acts as the owner. Run the container on the host's network so the box's loopback is the only way in; never publish it on a bridge |
 | `MCL_HTTP_ORIGINS` | | extra socket origins (`//localhost:5010`) for a tunnel on another local port; only local origins are accepted by default |
 | `SECRET_KEY_BASE` | | signs the LiveView socket; required |

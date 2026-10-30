@@ -7,20 +7,28 @@ Versioning: [SemVer](https://semver.org/).
 
 ### Changed
 
-- **On `mcl_om` 1.6 and macula 18, and every crew-fact subscription now says
-  who may deliver to it.** The floors move from `mcl_om ~> 1.4` / `macula
-  ~> 16.0` to `~> 1.6` / `~> 18.0` (mcl-om#41). The wire stays 1.0.
+- **On `mcl_om` 1.6 and macula 18, and every crew-fact subscription now names
+  the node that publishes them.** The floors move from `mcl_om ~> 1.4` /
+  `macula ~> 16.0` to `~> 1.6` / `~> 18.0` (mcl-om#41). The wire stays 1.0.
   `subscriptions/0` returns subscriptions in mcl_om 1.6's shape — a map of
   `topic`, `module`, `args` and `sources` — because macula 18 refuses a
-  subscription that names no source (macula#147). Each of the five crew-fact
-  topics names `sources => members`: the producer is the realm itself, which
-  is a member of the realm it serves.
+  subscription that names no source (macula#147).
 
-  **This narrows the crew topics.** Before, the subscription ran no source
-  check at all, so any publisher reached the board. Nothing was accepted on
-  that basis — the ML-DSA signature against the pinned realm key is what is
-  believed, and it still is — but the SDK now also refuses a publisher the
-  realm never admitted, before the handler runs.
+  The source is `{nodes, [<the realm's own publishing node>]}`, read from
+  `MCL_CREW_FACT_PUBLISHER`, and **not** `members`. `members` admits a
+  publisher only when it holds a realm member endorsement in its own DHT slot,
+  and the realm's own node has none: nothing admits a realm into itself, so
+  `members` would refuse every crew fact before a handler ran, silently, with
+  this board's health green. That is macula-io/macula-realm#168, proven live on
+  both realms on 2026-10-30 — 183 endorsements in `io.macula` and 2 in
+  `net.beam-campus`, none of them the realm's own publishing node, while every
+  ordinary publisher that this fleet relies on holds exactly one.
+
+  Pinning the node is narrower than `members` and right for a topic the realm
+  is the only producer of, but it is a pin: it changes when the realm's box is
+  rebuilt, and the board then needs the new id, exactly as it needs the new key.
+  An unconfigured publisher means no subscriptions at all and a warning naming
+  the variable, rather than a board that listens and hears nothing.
 
   The procedures are unchanged and already satisfy macula 18's other rule:
   each of the 39 names `auth => open` beside `confidential => required`, so

@@ -13,6 +13,8 @@ defmodule GuideCardLifecycle.CrewFacts do
   # colludes, so the signature is the whole authority (R4).
   @moduledoc false
 
+  require Logger
+
   alias GuideCardLifecycle.Actor
   alias GuideCardLifecycle.CrewAggregate
   alias GuideCardLifecycle.CrewFacts.{CrewFact, CrewFactGate, CrewFactSubscriber, RealmSignature}
@@ -44,26 +46,85 @@ defmodule GuideCardLifecycle.CrewFacts do
   def topic(fact), do: CrewFact.topic(realm_name(), fact)
 
   @doc """
-  What the service subscribes to: one topic per fact, a subscriber per topic,
-  each declaring `sources => members` -- macula 18 refuses a subscription that
-  names no source (macula#147), and the producer here is the realm itself,
-  which is a member of the realm it serves.
+  The realm's own publishing node: the mesh node the realm service publishes
+  its facts from, from `MCL_CREW_FACT_PUBLISHER` (32-byte node id, hex, with or
+  without a `0x`), read rather than written down here because this repository
+  is public and a node id is lab infrastructure.
 
-  Empty while no realm key is configured, since nothing this board heard could
-  be verified (and a boot with no key runs no mesh pool at all); `members` is
-  also refused outright in a pool that pinned no realm key, so the two agree.
+  It is the PINNED PUBLISHER, not a membership check, and that is on purpose:
+  the realm's node is not a member of the realm it serves. Nothing admits a
+  realm into itself -- admission is a device's first proven request, an admin's
+  act or a client binding, and the realm never makes a request to itself -- so
+  `sources => members` reads an empty endorsement slot and refuses every crew
+  fact before a subscriber's handler runs, silently (macula-io/macula-realm#168,
+  proven live on both realms on 2026-10-30).
+
+  `{nodes, [id]}` costs no lookup and never expires, and it is strictly narrower
+  than `members`: exactly the one node the realm publishes from, on a topic the
+  realm is the only producer of.
+  """
+  @spec configured_publisher() ::
+          {:ok, binary()}
+          | {:error, :crew_fact_publisher_unset | :crew_fact_publisher_not_a_node_id}
+  def configured_publisher, do: node_id(Application.get_env(:mcl_om, :crew_fact_publisher))
+
+  @doc """
+  What the service subscribes to: one topic per fact, a subscriber per topic,
+  each naming the realm's own publishing node as its source. macula 18 refuses
+  a subscription that names no source (macula#147).
+
+  Empty while the realm key or the publishing node is unconfigured: with no key
+  nothing this board heard could be verified (and a boot with no key runs no
+  mesh pool at all), and with no node the board would be declaring a source it
+  cannot name. Both say which variable is missing rather than going quiet.
   """
   @spec subscriptions() :: [map()]
   def subscriptions do
-    case RealmSignature.configured_key() do
-      {:ok, _key} ->
-        for fact <- CrewFact.facts(),
-            do: %{topic: topic(fact), module: CrewFactSubscriber, args: fact, sources: :members}
-
-      {:error, _unset} ->
-        []
+    with {:ok, _key} <- RealmSignature.configured_key(),
+         {:ok, publisher} <- configured_publisher() do
+      for fact <- CrewFact.facts(),
+          do: %{
+            topic: topic(fact),
+            module: CrewFactSubscriber,
+            args: fact,
+            sources: {:nodes, [publisher]}
+          }
+    else
+      {:error, reason} -> not_subscribed(reason)
     end
   end
+
+  # A missing pin is not a reason to stop the board -- it renders, it answers
+  # the web UI, and the reconcile still asks the realm about the crews it
+  # knows -- but it IS a reason to say so once, loudly, instead of running with
+  # no crew facts and a green /health.
+  defp not_subscribed(reason) do
+    Logger.warning(
+      "the board subscribes to no crew facts: #{inspect(reason)} " <>
+        "(MCL_REALM_KEY and MCL_CREW_FACT_PUBLISHER, see the README)"
+    )
+
+    []
+  end
+
+  defp node_id(""), do: {:error, :crew_fact_publisher_unset}
+  defp node_id(nil), do: {:error, :crew_fact_publisher_unset}
+
+  # 32 bytes, hex, as a node id is written everywhere else on this mesh. A
+  # leading `0x` is accepted because that is how one is printed.
+  defp node_id("0x" <> hex), do: node_id(hex)
+
+  defp node_id(hex) when is_binary(hex) do
+    with true <- byte_size(hex) == 64,
+         true <- hex =~ ~r/\A[0-9a-fA-F]+\z/,
+         {:ok, node} <- Base.decode16(hex, case: :mixed) do
+      {:ok, node}
+    else
+      _malformed -> {:error, :crew_fact_publisher_not_a_node_id}
+    end
+  end
+
+  defp node_id(_unset), do: {:error, :crew_fact_publisher_unset}
 
   @doc """
   A crew fact off the wire, on the topic that names it. Returns

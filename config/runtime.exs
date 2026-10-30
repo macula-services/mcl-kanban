@@ -65,6 +65,12 @@ config :mcl_om,
   # The realm's public signing key, hex. Unset in a local dev or test boot,
   # which then runs with no mesh pool.
   realm_key: System.get_env("MCL_REALM_KEY", ""),
+  # The realm's own publishing node, 32-byte node id in hex: the mesh node the
+  # realm service publishes its crew facts from. The subscriptions name it
+  # rather than `members`, because the realm's node is not a member of the realm
+  # it serves (macula-io/macula-realm#168). Read from here and never written
+  # into this repository, which is public.
+  crew_fact_publisher: System.get_env("MCL_CREW_FACT_PUBLISHER", ""),
   crew_unknown_limit: crew_unknown_limit
 
 # THE READ MODEL: one sqlite file beside the store. WAL lets the queries read

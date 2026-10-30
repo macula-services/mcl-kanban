@@ -9,7 +9,9 @@ the owner's one LiveView on `:4010` -- loopback by default, and on the LAN where
 box sets `MCL_HTTP_IP=0.0.0.0`. It calls nothing outside the mesh, and it
 publishes no topics. It subscribes to the realm's five crew facts, one topic
 each, and once a minute calls the realm's `identity/crew_standing_v1` for every
-crew it knows (#40); both are off while `MCL_REALM_KEY` is unset.
+crew it knows (#40); the subscription half is also off while
+`MCL_CREW_FACT_PUBLISHER` is unset, since the board accepts those facts from
+one node -- the realm's own publishing node -- and cannot name it otherwise.
 
 ## Level 1: system context
 
@@ -51,7 +53,7 @@ signed `v*` release by digest (`edge/gitops/release-targets`:99-100), and a push
 | `MclKanbanWeb.Endpoint` | Phoenix 1.8, Bandit | Listens on `127.0.0.1:4010` by default; the box sets `MCL_HTTP_IP=0.0.0.0`, so it also serves the LAN at `:4010`, with no login. Serves one LiveView, `LadderLive`; `OwnerActions` acts as `Actor.owner()` through the same desks the mesh uses |
 | `mcl_om` | library, `~> 1.6` | `boot/1`: loads the identity key, joins the realm, opens the QUIC pool through the stations, advertises the declared capabilities (each naming `auth`), starts the declared subscriptions (each naming `sources`), serves `/health` on a Unix socket |
 | macula SDK | library, `~> 18.0`, wire 1.0 | QUIC transport, RPC dispatch to a responder that answers by name, and the sealed call path: its own calls are `confidential: :required`, so one in the clear is refused before a responder sees it. A procedure advertised with no `auth`, and a subscription made with no `sources`, are both refused |
-| Host environment | read at boot; the image sets four defaults | `MCL_DATA_DIR`, `MCL_IDENTITY_KEY_PATH`, `MCL_HTTP_IP`, `MCL_HTTP_PORT` (baked into the image as `ENV`), `MCL_REALM_NAME`, `MCL_REALM_KEY`, `MCL_HTTP_ORIGINS` (extra socket origins; widens `check_origin` beyond the local defaults), `SECRET_KEY_BASE`, `MCL_COOKIE` |
+| Host environment | read at boot; the image sets four defaults | `MCL_DATA_DIR`, `MCL_IDENTITY_KEY_PATH`, `MCL_HTTP_IP`, `MCL_HTTP_PORT` (baked into the image as `ENV`), `MCL_REALM_NAME`, `MCL_REALM_KEY`, `MCL_CREW_FACT_PUBLISHER` (the realm's own publishing node, the one source its crew facts are accepted from), `MCL_HTTP_ORIGINS` (extra socket origins; widens `check_origin` beyond the local defaults), `SECRET_KEY_BASE`, `MCL_COOKIE` |
 
 `config/runtime.exs` derives the realm tag from `MCL_REALM_NAME` and enables
 `kem_advertise`, so a caller seals to this node's KEM key. `bin/start` runs
